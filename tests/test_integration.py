@@ -8,7 +8,6 @@ stay fast (~5s per test on CPU).
 Run: uv run pytest tests/test_integration.py -v
 """
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -81,9 +80,7 @@ class TestTrainStep:
         neg = torch.randn(5, 10)
         layer.train_step(pos, neg)
 
-        assert not torch.equal(w_before, layer.linear.weight.data), (
-            "Weights should change after train_step"
-        )
+        assert not torch.equal(w_before, layer.linear.weight.data), "Weights should change after train_step"
 
     def test_returned_activations_are_detached(self):
         """Returned activations should not carry gradients."""
@@ -158,9 +155,14 @@ class TestObservePipeline:
         data = compute_observers(model, test_dl, "cpu")
 
         expected_observers = [
-            "ff_goodness", "max_softmax", "logit_margin",
-            "entropy", "nll", "activation_norm",
-            "active_ratio", "act_entropy",
+            "ff_goodness",
+            "max_softmax",
+            "logit_margin",
+            "entropy",
+            "nll",
+            "activation_norm",
+            "active_ratio",
+            "act_entropy",
         ]
         for name in expected_observers:
             assert name in data["observers"], f"Missing observer: {name}"
@@ -182,9 +184,9 @@ class TestObservePipeline:
 
         # Add probe and class_similarity (as run_once does)
         probe = fit_probe(model, train_dl, "cpu")
-        data["observers"]["probe_confidence"] = probe.predict_proba(
-            data["per_layer_acts"][-1].numpy()
-        ).max(axis=1)
+        data["observers"]["probe_confidence"] = probe.predict_proba(data["per_layer_acts"][-1].numpy()).max(
+            axis=1
+        )
 
         # Correlation suite
         corr = correlation_suite(data)
@@ -197,7 +199,10 @@ class TestObservePipeline:
         # Intervention (with training-data ranking)
         tr_acts, tr_labels = collect_activations(model, train_dl, "cpu")
         intervention = intervention_curves(
-            model, test_dl, data, "cpu",
+            model,
+            test_dl,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
             ranking_acts=tr_acts,

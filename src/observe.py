@@ -184,7 +184,7 @@ def class_similarity_score(test_acts, predictions, prototypes):
     """Per-example cosine similarity to predicted class prototype, averaged across layers."""
     preds = torch.from_numpy(predictions).long()
     total = torch.zeros(test_acts[0].size(0))
-    for la, protos in zip(test_acts, prototypes):
+    for la, protos in zip(test_acts, prototypes, strict=True):
         pred_protos = protos[preds]
         total += F.cosine_similarity(la, pred_protos, dim=1)
     return (total / len(test_acts)).numpy()
@@ -204,6 +204,93 @@ def collect_activations(model, loader, device):
                 all_acts[i].append(a.cpu())
             all_labels.append(y)
     return [torch.cat(a) for a in all_acts], torch.cat(all_labels).numpy()
+
+
+# ---------------------------------------------------------------------------
+# Observer head (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+class ObserverHead(nn.Module):
+    """Small MLP that reads BP activations and outputs a scalar quality score."""
+
+    def __init__(self, input_dim, hidden_dim=64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, x):
+        return self.net(x).squeeze(-1)
+
+
+def compute_loss_residuals(losses, margins, norms):
+    """Remove the component of per-example loss explained by confidence proxies.
+
+    Fits OLS: loss = a * margin + b * norm + c
+    Returns the residual (what confidence cannot predict).
+    """
+    X = np.column_stack([margins, norms, np.ones(len(margins))])
+    coef, _, _, _ = np.linalg.lstsq(X, losses, rcond=None)
+    return losses - X @ coef
+
+
+def train_observer_head(model, head, loader, device, epochs=20, lr=1e-3):
+    """Train observer head on frozen BP activations to predict loss residuals.
+
+    Collects all training activations, computes the component of per-example
+    loss not explained by logit margin and activation norm, then trains the
+    head to predict that residual from activations alone.
+    """
+    model.eval()
+    all_acts, all_logits, all_losses = [], [], []
+    criterion = nn.CrossEntropyLoss(reduction="none")
+
+    with torch.inference_mode():
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            acts = model.get_activations(x)
+            logits = model.head(acts[-1])
+            losses = criterion(logits, y)
+            all_acts.append(acts[-1].cpu())
+            all_logits.append(logits.cpu())
+            all_losses.append(losses.cpu())
+
+    acts_t = torch.cat(all_acts)
+    logits_t = torch.cat(all_logits)
+    losses_np = torch.cat(all_losses).numpy()
+
+    # Confidence metrics for residual computation
+    sorted_logits = logits_t.sort(dim=1, descending=True).values
+    margins = (sorted_logits[:, 0] - sorted_logits[:, 1]).numpy()
+    norms = acts_t.norm(dim=1).numpy()
+
+    # Loss residuals: what confidence can't explain
+    residuals = compute_loss_residuals(losses_np, margins, norms)
+    residuals_t = torch.from_numpy(residuals).float()
+
+    # Train
+    head.to(device)
+    head.train()
+    opt = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=1e-4)
+    dataset = torch.utils.data.TensorDataset(acts_t, residuals_t)
+    dl = torch.utils.data.DataLoader(dataset, batch_size=512, shuffle=True)
+
+    for ep in range(epochs):
+        tot = n = 0
+        for batch_x, batch_y in dl:
+            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+            pred = head(batch_x)
+            loss = F.mse_loss(pred, batch_y)
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            opt.step()
+            tot += loss.item()
+            n += 1
+        if (ep + 1) % 5 == 0 or ep == 0:
+            print(f"    ObsHead ep {ep + 1:3d}/{epochs}  mse={tot / n:.6f}")
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +326,7 @@ def train_bp_auxiliary(model, loader, epochs, bp_lr, device, n_cls, ff_weight=0.
             neg_acts = model.get_activations(overlay_label(x, wrong_labels(y, n_cls), n_cls))
 
             ff_loss = torch.zeros(1, device=device)
-            for pos_h, neg_h in zip(pos_acts, neg_acts):
+            for pos_h, neg_h in zip(pos_acts, neg_acts, strict=True):
                 pos_g = (pos_h**2).mean(dim=1)
                 neg_g = (neg_h**2).mean(dim=1)
                 ff_loss = ff_loss + (
@@ -286,7 +373,7 @@ def train_bp_denoise(model, loader, epochs, bp_lr, device, ff_weight=0.1, thresh
             neg_acts = model.get_activations(neg_x)
 
             ff_loss = torch.zeros(1, device=device)
-            for pos_h, neg_h in zip(pos_acts, neg_acts):
+            for pos_h, neg_h in zip(pos_acts, neg_acts, strict=True):
                 pos_g = (pos_h**2).mean(dim=1)
                 neg_g = (neg_h**2).mean(dim=1)
                 ff_loss = ff_loss + (
@@ -323,6 +410,8 @@ DIRECTION = {
     "active_ratio": -1,
     "act_entropy": -1,
     "class_similarity": 1,
+    "observer_head": 1,
+    "random_head": 1,
 }
 
 
@@ -366,7 +455,14 @@ def correlation_suite(data: ObserverData):
     # The key diagnostic: does this observer carry independent signal?
     controls = [logit_margin, act_norm]
     results["partial_vs_loss"] = {}
-    for name in ["ff_goodness", "active_ratio", "act_entropy", "class_similarity"]:
+    for name in [
+        "ff_goodness",
+        "active_ratio",
+        "act_entropy",
+        "class_similarity",
+        "observer_head",
+        "random_head",
+    ]:
         if name in obs:
             r_part, p_part = partial_spearman(obs[name], losses, controls)
             results["partial_vs_loss"][name] = {"rho": r_part, "p": p_part}
@@ -651,6 +747,31 @@ def run_once(args, seed):
         data["per_layer_acts"], data["predictions"], prototypes
     )
 
+    # Observer head (Phase 4): trained to predict loss residuals on frozen BP
+    if args.mode == "observer_head":
+        print("  Training observer head...")
+        head = ObserverHead(args.hidden, hidden_dim=64)
+        train_observer_head(model, head, tr_dl, args.device)
+        head.eval()
+        with torch.inference_mode():
+            test_acts = data["per_layer_acts"][-1].to(args.device)
+            data["observers"]["observer_head"] = head(test_acts).cpu().numpy()
+
+        # Random-head baseline: same architecture, random weights, no training
+        random_head = ObserverHead(args.hidden, hidden_dim=64).to(args.device)
+        random_head.eval()
+        with torch.inference_mode():
+            data["observers"]["random_head"] = random_head(test_acts).cpu().numpy()
+
+        print(
+            f"    observer_head: mean={data['observers']['observer_head'].mean():.4f}, "
+            f"std={data['observers']['observer_head'].std():.4f}"
+        )
+        print(
+            f"    random_head:   mean={data['observers']['random_head'].mean():.4f}, "
+            f"std={data['observers']['random_head'].std():.4f}"
+        )
+
     # Correlation
     print("  Correlation suite...")
     corr = correlation_suite(data)
@@ -717,6 +838,8 @@ def print_summary(all_runs, args):
         "active_ratio",
         "act_entropy",
         "class_similarity",
+        "observer_head",
+        "random_head",
     ]
     print(f"\n  {'Observer':<20} {'rho(loss)':>10} {'AUC':>8} {'within-class':>14}")
     print(f"  {'-' * 54}")
@@ -729,7 +852,14 @@ def print_summary(all_runs, args):
 
     # Partial correlations (all structural observers)
     print("\n  Partial correlations (vs loss | margin, norm):")
-    structural_obs = ["ff_goodness", "active_ratio", "act_entropy", "class_similarity"]
+    structural_obs = [
+        "ff_goodness",
+        "active_ratio",
+        "act_entropy",
+        "class_similarity",
+        "observer_head",
+        "random_head",
+    ]
     for obs_name in structural_obs:
         rhos = [
             r["correlation"]["partial_vs_loss"].get(obs_name, {}).get("rho", float("nan")) for r in all_runs
@@ -786,7 +916,7 @@ def main():
     P.add_argument(
         "--mode",
         default="pure_observer",
-        choices=["pure_observer", "auxiliary", "denoise"],
+        choices=["pure_observer", "auxiliary", "denoise", "observer_head"],
         help="Wiring mode",
     )
     P.add_argument("--ff-weight", type=float, default=0.1, help="Weight for FF auxiliary loss")

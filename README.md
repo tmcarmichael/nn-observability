@@ -2,41 +2,45 @@
 
 Can a neural network's internal structure tell you something about its decisions that output confidence does not? This project tests that question systematically: compare representations under different training rules, then try to read decision-quality signals from BP activations using passive observers and co-training.
 
-**Thesis:** Structural legibility and faithful observability are distinct problems. Local training rules produce measurably different representation structure (Phase 1), but passive observers on vanilla BP activations do not recover reliable per-example signal beyond confidence (Phases 2-3). Observability may need to be explicitly trained rather than passively extracted.
+**Thesis:** Passive hand-designed observers fail to read decision-quality signal from BP activations beyond confidence. But supervised observer heads on frozen activations succeed: binary-trained linear projections recover stable independent signal (partial correlation +0.28, seed agreement +0.36). The bottleneck was the observer learning objective, not the absence of readable structure.
 
 ## At a glance
 
 **Core question:** Can internal structure in standard BP models be read in a way that adds information beyond output confidence?
 
-**Current answer:** Phase 1 confirms that training objective changes representation structure. Phase 2 shows that passive observer readouts on BP activations mostly collapse after proper controls. A denoising auxiliary produces a small positive signal. The picture is not binary: per-example faithfulness mostly fails, but FF-derived signals still identify causally important neurons under ablation, and denoising co-training hints that the sign of observability can be moved by explicit training.
-
-Checkpoint: Phase 1 established structural legibility. Phases 2-3 found that passive per-example observability mostly fails under proper controls. Phase 4 tests whether observability must be trained explicitly.
+**Current answer:** Yes. Frozen BP activations contain independent signal beyond confidence, but hand-designed statistics can't find it. A learned linear projection with binary supervision recovers a stable direction in activation space correlated with residual error.
 
 | Phase | Question | Result | Takeaway |
 |---|---|---|---|
 | **Phase 1** | Does training objective change representation structure? | **Yes** | FF induces sparser, lower-rank, more concentrated representations than BP, independent of overlay and normalization confounders. |
 | **Phase 2a** | Does FF goodness faithfully read BP activations? | **No** | `sum(h²)` collapses into a confidence proxy after controlling for logit margin and activation norm. |
-| **Phase 2b** | Can co-training rescue the observer? | **Weakly** | Denoising produced a small positive partial correlation, but with much weaker raw predictive utility than confidence. |
-| **Phase 3** | Do alternative structural observers recover independent signal? | **No** | After controlling for confidence proxies, all passive structural observers collapse to near-zero partial correlation. |
-| **Phase 4** | Must observability be explicitly trained? | Planned | Motivated by Phase 2b's small denoising foothold and Phase 3's negative result. |
+| **Phase 2b** | Can co-training rescue the observer? | **Weakly** | Denoising produced a small positive partial correlation (+0.07), but with much weaker raw predictive utility. |
+| **Phase 3** | Do alternative hand-designed observers work? | **No** | All passive structural observers collapse to near-zero partial correlation under proper controls. |
+| **Phase 4** | Can a learned observer head recover signal? | **Yes** | Binary-trained linear heads on frozen BP activations: partial corr +0.28, seed agreement +0.36. |
 
 **Key findings:**
 
 - FF changes representation structure in real, confounder-controlled ways.
-- Passive observers on vanilla BP activations do not recover reliable per-example signal beyond confidence.
-- FF-based signals fail as per-example monitors but still identify causally important neurons under ablation. Per-example faithfulness and neuron-level causal salience are distinct properties.
-- Denoising co-training produces a small positive foothold, suggesting explicit observer shaping may move the sign.
+- Hand-designed passive observers (energy, sparsity, entropy, prototype similarity) all fail under partial correlation controls.
+- Learned observer heads on frozen BP activations recover stable independent signal. Binary supervision materially improves both partial correlation and seed agreement over regression targets.
+- Most of the signal is linearly accessible. The missed direction was a learnable projection, not nonlinear structure.
 
-**Bottom line:** Structural legibility is real. Per-example observability mostly fails under passive readout. Neuron-level causal targeting still works. Explicit observability training is the next test.
+**Bottom line:** The signal is present in frozen activations, but the hand-designed observers tested in Phases 2-3 failed to recover it. Learned binary observer heads find stable independent projections. The next test is whether this transfers to transformers.
 
 ## Why this matters
 
-The results so far split "observability" into two problems that behave differently.
+Most deployed "observability" systems train binary classifiers on activations to predict output categories (misuse, PII, deception). These achieve high accuracy but measure something different from internal observation: they predict what the model will output, using activations as a cheaper feature space. Whether they capture anything about the decision process that output confidence doesn't already reveal is untested.
 
-- **Per-example monitoring** (does the observer flag likely errors on individual inputs?) mostly fails under passive readout. After controlling for confidence, no structural observer on vanilla BP activations adds meaningful signal. If per-example monitoring is possible at all, it likely requires explicit training rather than passive extraction.
-- **Neuron-level causal targeting** (does the observer identify neurons whose removal disproportionately harms performance?) still works. FF-derived signals and magnitude rankings both pick out causally important neurons, even though they fail as per-example monitors. This axis of observability survives the controls that kill the first.
+This matters because unfaithful probes are evadable. Models can maintain identical input-output behavior while rearranging activations into subspaces that defeat monitors. A faithful observer that reads causal structure should be harder to evade, because the model can't rearrange its causal computation without changing its outputs.
 
-The practical implication: if per-example observability requires a second training objective rather than passive readout, the problem shifts from observer design to architecture design. The question becomes whether a BP main path can coexist with an explicitly trained observer path without degrading capability.
+This project tests the harder question: can you learn anything from activations that output confidence doesn't already tell you? The partial correlation methodology (controlling for logit margin and activation norm) is the key distinction. Every phase applies this control, which is why the headline numbers are small. They measure the independent component, not the total correlation.
+
+The results split "observability" into two problems that behave differently.
+
+- **Per-example monitoring** (does the observer flag likely errors on individual inputs?) fails under passive hand-designed readouts. But learned observer heads on frozen activations recover stable signal (Phase 4). The problem was not absence of information but absence of the right projection.
+- **Neuron-level causal targeting** (does the observer identify neurons whose removal disproportionately harms performance?) works with simple statistics. FF-derived signals and magnitude rankings pick out causally important neurons, even though they fail as per-example monitors.
+
+The practical implication: per-example observability requires learning the right projection from activations, not just computing hand-designed statistics. The next question is whether the learned projections that work on MLPs have analogs in transformer residual streams.
 
 ### The faithfulness bar
 
@@ -84,13 +88,13 @@ Probes are trained on training-set activations and evaluated on test-set activat
 
 Do these structural differences hold as models grow? Five configurations from 200K to 8M parameters.
 
-| Size | Params | Acc (FF-BP) | Dead frac (FF-BP) | Eff rank (FF-BP) |
-|---|---|---|---|---|
-| XS (2x256) | 0.3M | -3.4% | +4.0% | -54 |
-| S (4x500) | 1.1M | -3.7% | +17.0% | -120 |
-| M (4x1000) | 3.8M | -3.0% | +19.8% | -183 |
-| L (6x1000) | 5.8M | -4.1% | +13.0% | -115 |
-| XL (8x1000) | 7.8M | -5.4% | +10.4% | -70 |
+| Size | Params | Acc (FF-BP) | Dead frac (FF-BP) | Eff rank (FF-BP) | Sparsity (FF-BP) |
+|---|---|---|---|---|---|
+| XS (2x256) | 0.3M | -3.4% | +4.0% | -54 | +49.6% |
+| S (4x500) | 1.1M | -3.7% | +17.0% | -120 | +6.5% |
+| M (4x1000) | 3.8M | -3.0% | +19.8% | -183 | -0.6% |
+| L (6x1000) | 5.8M | -4.1% | +13.0% | -115 | -1.7% |
+| XL (8x1000) | 7.8M | -5.4% | +10.4% | -70 | -1.2% |
 
 FF consistently trades accuracy for more concentrated representations. Two patterns persist across all five sizes: higher dead neuron fraction and lower effective rank. The accuracy gap is stable at 3-5%, widening slightly at XL. Sparsity, the most visually striking difference at small scale (FF 89% vs BP 40% at XS), converges as BP models grow deeper and is negligible by M.
 
@@ -153,11 +157,33 @@ Phase 2 showed FF goodness fails as a passive observer. The natural follow-up: m
 
 All partial correlations are near zero or negative after controlling for logit margin and activation norm. No passive structural observer on vanilla BP activations recovers meaningful independent signal. The raw Spearman correlations are strong, but the independent component vanishes under proper controls. Structural legibility (Phase 1) is real, but per-example observability beyond confidence has not been achieved through passive readout.
 
-## Phase 4: from passive readout to trained observability (planned)
+## Phase 4: learned observer heads (complete)
 
-Passive observers on standard BP activations do not recover reliable independent per-example signal beyond confidence. The next step is to test whether observability must be explicitly trained as a separate channel rather than passively extracted from existing representations.
+Phase 3 showed hand-designed observers fail. Phase 4 asks: can a trained function extract what passive statistics miss?
 
-The denoising result provides a small foothold: explicit shaping of the goodness signal during training produced the only positive partial correlation. Phase 4 scales this idea from a single auxiliary loss term to a dedicated observer architecture.
+A small observer head is trained on frozen BP activations to predict per-example loss residuals (the component of loss not explained by logit margin and activation norm). Four variants tested across 3 seeds:
+
+| Variant | Partial corr | Seed agreement | Architecture |
+|---|---|---|---|
+| MLP regression | +0.139 +/- 0.090 | -0.06 | 500→64→1, MSE on residuals |
+| Linear regression | +0.177 +/- 0.068 | +0.12 | 500→1, MSE on residuals |
+| **MLP binary** | **+0.302 +/- 0.078** | **+0.35** | 500→64→1, BCE on residual sign |
+| **Linear binary** | **+0.276 +/- 0.070** | **+0.36** | 500→1, BCE on residual sign |
+| Random MLP (baseline) | +0.046 +/- 0.115 | - | Untrained 500→64→1 |
+
+Binary supervision materially improves both partial correlation and seed agreement over regression targets. Regression heads find signal but disagree across seeds (agreement near zero). Binary heads converge on a similar decision boundary instead of carving up a noisy continuous residual landscape differently per seed.
+
+Most of the signal is linearly accessible. Linear binary (+0.276) captures ~91% of what MLP binary (+0.302) finds. Phase 3 tested four specific linear directions (energy, sparsity, entropy, prototype similarity) and the informative direction is a different learned linear combination. The random MLP baseline (+0.046) confirms the learned component is real.
+
+### Weight vector inspection
+
+The three linear binary heads (one per seed) have orthogonal weight vectors (pairwise cosine similarity ~0.01) and zero top-neuron overlap (0/20 shared between seeds 42 and 43). Yet their example rankings correlate moderately (+0.30 to +0.45). Different projections through activation space produce correlated scores because the informative property is not a single direction. It is a distributed geometric property of the activation manifold that multiple linear projections can partially recover.
+
+Weight mass is spread across 250+ of 500 neurons (not concentrated in a few), and the learned directions are orthogonal to the uniform vector (cosine < 0.1), ruling out activation energy as the underlying signal. The observer signal is subspace-like: each seed finds a different functionally useful projection of the same underlying activation geometry.
+
+### Phase 5: transformer transfer (planned)
+
+Linear binary observer heads are the primary candidate for GPT-2 124M validation. The methodology (partial correlations after controlling for output-derived baselines) transfers directly. The question is whether the geometric property discovered on MLP activations has an analog in transformer residual streams.
 
 ## Limitations
 
@@ -169,7 +195,7 @@ The denoising result provides a small foothold: explicit shaping of the goodness
 
 ## What this is not
 
-This is not a claim that FF is better than BP, or that FF should replace BP, or that FF is the right observability objective. FF is one instance of a local, layer-wise training signal. The hypothesis is broader: there may exist a class of objectives whose purpose is to produce legible internal representations, and those objectives can run alongside the capability objective without constraining it. The remaining question is whether an explicitly trained observer path can succeed where passive readout did not.
+This is not a claim that FF is better than BP, or that FF should replace BP, or that FF is the right observability objective. FF is one instance of a local, layer-wise training signal that served as the starting point for a controlled investigation of what makes internal representations readable. The main finding is that learned observer heads recover signal that hand-designed statistics miss, and that the informative structure is a distributed geometric property rather than a single interpretable feature. The remaining question is whether this transfers to transformer architectures.
 
 ## How to run
 
@@ -201,7 +227,10 @@ Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase
 
 - `src/train.py` Phase 1: trains FF, BP, and ablation variants, computes confounder-controlled metrics
 - `src/scale.py` Phase 1: scaling study across 5 model sizes
-- `src/observe.py` Phase 2: observer faithfulness testing (pure observer, auxiliary, denoise modes; intervention curves)
+- `src/observe.py` Phases 2-4: observer faithfulness testing, learned observer heads
+- `src/observer_variants.py` Phase 4: observer head variant sweep (linear/MLP, regression/binary)
+- `src/seed_agreement.py` Phase 4: cross-seed ranking agreement test
+- `src/inspect_weights.py` Phase 4: weight vector analysis for linear binary heads
 - `analyze.ipynb` generates Phase 1 figures and analysis from result JSON files
 - `results/` result data (JSON, committed)
 - `assets/` generated charts (committed for README)

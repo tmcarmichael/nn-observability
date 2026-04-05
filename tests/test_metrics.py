@@ -384,6 +384,5 @@ class TestRegimeSweep:
 
             rho, _ = partial_spearman(noise, loss, [margin, norm])
             assert abs(rho) < 0.1, (
-                f"Null signal at {acc:.0%} accuracy should have near-zero "
-                f"partial corr, got {rho:.3f}"
+                f"Null signal at {acc:.0%} accuracy should have near-zero partial corr, got {rho:.3f}"
             )

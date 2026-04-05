@@ -40,7 +40,10 @@ class TestRankingActs:
 
         # Should not raise
         result = intervention_curves(
-            model, loader, data, "cpu",
+            model,
+            loader,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
         )
@@ -55,12 +58,18 @@ class TestRankingActs:
         data = {"per_layer_acts": acts, "labels": labels}
 
         result_default = intervention_curves(
-            model, loader, data, "cpu",
+            model,
+            loader,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
         )
         result_explicit = intervention_curves(
-            model, loader, data, "cpu",
+            model,
+            loader,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
             ranking_acts=acts,
@@ -68,10 +77,9 @@ class TestRankingActs:
         )
 
         for strategy in ["ff_targeted", "magnitude", "sparsity"]:
-            assert (
-                result_default["layers"]["0"][strategy]
-                == result_explicit["layers"]["0"][strategy]
-            ), f"{strategy}: explicit ranking_acts == test data should match default"
+            assert result_default["layers"]["0"][strategy] == result_explicit["layers"]["0"][strategy], (
+                f"{strategy}: explicit ranking_acts == test data should match default"
+            )
 
     def test_different_ranking_data_changes_ordering(self):
         """Neuron rankings from different data should produce different
@@ -91,14 +99,20 @@ class TestRankingActs:
         ranking_b[0][:, -5:] = 10.0
 
         result_a = intervention_curves(
-            model, loader, data, "cpu",
+            model,
+            loader,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
             ranking_acts=ranking_a,
             ranking_labels=np.zeros(50, dtype=int),
         )
         result_b = intervention_curves(
-            model, loader, data, "cpu",
+            model,
+            loader,
+            data,
+            "cpu",
             fractions=(0.0, 0.5),
             n_random_trials=1,
             ranking_acts=ranking_b,
@@ -110,6 +124,4 @@ class TestRankingActs:
         # so the resulting accuracy should differ.
         a_targeted = result_a["layers"]["0"]["ff_targeted"]
         b_targeted = result_b["layers"]["0"]["ff_targeted"]
-        assert a_targeted != b_targeted, (
-            "Opposite ranking patterns should produce different ablation results"
-        )
+        assert a_targeted != b_targeted, "Opposite ranking patterns should produce different ablation results"
