@@ -563,6 +563,136 @@ def run_5d(model, tokenizer, device, train_docs, test_docs, max_tokens_train, ma
 
 
 # ---------------------------------------------------------------------------
+# Phase 6a: early flagging
+# ---------------------------------------------------------------------------
+
+
+def run_6a(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_train, max_tokens_test):
+    """6a: Mid-layer flagging vs output-confidence flagging.
+
+    Train observer at layer 8. On test data, flag the top-k% of tokens by
+    observer score (predicted high residual error). Compare against flagging
+    by low max-softmax (output confidence). Measure:
+      - Precision: fraction of flagged tokens that actually have above-median loss
+      - Exclusive catches: errors the observer flags that confidence does not
+    """
+    print(f"\n{'=' * 60}")
+    print("  6a: Early flagging (layer 8 observer vs output confidence)")
+    print(f"{'=' * 60}")
+
+    # Collect data
+    print("  Collecting layer 8 train activations...")
+    train_data = collect_layer_data(model, tokenizer, train_docs, 8, device, max_tokens_train)
+    print("  Collecting layer 8 test activations...")
+    test_data = collect_layer_data(model, tokenizer, test_docs, 8, device, max_tokens_test)
+
+    # Also need layer 11 test data for the output-confidence baseline
+    # (max_softmax from test_data is computed at layer 8's logit position,
+    # but we want the model's actual output confidence)
+    print("  Collecting layer 11 test activations (for output confidence)...")
+    test_11 = collect_layer_data(model, tokenizer, test_docs, 11, device, max_tokens_test)
+
+    # Align: both should have the same number of positions from the same docs
+    n_test = min(len(test_data["losses"]), len(test_11["losses"]))
+    test_losses = test_data["losses"][:n_test]
+    output_softmax = test_11["max_softmax"][:n_test]
+    test_acts_8 = test_data["activations"][:n_test]
+
+    # Binary ground truth: above-median loss = "error-prone"
+    median_loss = np.median(test_losses)
+    is_high_loss = test_losses > median_loss
+
+    flag_rates = [0.05, 0.10, 0.20, 0.30]
+    all_results = []
+
+    for seed in seeds:
+        print(f"\n  --- Seed {seed} ---")
+        head = train_linear_binary(train_data, seed=seed)
+        head.eval()
+        with torch.inference_mode():
+            obs_scores = head(test_acts_8).squeeze(-1).numpy()
+
+        seed_result = {"flag_rates": flag_rates, "observer": {}, "confidence": {}, "exclusive": {}}
+
+        for rate in flag_rates:
+            k = int(n_test * rate)
+
+            # Observer flags: highest observer scores (predicts high residual = error-prone)
+            obs_threshold = np.sort(obs_scores)[-k]
+            obs_flagged = obs_scores >= obs_threshold
+
+            # Confidence flags: lowest softmax (least confident = error-prone)
+            conf_threshold = np.sort(output_softmax)[k]
+            conf_flagged = output_softmax <= conf_threshold
+
+            # Precision: fraction of flagged tokens that are actually high-loss
+            obs_precision = is_high_loss[obs_flagged].mean() if obs_flagged.sum() > 0 else 0.0
+            conf_precision = is_high_loss[conf_flagged].mean() if conf_flagged.sum() > 0 else 0.0
+
+            # Exclusive catches: high-loss tokens flagged by observer but NOT by confidence
+            obs_exclusive = obs_flagged & ~conf_flagged & is_high_loss
+            conf_exclusive = conf_flagged & ~obs_flagged & is_high_loss
+            # Combined: flag if EITHER flags
+            combined_flagged = obs_flagged | conf_flagged
+            combined_precision = is_high_loss[combined_flagged].mean() if combined_flagged.sum() > 0 else 0.0
+
+            seed_result["observer"][rate] = float(obs_precision)
+            seed_result["confidence"][rate] = float(conf_precision)
+            seed_result["exclusive"][rate] = {
+                "observer_only": int(obs_exclusive.sum()),
+                "confidence_only": int(conf_exclusive.sum()),
+                "combined_precision": float(combined_precision),
+            }
+
+            print(
+                f"    flag {rate:.0%}: observer prec={obs_precision:.3f}  "
+                f"confidence prec={conf_precision:.3f}  "
+                f"obs-exclusive catches={obs_exclusive.sum()}"
+            )
+
+        all_results.append(seed_result)
+
+    # Aggregate
+    print(f"\n  6a RESULT (averaged over {len(seeds)} seeds):")
+    print(f"  {'Flag rate':<12} {'Observer prec':>14} {'Confidence prec':>16} {'Obs-exclusive':>14}")
+    print(f"  {'-' * 58}")
+
+    for rate in flag_rates:
+        obs_p = np.mean([r["observer"][rate] for r in all_results])
+        conf_p = np.mean([r["confidence"][rate] for r in all_results])
+        excl = np.mean([r["exclusive"][rate]["observer_only"] for r in all_results])
+        print(f"  {rate:<12.0%} {obs_p:>14.3f} {conf_p:>16.3f} {excl:>14.0f}")
+
+    # Key question: does the observer catch errors confidence misses?
+    total_exclusive_10 = np.mean([r["exclusive"][0.10]["observer_only"] for r in all_results])
+    total_tokens = n_test
+    print(
+        f"\n  At 10% flag rate: observer catches {total_exclusive_10:.0f} high-loss tokens "
+        f"that confidence misses ({total_exclusive_10 / total_tokens:.1%} of test set)"
+    )
+
+    combined_10 = np.mean([r["exclusive"][0.10]["combined_precision"] for r in all_results])
+    obs_10 = np.mean([r["observer"][0.10] for r in all_results])
+    conf_10 = np.mean([r["confidence"][0.10] for r in all_results])
+    print(
+        f"  Combined (flag if either flags): precision={combined_10:.3f} "
+        f"(obs={obs_10:.3f}, conf={conf_10:.3f})"
+    )
+
+    if total_exclusive_10 > 100:
+        print("\n  --> Observer catches substantial errors that confidence misses")
+    else:
+        print("\n  --> Observer adds limited exclusive coverage")
+
+    return {
+        "seeds": seeds,
+        "n_test_tokens": n_test,
+        "median_loss": float(median_loss),
+        "per_seed": all_results,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -577,7 +707,8 @@ def main():
     P.add_argument("--baselines", action="store_true", help="Run 5c hand-designed baselines")
     P.add_argument("--output-control", action="store_true", help="Run 5e full-output control")
     P.add_argument("--intervention", action="store_true", help="Run 5d intervention")
-    P.add_argument("--all", action="store_true", help="Run 5a-5e")
+    P.add_argument("--flagging", action="store_true", help="Run 6a early flagging")
+    P.add_argument("--all", action="store_true", help="Run 5a-5e + 6a")
     a = P.parse_args()
 
     if a.device == "auto":
@@ -636,16 +767,27 @@ def main():
             model, tokenizer, a.device, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test
         )
 
+    # 6a: early flagging
+    if a.flagging or a.all:
+        results["6a"] = run_6a(
+            model, tokenizer, a.device, seeds, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test
+        )
+
     elapsed = time.time() - t0
     print(f"\nTotal time: {elapsed:.0f}s")
 
-    # Save
+    # Save (merge with existing results to avoid overwriting prior runs)
     out = Path(__file__).resolve().parent.parent / "results"
     out.mkdir(exist_ok=True)
     out_file = out / "transformer_observe.json"
+    existing = {}
+    if out_file.exists():
+        with open(out_file) as f:
+            existing = json.load(f)
+    existing.update(results)
     with open(out_file, "w") as f:
-        json.dump(results, f, indent=2)
-    print(f"Saved {out_file}")
+        json.dump(existing, f, indent=2)
+    print(f"Saved {out_file} (keys: {sorted(existing.keys())})")
 
 
 if __name__ == "__main__":

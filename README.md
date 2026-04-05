@@ -1,8 +1,8 @@
 # Learned Observers Recover Decision-Quality Signal from Frozen Activations
 
-Can a neural network's internal activations tell you something about its decisions that output confidence does not? This project tests that question through a controlled experimental arc: first establishing that hand-designed activation statistics fail under proper controls, then showing that learned linear projections with binary supervision succeed, and finally demonstrating that the finding transfers from MLPs to transformers.
+Can a neural network's internal activations tell you something about its decisions that output confidence does not? This project tests that question through a controlled experimental arc: establishing that hand-designed activation statistics fail under proper controls, showing that learned linear projections with binary supervision succeed, demonstrating that the finding transfers from MLPs to transformers, and proving the signal catches errors that output monitoring cannot.
 
-**Thesis:** Frozen neural network activations contain decision-quality signal independent of output confidence, but no hand-designed statistic recovers it. Learned linear projections with binary supervision do. This finding transfers from MLPs to transformers with no loss in signal strength and a qualitative gain in stability (partial correlation +0.283, seed agreement +0.99 on GPT-2 124M). The bottleneck was the observer learning objective, not the absence of readable structure.
+**Thesis:** Frozen neural network activations contain decision-quality signal independent of output confidence, but no hand-designed statistic recovers it. Learned linear projections with binary supervision do. On GPT-2 124M, the signal peaks at layer 8, retains +0.099 partial correlation after controlling for the full output distribution, and catches 4,368 high-loss tokens (5.2% of test data) that output confidence does not flag. The bottleneck was the observer learning objective, not the absence of readable structure.
 
 ## At a glance
 
@@ -18,6 +18,7 @@ Can a neural network's internal activations tell you something about its decisio
 | **Phase 3** | Do alternative hand-designed observers work? | **No** | All passive structural observers collapse to near-zero partial correlation under proper controls. |
 | **Phase 4** | Can a learned observer head recover signal? | **Yes** | Binary-trained linear heads on frozen BP activations: partial corr +0.28, seed agreement +0.36. |
 | **Phase 5** | Does this transfer to transformers? | **Yes** | On frozen GPT-2 124M: partial corr +0.283 +/- 0.001, seed agreement +0.99. Signal peaks at layer 8 of 12. Layer 8 retains +0.099 after controlling for the full output distribution. |
+| **Phase 6** | Does the signal catch errors confidence misses? | **Yes** | At 10% flag rate, the layer 8 observer catches 4,368 high-loss tokens (5.2% of test set) that output confidence does not flag. |
 
 **Key findings:**
 
@@ -25,9 +26,10 @@ Can a neural network's internal activations tell you something about its decisio
 - Binary supervision is the unlock. Regression-trained observer heads find signal but disagree across seeds. Binary heads (predict residual sign) produce both stronger partial correlation and stable convergence.
 - The signal is linearly accessible. A learned linear projection recovers ~91% of what an MLP head finds. Phase 3 tested four specific linear directions and the informative one is a different combination entirely.
 - On GPT-2 124M, the signal peaks at layer 8 of 12. After controlling for the best possible output-derived prediction (a learned layer 11 predictor), layer 8 retains +0.099 partial correlation. This is not early access to output information. It is a different signal that the output does not carry.
+- At 10% flag rate on GPT-2, the layer 8 observer catches 4,368 high-loss tokens that output confidence does not flag (5.2% of test set, 87% precision). The observer is complementary to confidence, not redundant.
 - FF induces real structural differences (sparser, lower-rank representations) independent of confounders, but these structural properties do not translate to per-example observability.
 
-**Bottom line:** Frozen transformer activations contain decision-quality signal independent of output confidence. No standard activation statistic finds it. A learned linear binary projection does, three independent initializations converge to the same answer, and mid-layer signal carries information the output distribution does not.
+**Bottom line:** A single linear projection at layer 8 of GPT-2, computed before the model finishes its forward pass, identifies thousands of error-prone tokens invisible to output-confidence monitoring. The signal is stable (+0.99 seed agreement), independent of output (+0.099 after full-output control), and practically useful (4,368 exclusive catches at 10% flag rate).
 
 ## Why this matters
 
@@ -248,6 +250,23 @@ The layer 11 predictor absorbs about two-thirds of the signal. But +0.099 surviv
 
 This changes the framing from monitoring (read internal state for signals the output already carries) to observability (read internal state for signals the output does not carry at all).
 
+## Phase 6: practical application (complete)
+
+### Phase 6a: early flagging
+
+Does the layer 8 signal catch errors that output confidence misses? A token is defined as high-loss if its per-position cross-entropy exceeds the median cross-entropy on the test set. Train the observer at layer 8, flag the top-k% of test tokens by observer score, and compare against flagging by low max-softmax.
+
+| Flag rate | Observer precision | Confidence precision | Observer-exclusive catches |
+|---|---|---|---|
+| 5% | 0.915 | 1.000 | 2,798 |
+| 10% | 0.869 | 0.968 | 4,368 |
+| 20% | 0.808 | 0.879 | 6,074 |
+| 30% | 0.761 | 0.816 | 6,740 |
+
+Confidence has higher standalone precision at every flag rate. But the observer catches a large, non-overlapping set of errors. At 10% flag rate, 4,368 high-loss tokens (5.2% of the test set) are flagged by the observer but not by confidence. These are tokens where the model is confident but wrong, or where the layer 8 representation signals fragility that the output distribution masks.
+
+Combining both methods (flag if either flags) gives 0.904 precision on a wider net at 10% flag rate. The observer is not a replacement for confidence monitoring. It is a complementary channel that reads different information, available before the model finishes its forward pass.
+
 ## Limitations
 
 - Tested on GPT-2 124M. Whether the signal persists, strengthens, or vanishes at billion-parameter scale is unknown.
@@ -290,7 +309,8 @@ just transformer-sweep      # Phase 5b: layer sweep (all 12 layers)
 just transformer-baselines  # Phase 5c: hand-designed baselines on GPT-2
 just transformer-intervention # Phase 5d: neuron ablation intervention
 just transformer-output-control # Phase 5e: full-output control
-just transformer-all        # Phase 5: all transformer experiments (5a-5e)
+just transformer-flagging   # Phase 6a: early flagging experiment
+just transformer-all        # All transformer experiments (5a-6a)
 ```
 
 Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase 2 generates intervention dose-response plots in `assets/`. Phase 5 requires the `transformer` dependency group (installed automatically by `uv run --extra transformer`).
@@ -303,7 +323,7 @@ Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase
 - `src/observer_variants.py` Phase 4: observer head variant sweep (linear/MLP, regression/binary)
 - `src/seed_agreement.py` Phase 4: cross-seed ranking agreement test
 - `src/inspect_weights.py` Phase 4: weight vector analysis for linear binary heads
-- `src/transformer_observe.py` Phase 5: GPT-2 124M observer heads, layer sweep, baselines
+- `src/transformer_observe.py` Phases 5-6: GPT-2 124M observer heads, layer sweep, baselines, flagging
 - `analyze.ipynb` generates Phase 1 figures and analysis from result JSON files
 - `results/` result data (JSON, committed)
 - `assets/` generated charts (committed for README)

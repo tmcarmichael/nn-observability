@@ -67,7 +67,11 @@ transformer-intervention seeds=default_seeds device=default_device:
 transformer-output-control seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --output-control --seeds {{seeds}} --device {{device}}
 
-# Phase 5: all transformer experiments (5a-5e)
+# Phase 6a: early flagging (layer 8 observer vs output confidence)
+transformer-flagging seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --flagging --seeds {{seeds}} --device {{device}}
+
+# All transformer experiments (5a-6a)
 transformer-all seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --all --seeds {{seeds}} --device {{device}}
 
