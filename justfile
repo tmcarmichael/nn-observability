@@ -75,6 +75,10 @@ transformer-flagging seeds=default_seeds device=default_device:
 transformer-all seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --all --seeds {{seeds}} --device {{device}}
 
+# Phase 7: SAE comparison (7a + 7c + 7d)
+sae-compare seeds=default_seeds device=default_device:
+    uv run --extra transformer src/sae_compare.py --all --seeds {{seeds}} --device {{device}}
+
 # Run all experiments (alias for reproduce)
 all device=default_device:
     just reproduce {{device}}
@@ -99,6 +103,7 @@ reproduce device=default_device:
     just seed-agreement {{device}}
     just inspect-weights {{device}}
     just transformer-all 3 {{device}}
+    just sae-compare 3 {{device}}
 
 # Lint source files
 lint:

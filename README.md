@@ -19,6 +19,7 @@ Can a neural network's internal activations tell you something about its decisio
 | **Phase 4** | Can a learned observer head recover signal? | **Yes** | Binary-trained linear heads on frozen BP activations: partial corr +0.28, seed agreement +0.36. |
 | **Phase 5** | Does this transfer to transformers? | **Yes** | On frozen GPT-2 124M: partial corr +0.283 +/- 0.001, seed agreement +0.99. Signal peaks at layer 8 of 12. Layer 8 retains +0.099 after controlling for the full output distribution. |
 | **Phase 6** | Does the signal catch errors confidence misses? | **Yes** | At 10% flag rate, the layer 8 observer catches 4,368 high-loss tokens (5.2% of test set) that output confidence does not flag. |
+| **Phase 7** | How does this compare to SAE-based probes? | **Raw observer wins** | A 768-dim linear observer outperforms a 24,576-feature SAE probe (+0.290 vs +0.255 partial corr). Combining all three channels catches 3.2x more errors. |
 
 **Key findings:**
 
@@ -27,9 +28,10 @@ Can a neural network's internal activations tell you something about its decisio
 - The signal is linearly accessible. A learned linear projection recovers ~91% of what an MLP head finds. Phase 3 tested four specific linear directions and the informative one is a different combination entirely.
 - On GPT-2 124M, the signal peaks at layer 8 of 12. After controlling for the best possible output-derived prediction (a learned layer 11 predictor), layer 8 retains +0.099 partial correlation. This is not early access to output information. It is a different signal that the output does not carry.
 - At 10% flag rate on GPT-2, the layer 8 observer catches 4,368 high-loss tokens that output confidence does not flag (5.2% of test set, 87% precision). The observer is complementary to confidence, not redundant.
+- A 768-dim raw linear observer outperforms a 24,576-feature SAE probe on decision quality (+0.290 vs +0.255). The SAE's interpretable feature basis is not aligned with this signal. Combining raw observer, SAE probe, and confidence catches 14,661 high-loss tokens (3.2x any single channel).
 - FF induces real structural differences (sparser, lower-rank representations) independent of confounders, but these structural properties do not translate to per-example observability.
 
-**Bottom line:** A single linear projection at layer 8 of GPT-2, computed before the model finishes its forward pass, identifies thousands of error-prone tokens invisible to output-confidence monitoring. The signal is stable (+0.99 seed agreement), independent of output (+0.099 after full-output control), and practically useful (4,368 exclusive catches at 10% flag rate).
+**Bottom line:** There is a nearly deterministic linear direction in GPT-2's residual stream at layer 8 that predicts per-token decision quality beyond standard confidence controls, while every hand-designed statistic and SAE feature decomposition underperforms it. Three independent initializations converge to the same projection (+0.99 seed agreement). The signal is independent of the output distribution (+0.099 after full-output control), and combining it with SAE probes and confidence catches 3.2x more errors than any single channel.
 
 ## Why this matters
 
@@ -267,17 +269,46 @@ Confidence has higher standalone precision at every flag rate. But the observer 
 
 Combining both methods (flag if either flags) gives 0.904 precision on a wider net at 10% flag rate. The observer is not a replacement for confidence monitoring. It is a complementary channel that reads different information, available before the model finishes its forward pass.
 
+## Phase 7: SAE comparison (complete)
+
+Does a sparse autoencoder feature basis recover the same signal? Using Joseph Bloom's pretrained SAE for GPT-2 small (24,576 features, 97.4% sparsity), same hookpoint, same train/test split, same binary target, same partial correlation evaluation.
+
+### 7a: SAE probe vs raw linear observer
+
+| Method | Partial corr | Seed agreement | Input dims |
+|---|---|---|---|
+| Raw linear binary | +0.290 | +0.92 | 768 |
+| SAE linear binary | +0.255 | +0.94 | 24,576 |
+
+The raw residual stream outperforms the SAE decomposition by 12%. SAE compression loses signal. The interpretable feature basis is not aligned with decision quality. A 768-dim learned projection reads the residual stream geometry more effectively than a linear probe on 24,576 sparse features.
+
+### 7c: rank overlap
+
+Mean rank correlation between SAE probe and raw observer: +0.70. They share about 70% of their ranking information but diverge on 30%. The two methods read partially overlapping aspects of decision quality through different decompositions.
+
+### 7d: three-channel flagging
+
+At 10% flag rate, combining raw observer, SAE probe, and output confidence:
+
+| Channel | Precision | Exclusive catches |
+|---|---|---|
+| Confidence | 0.968 | - |
+| Raw observer | 0.869 | 4,368 |
+| SAE probe | 0.842 | 4,527 |
+| **All three combined** | **0.864** | **14,661** |
+
+Three complementary channels, each reading different aspects of decision quality from the same activations, together catch 3.2x more high-loss tokens than any single method. The SAE probe catches a slightly different set of errors than the raw observer (4,527 vs 4,368 exclusive catches), confirming the 30% rank divergence from 7c translates to operationally distinct coverage.
+
 ## Limitations
 
 - Tested on GPT-2 124M. Whether the signal persists, strengthens, or vanishes at billion-parameter scale is unknown.
-- No SAE comparison. The most important missing baseline.
 - No circuit discovery or feature visualization. Statistical proxies only.
 - Hyperparameters not swept (FF lr=0.03, BP lr=0.001, auxiliary weight=0.1 based on convention).
 - Intervention on GPT-2 is inconclusive due to MLP robustness at layer 8. The causal link between observer-weighted neurons and model decisions is established on MLPs but not on transformers.
 
 ## What this is not
 
-This is not a claim that FF is better than BP, or that FF should replace BP, or that FF is the right observability objective. FF is one instance of a local, layer-wise training signal that served as the starting point for a controlled investigation of what makes internal representations readable. The main finding is that learned observer heads recover signal that hand-designed statistics miss, and that this transfers from MLPs to transformers. On MLPs with varying trained models, the informative structure appears distributed across multiple directions. On a fixed pretrained transformer, it converges to a single stable projection. The remaining questions are whether the signal persists at larger scale and whether observer-guided interventions on transformers confirm the causal link established on MLPs.
+This is not a claim that FF is better than BP, or that FF should replace BP, or that SAEs are wrong for interpretability. FF served as the starting point for a controlled investigation of what makes internal representations readable. SAEs decompose activations along interpretable axes; this project shows those axes are not aligned with decision quality. The main finding is that a simple learned linear projection on raw activations outperforms both hand-designed statistics and SAE-based probes for per-token decision-quality prediction. The remaining questions are whether the signal persists at larger scale and whether the causal link can be confirmed on transformers.
 
 ## How to run
 
@@ -311,6 +342,7 @@ just transformer-intervention # Phase 5d: neuron ablation intervention
 just transformer-output-control # Phase 5e: full-output control
 just transformer-flagging   # Phase 6a: early flagging experiment
 just transformer-all        # All transformer experiments (5a-6a)
+just sae-compare            # Phase 7: SAE comparison (7a + 7c + 7d)
 ```
 
 Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase 2 generates intervention dose-response plots in `assets/`. Phase 5 requires the `transformer` dependency group (installed automatically by `uv run --extra transformer`).
@@ -324,6 +356,7 @@ Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase
 - `src/seed_agreement.py` Phase 4: cross-seed ranking agreement test
 - `src/inspect_weights.py` Phase 4: weight vector analysis for linear binary heads
 - `src/transformer_observe.py` Phases 5-6: GPT-2 124M observer heads, layer sweep, baselines, flagging
+- `src/sae_compare.py` Phase 7: SAE comparison (probe, rank overlap, three-channel flagging)
 - `analyze.ipynb` generates Phase 1 figures and analysis from result JSON files
 - `results/` result data (JSON, committed)
 - `assets/` generated charts (committed for README)

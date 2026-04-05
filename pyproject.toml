@@ -19,6 +19,7 @@ dependencies = [
 transformer = [
     "transformers>=4.40.0",
     "datasets>=2.18.0",
+    "sae-lens>=4.0.0",
 ]
 
 [dependency-groups]
@@ -54,7 +55,7 @@ ignore = [
 max-complexity = 25
 
 [tool.ruff.lint.isort]
-known-first-party = ["train", "observe", "scale", "observer_variants", "seed_agreement", "inspect_weights", "transformer_observe"]
+known-first-party = ["train", "observe", "scale", "observer_variants", "seed_agreement", "inspect_weights", "transformer_observe", "sae_compare"]
 
 [tool.ruff.format]
 quote-style = "double"
