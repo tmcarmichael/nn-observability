@@ -6,15 +6,19 @@
 
 Can a neural network's internal activations tell you something about its decisions that output confidence does not?
 
-The short answer is yes, but only with the right readout. Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) collapse to near-zero independent signal once you control for output confidence. A learned linear projection trained with binary supervision on frozen activations recovers a stable direction that output confidence does not fully capture. Across GPT-2 124M to 1.5B, independent initializations produce highly consistent token rankings (seed agreement 0.88-0.95), and the component of signal that survives after controlling for a strong output-side predictor increases across this scaling curve (+0.099 at 124M, +0.174 at 1.5B). The result also replicates across architecture families: Qwen 2.5 1.5B (+0.284) and Llama 3.2 1B (+0.250) show the same pattern under the same evaluation protocol.
-
-This project builds to that conclusion through nine phases, each motivated by the previous result's failure or limitation. Phases 1-3 systematically close off the easy paths. Phases 4-7 show what does work and what it buys in practice. Phase 8 tests the signal across the GPT-2 family. Phase 9 tests cross-family replication.
+The short answer is yes, but only with the right readout. Hand-designed activation statistics collapse to near-zero independent signal once you control for output confidence. A learned linear projection trained with binary supervision on frozen activations recovers a stable direction that output confidence does not fully capture. The signal replicates across GPT-2, Qwen, and Llama, decomposes into a small number of named components, and is causally supported by mid-layer attention computation with subadditive redundancy across layers.
 
 ## At a glance
 
-**Core question:** Do frozen activations contain decision-quality signal independent of output confidence?
+**Instrument.** A standard supervised linear probe trained on frozen activations with binary supervision (predict whether token-level loss residual is positive after regressing out confidence).
 
-**Answer:** Yes. A learned linear projection with binary supervision recovers it under the same controls that cause hand-designed statistics to collapse. The signal is stable across GPT-2 124M to 1.5B (partial corr +0.279 to +0.290) and replicates across architecture families: Qwen 2.5 1.5B (+0.284), Llama 3.2 1B (+0.250). Output-controlled residuals are positive in all three families.
+**Validation.** The signal survives nonlinear deconfounding (+0.289 under a nonlinear MLP control), 20-seed statistical hardening (+0.282 +/- 0.001, CI [+0.282, +0.283]), and is stable across GPT-2 124M to 1.5B (partial corr +0.279 to +0.290).
+
+**Characterization.** The raw signal decomposes: ~48% confidence, ~16% distributional shape (entropy), ~7% geometric typicality, ~6% token frequency, ~23% unexplained by any tested control. The unexplained residual lives in the low-variance subspace of the activation manifold (top 10 PCs capture 3.7% of the observer direction) and builds monotonically from layer 0 to layer 8 before partially collapsing at the output layer.
+
+**Mechanistic support.** Mean-ablation patching localizes the signal to attention at layers 5-7 (peak at layer 6, residualized observer delta +0.156). Composition tests show subadditive redundancy across layers (combined effect of layers 5-8 attention is +0.148 vs +0.475 expected from individual ablations). Head-level analysis shows the signal is distributed across heads with no single head dominating.
+
+**Scope.** Replicates across three architecture families: GPT-2 (+0.290), Qwen 2.5 1.5B (+0.284), Llama 3.2 1B (+0.250). Output-controlled residuals positive in all three. Hand-designed baselines collapse in every family.
 
 | Phase | Question | Result | Takeaway |
 |---|---|---|---|
@@ -32,7 +36,7 @@ This project builds to that conclusion through nine phases, each motivated by th
 **Key findings:**
 
 - **The bottleneck is the training target, not the architecture.** Binary supervision (predict whether loss residual is positive) produces both stronger signal and stable convergence. Regression on continuous residuals finds signal but disagrees across seeds. Linear heads recover ~91% of what MLP heads find. Phase 3's four hand-designed directions all fail; the informative direction is a different learned combination entirely.
-- **The apparent gap beyond output confidence has identifiable structure.** About 48% of the raw signal is confidence, 16% is distributional shape (entropy), 7% is geometric typicality, and 6% is token frequency. The remaining ~23% resists all tested controls and lives in the low-variance subspace of the activation manifold. The output-independent component builds monotonically through mid-layer computation and partially collapses at the output layer. Across the GPT-2 scaling curve, this component increases: +0.099 (124M), +0.103 (355M), +0.164 (774M), +0.174 (1.5B).
+- **The apparent gap beyond output confidence has identifiable structure and causal support.** About 48% of the raw signal is confidence, 16% is distributional shape (entropy), 7% is geometric typicality, and 6% is token frequency. The remaining ~23% resists all tested controls and lives in the low-variance subspace of the activation manifold. Mean-ablation patching localizes the signal to attention at layers 5-7 with subadditive redundancy across layers. The output-independent component builds monotonically through mid-layer computation and partially collapses at the output layer. Across the GPT-2 scaling curve, this component increases: +0.099 (124M), +0.103 (355M), +0.164 (774M), +0.174 (1.5B).
 - **Multiple channels catch different errors.** At 10% flag rate, the observer catches 4,368 high-loss tokens confidence misses. An SAE probe catches a different 4,527. Each channel flags thousands of errors the others miss entirely. No single monitoring signal is sufficient.
 - FF induces real structural differences (sparser, lower-rank representations) independent of confounders, but these structural properties do not translate to per-example observability.
 
@@ -59,7 +63,7 @@ Observability was evaluated against three tests.
 
 - **Correlation.** Does the observer signal track decision-relevant metrics beyond what cheap baselines capture? *Passed across scale and families.* Partial correlation +0.250 to +0.290 across GPT-2, Qwen, and Llama, after controlling for confidence and activation norm (Phases 4-5, 8-9).
 - **Prediction.** Can the observer rank likely failures in a way that complements output confidence? *Passed on GPT-2 124M.* 4,368 exclusive high-loss catches at 10% flag rate (Phase 6). Three-channel monitoring catches substantially more errors than any single channel (Phase 7). Not yet tested at larger model sizes.
-- **Intervention.** Does removing the signal degrade performance? *Partial on transformers* (Phase 5f). Neuron ablation was inconclusive due to residual stream buffering (Phase 5d). Directional ablation shows weak but bidirectional causal evidence: removing the observer direction causes monotonic loss increase, and amplifying it preferentially helps observer-flagged tokens (3x targeting ratio). The observer direction is functionally relevant but not a dominant causal axis of output formation. (Phase 2 showed FF-targeted neuron ablation is more destructive than random on MLPs, but that is a different setup from the learned observer head.)
+- **Intervention.** Does removing the signal degrade performance? *Partial.* Directional ablation (Phase 5f) shows weak but bidirectional causal evidence (monotonic dose-response, 3x amplification targeting ratio). Mean-ablation patching localizes the signal to attention layers 5-7, with layer 6 showing the largest residualized effect (+0.156). Composition tests reveal subadditive redundancy: the signal is distributed across components, not reducible to a single circuit.
 
 ## Phase 1: structural comparison (complete)
 
@@ -382,6 +386,40 @@ The output-independent component builds monotonically from layer 0 to layer 8, p
 
 **Where the signal is strongest operationally.** The observer discriminates quality across the full confidence spectrum, with the strongest discrimination (+0.461 Spearman with loss) in the high-confidence, low-loss quadrant. The observer is not primarily a "confident error" detector. It reads fine-grained quality gradations even among tokens the model handles well.
 
+### Mechanistic localization
+
+Which model components causally support the observer signal? Mean-ablation patching (replacing each component's output with its dataset mean) at layers 0-8, measured by residualized observer score change (confidence shift partialled out) and loss change:
+
+| Layer | Attn (obs resid) | MLP (obs resid) | Attn (loss) | MLP (loss) |
+|---|---|---|---|---|
+| 0 | -0.18 | -0.95 | +0.56 | +3.91 |
+| 1 | +0.02 | -0.03 | +0.02 | +0.03 |
+| 2 | +0.05 | +0.01 | +0.06 | +0.07 |
+| 3 | +0.03 | +0.04 | +0.03 | +0.08 |
+| 4 | +0.06 | +0.07 | +0.04 | +0.10 |
+| 5 | +0.11 | +0.03 | +0.06 | +0.09 |
+| 6 | **+0.16** | +0.04 | +0.04 | +0.07 |
+| 7 | +0.14 | +0.00 | +0.07 | +0.05 |
+| 8 | +0.07 | -0.01 | +0.05 | +0.08 |
+
+Attention at layers 5-7 is the primary causal substrate, with layer 6 attention showing the largest residualized effect (+0.156). MLP contributions are smaller and concentrated at layers 3-4. Layer 0 effects reflect infrastructure damage (representation collapse), not localized signal removal.
+
+**Composition tests.** Ablating multiple components simultaneously tests whether the signal decomposes cleanly across layers:
+
+| Group | Combined effect | Expected (additive) | Interaction |
+|---|---|---|---|
+| attn 5+6 | +0.231 | +0.266 | -0.035 |
+| attn 7+8 | +0.125 | +0.210 | -0.085 |
+| attn 5-8 | +0.148 | +0.475 | -0.328 |
+| mlp 3+4 | +0.129 | +0.107 | +0.022 |
+| all mid | +0.110 | +0.582 | -0.472 |
+
+The signal is subadditive: ablating all four attention layers together produces less effect (+0.148) than the sum of individual ablations (+0.475). The layers carry partially redundant information. MLP pair 3+4 is nearly additive (+0.022 interaction), indicating those layers contribute independently.
+
+**Head-level analysis.** At layer 6 (the top attention layer), heads 6 and 7 show the largest effects (obs_resid -0.105 and +0.098) but in opposite directions. At layer 8, head 7 dominates (-0.102). No single head accounts for more than a fraction of any layer's total effect.
+
+The mechanistic picture: the observer signal is causally supported by a distributed, redundant computation primarily in attention layers 5-7, with a secondary MLP contribution at layers 3-4. The subadditive composition and distributed head-level effects indicate the signal is a geometric property emerging from collective mid-layer computation, not a single identifiable circuit.
+
 ## Phase 9: Cross-family replication (complete)
 
 Phase 8 established the signal across the GPT-2 family. Phase 9 tests whether it is a GPT-2-specific artifact or a broader property of pretrained decoder-only transformers. Same evaluation protocol: layer sweep, three-seed battery, output-controlled residual, and negative baselines (hand-designed observers, random head).
@@ -436,19 +474,17 @@ Across three independent architecture families (GPT-2, Qwen, Llama), the residua
 ## Limitations
 
 - Tested on GPT-2 (124M to 1.5B), Qwen 2.5 (0.5B, 1.5B), and Llama 3.2 (1B). All base models up to 1.5B. Whether the signal persists at frontier scale (8B+) or in instruction-tuned models is unknown.
-- No circuit discovery or feature visualization. Statistical proxies only.
+- Mechanistic analysis identifies the computational substrate (mid-layer attention, subadditive across layers) but does not isolate a minimal circuit or include feature visualization. The signal is distributed and redundant, which may be inherent to its nature rather than a limitation of the analysis.
 - Hyperparameters not swept (FF lr=0.03, BP lr=0.001, auxiliary weight=0.1 based on convention).
-- Causal evidence on transformers is partial. Directional ablation (Phase 5f) shows weak but bidirectional functional relevance; the observer direction is not a dominant causal axis of output formation.
-- Cross-domain transfer is implemented but not yet run. All results use WikiText-103.
+- Cross-domain transfer is domain-dependent: strong on code (+0.539), weak on web text (+0.086 cross-domain, +0.017 within-domain on GPT-2 124M). Larger-scale cross-domain testing (7B+) is in progress.
 
 ## Open questions
 
 Each of these is a separate project with different compute requirements and baselines.
 
-- **Frontier scale.** Phases 8-9 cover GPT-2, Qwen, and Llama up to 1.5B. Whether the signal persists at 8B+ would determine whether the finding is practically relevant for production-scale monitoring.
-- **Stronger causal evidence.** Phase 5f provides partial causal support (monotonic dose-response, amplification preferentially helps flagged tokens). Stronger designs (multi-direction projection, activation patching, path patching) could establish whether the observer direction is causally necessary for specific decisions, not just functionally correlated.
-- **Cross-domain transfer.** The cross-domain experiment tests WikiText-to-OpenWebText and WikiText-to-code transfer. Broader coverage (dialogue, reasoning, multilingual) would further characterize the signal's generality.
-- **Mechanism.** What is the learned direction actually encoding? Circuit-level analysis or feature visualization could connect the statistical finding to a mechanistic account.
+- **Frontier scale and cross-domain transfer.** Phases 8-9 cover up to 1.5B on WikiText. Whether the signal persists at 8B+ and whether the weak web-text transfer on GPT-2 124M improves at larger scale are active experiments (Qwen 7B comprehensive notebook).
+- **Circuit-level mechanism.** Mean-ablation patching localizes the signal to mid-layer attention with subadditive composition. Path patching, controlled-corruption datasets, and feature visualization could further isolate which specific attention computations produce the signal.
+- **Actionability.** Can the observer signal improve inference-time decisions (abstention, routing, adaptive compute)? This is the path from diagnostic to operational tool.
 
 ## How to run
 
