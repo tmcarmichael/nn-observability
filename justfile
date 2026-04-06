@@ -67,6 +67,10 @@ transformer-intervention seeds=default_seeds device=default_device:
 transformer-output-control seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --output-control --seeds {{seeds}} --device {{device}}
 
+# Phase 5f: directional ablation (residual stream projection)
+transformer-directional seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --directional-ablation --seeds {{seeds}} --device {{device}}
+
 # Phase 6a: early flagging (layer 8 observer vs output confidence)
 transformer-flagging seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --flagging --seeds {{seeds}} --device {{device}}
@@ -78,6 +82,26 @@ transformer-all seeds=default_seeds device=default_device:
 # Phase 7: SAE comparison (7a + 7c + 7d)
 sae-compare seeds=default_seeds device=default_device:
     uv run --extra transformer src/sae_compare.py --all --seeds {{seeds}} --device {{device}}
+
+# 7b: three-channel causal decomposition
+causal seeds=default_seeds device=default_device:
+    uv run --extra transformer src/sae_compare.py --causal --seeds {{seeds}} --device {{device}}
+
+# 20-seed statistical hardening with bootstrap CIs
+hardening device=default_device:
+    uv run --extra transformer src/transformer_observe.py --statistical-hardening --device {{device}}
+
+# Control sensitivity analysis (6 control specifications)
+control-sensitivity seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --control-sensitivity --seeds {{seeds}} --device {{device}}
+
+# Cross-domain transfer (WikiText → OpenWebText, code)
+cross-domain seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --cross-domain --seeds {{seeds}} --device {{device}}
+
+# Phase 8: scale characterization across GPT-2 family (124M → 1.5B)
+phase8 seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --scale --seeds {{seeds}} --device {{device}}
 
 # Run all experiments (alias for reproduce)
 all device=default_device:

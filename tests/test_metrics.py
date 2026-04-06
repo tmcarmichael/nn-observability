@@ -16,6 +16,57 @@ from observe import (
     correlation_suite,
     partial_spearman,
 )
+from transformer_observe import _deep_merge, bootstrap_ci
+
+# ---------------------------------------------------------------------------
+# bootstrap_ci
+# ---------------------------------------------------------------------------
+
+
+class TestBootstrapCI:
+    def test_known_distribution(self):
+        """CI of [1,2,3,4,5] mean should contain 3.0."""
+        lo, hi = bootstrap_ci([1, 2, 3, 4, 5])
+        assert lo < 3.0 < hi
+
+    def test_tight_ci_for_constant(self):
+        """CI of constant array should be a point."""
+        lo, hi = bootstrap_ci([5.0] * 100)
+        assert abs(lo - 5.0) < 0.01
+        assert abs(hi - 5.0) < 0.01
+
+    def test_wider_ci_for_high_variance(self):
+        """Higher variance should produce wider CI."""
+        lo_tight, hi_tight = bootstrap_ci([4.9, 5.0, 5.1] * 10)
+        lo_wide, hi_wide = bootstrap_ci([1.0, 5.0, 9.0] * 10)
+        assert (hi_wide - lo_wide) > (hi_tight - lo_tight)
+
+
+class TestDeepMerge:
+    def test_shallow_keys_preserved(self):
+        """Sibling keys should not be overwritten."""
+        base = {"5a": {"result": 1}, "5b": {"result": 2}}
+        update = {"5a": {"result": 3}}
+        merged = _deep_merge(base, update)
+        assert merged["5a"]["result"] == 3
+        assert merged["5b"]["result"] == 2
+
+    def test_nested_merge(self):
+        """Nested dicts should merge, not replace."""
+        base = {"8": {"models": {"gpt2": {"corr": 0.29}, "gpt2-xl": {"corr": 0.29}}}}
+        update = {"8": {"models": {"gpt2-medium": {"corr": 0.28}}}}
+        merged = _deep_merge(base, update)
+        assert "gpt2" in merged["8"]["models"]
+        assert "gpt2-xl" in merged["8"]["models"]
+        assert "gpt2-medium" in merged["8"]["models"]
+
+    def test_non_dict_overwrite(self):
+        """Non-dict values should be overwritten, not merged."""
+        base = {"5a": {"partial_corrs": [0.28, 0.28]}}
+        update = {"5a": {"partial_corrs": [0.29, 0.29, 0.29]}}
+        merged = _deep_merge(base, update)
+        assert merged["5a"]["partial_corrs"] == [0.29, 0.29, 0.29]
+
 
 # ---------------------------------------------------------------------------
 # partial_spearman

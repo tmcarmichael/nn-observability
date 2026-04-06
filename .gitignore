@@ -37,6 +37,7 @@ results/**/*.pkl
 # Claude
 CLAUDE.md
 .claude/
+.worktreeinclude
 
 # Generated charts (reproducible via analyze.ipynb)
 *.png
