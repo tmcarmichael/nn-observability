@@ -6,7 +6,7 @@ authors:
   - family-names: Carmichael
     given-names: Thomas
 license: MIT
-doi: "10.5281/zenodo.19435675"
+doi: "10.5281/zenodo.19435674"
 repository-code: "https://github.com/tmcarmichael/nn-observability"
 keywords:
   - neural network observability
