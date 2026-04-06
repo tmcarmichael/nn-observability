@@ -128,13 +128,15 @@ def run_7a(sae, train_data, test_data, seeds):
         print(f"  Seed {seed}: raw={raw_rho:+.4f}  SAE={sae_rho:+.4f}")
 
     # Seed agreement
+    seed_agreements = {}
     for label, results in [("raw", raw_results), ("SAE", sae_results)]:
         pairs = []
         for i in range(len(seeds)):
             for j in range(i + 1, len(seeds)):
                 r, _ = spearmanr(results[i]["scores"], results[j]["scores"])
                 pairs.append(r)
-        print(f"  {label} seed agreement: {np.mean(pairs):+.4f}")
+        seed_agreements[label] = float(np.mean(pairs))
+        print(f"  {label} seed agreement: {seed_agreements[label]:+.4f}")
 
     raw_mean = np.mean([r["rho"] for r in raw_results])
     sae_mean = np.mean([r["rho"] for r in sae_results])
@@ -150,8 +152,16 @@ def run_7a(sae, train_data, test_data, seeds):
         print("    --> Raw outperforms: SAE compression loses signal")
 
     return {
-        "raw": {"mean": float(raw_mean), "per_seed": [r["rho"] for r in raw_results]},
-        "sae": {"mean": float(sae_mean), "per_seed": [r["rho"] for r in sae_results]},
+        "raw": {
+            "mean": float(raw_mean),
+            "per_seed": [r["rho"] for r in raw_results],
+            "seed_agreement": seed_agreements["raw"],
+        },
+        "sae": {
+            "mean": float(sae_mean),
+            "per_seed": [r["rho"] for r in sae_results],
+            "seed_agreement": seed_agreements["SAE"],
+        },
         "raw_scores": [r["scores"].tolist() for r in raw_results],
         "sae_scores": [r["scores"].tolist() for r in sae_results],
     }

@@ -14,7 +14,7 @@ from train import BPNet, get_data, train_bp
 
 
 def main():
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     tr_dl, te_dl, in_dim, n_cls = get_data("mnist", 512, device)
     sizes = [in_dim] + [500] * 4
     seeds = [42, 43, 44]

@@ -35,10 +35,12 @@ from train import (
 def _synthetic_loaders(n=200, in_dim=784, n_cls=10, batch=100):
     """Tiny synthetic data matching MNIST dimensions."""
     torch.manual_seed(0)
-    X = torch.randn(n, in_dim)
-    Y = torch.randint(0, n_cls, (n,))
-    train_dl = DataLoader(TensorDataset(X, Y), batch_size=batch, shuffle=True)
-    test_dl = DataLoader(TensorDataset(X, Y), batch_size=batch)
+    X_train = torch.randn(n, in_dim)
+    Y_train = torch.randint(0, n_cls, (n,))
+    X_test = torch.randn(n, in_dim)
+    Y_test = torch.randint(0, n_cls, (n,))
+    train_dl = DataLoader(TensorDataset(X_train, Y_train), batch_size=batch, shuffle=True)
+    test_dl = DataLoader(TensorDataset(X_test, Y_test), batch_size=batch)
     return train_dl, test_dl, in_dim, n_cls
 
 

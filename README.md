@@ -1,127 +1,90 @@
 # Learned Observers Recover Decision-Quality Signal from Frozen Activations
 
-Can a neural network's internal activations tell you something about its decisions that output confidence does not? This project tests that question through a controlled experimental arc: establishing that hand-designed activation statistics fail under proper controls, showing that learned linear projections with binary supervision succeed, demonstrating that the finding transfers from MLPs to transformers, and proving the signal catches errors that output monitoring cannot.
+Can a neural network's internal activations tell you something about its decisions that output confidence does not?
 
-**Thesis:** Frozen neural network activations contain decision-quality signal independent of output confidence, but no hand-designed statistic recovers it. Learned linear projections with binary supervision do. On GPT-2 124M, the signal peaks at layer 8, retains +0.099 partial correlation after controlling for the full output distribution, and catches 4,368 high-loss tokens (5.2% of test data) that output confidence does not flag. The bottleneck was the observer learning objective, not the absence of readable structure.
+The short answer is yes, but every obvious approach fails. Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) all collapse to near-zero independent signal once you control for output confidence. The finding that works is specific: a learned linear projection trained with binary supervision on frozen activations recovers a stable direction that confidence cannot access. On GPT-2 124M, three independent initializations converge to the same token ranking (seed agreement +0.99), and a third of the signal survives after controlling for the full output distribution.
+
+This project builds to that conclusion through seven phases, each motivated by the previous result's failure or limitation. Phases 1-3 systematically close off the easy paths. Phases 4-7 show what does work, why, and what it buys you in practice.
 
 ## At a glance
 
-**Core question:** Can frozen neural network activations be read in a way that adds information beyond output confidence?
+**Core question:** Do frozen activations contain decision-quality signal independent of output confidence?
 
-**Current answer:** Yes. Frozen activations contain independent signal beyond confidence, but hand-designed statistics can't find it. A learned linear projection with binary supervision recovers it. This transfers from MLPs to transformers: on GPT-2 124M, three independent observer initializations converge to the same ranking of 84,650 token positions (seed agreement +0.99).
+**Answer:** Yes. A learned linear projection with binary supervision recovers it; hand-designed statistics cannot. On GPT-2 124M, the signal is near-deterministic (seed agreement +0.99 across initializations).
 
 | Phase | Question | Result | Takeaway |
 |---|---|---|---|
 | **Phase 1** | Does training objective change representation structure? | **Yes** | FF induces sparser, lower-rank, more concentrated representations than BP, independent of overlay and normalization confounders. |
 | **Phase 2a** | Does FF goodness faithfully read BP activations? | **No** | `sum(h²)` collapses into a confidence proxy after controlling for logit margin and activation norm. |
-| **Phase 2b** | Can co-training rescue the observer? | **Weakly** | Denoising produced a small positive partial correlation (+0.07), but with much weaker raw predictive utility. |
+| **Phase 2b** | Can co-training rescue the observer? | **Weakly** | Denoising produced a small positive partial correlation (+0.066), but with much weaker raw predictive utility. |
 | **Phase 3** | Do alternative hand-designed observers work? | **No** | All passive structural observers collapse to near-zero partial correlation under proper controls. |
 | **Phase 4** | Can a learned observer head recover signal? | **Yes** | Binary-trained linear heads on frozen BP activations: partial corr +0.28, seed agreement +0.36. |
-| **Phase 5** | Does this transfer to transformers? | **Yes** | On frozen GPT-2 124M: partial corr +0.283 +/- 0.001, seed agreement +0.99. Signal peaks at layer 8 of 12. Layer 8 retains +0.099 after controlling for the full output distribution. |
+| **Phase 5** | Does this transfer to transformers? | **Yes** | On frozen GPT-2 124M: partial corr +0.282 +/- 0.001, seed agreement +0.99. Signal peaks at layer 8 of 12. Layer 8 retains +0.099 after controlling for the full output distribution. |
 | **Phase 6** | Does the signal catch errors confidence misses? | **Yes** | At 10% flag rate, the layer 8 observer catches 4,368 high-loss tokens (5.2% of test set) that output confidence does not flag. |
-| **Phase 7** | How does this compare to SAE-based probes? | **Raw observer wins** | A 768-dim linear observer outperforms a 24,576-feature SAE probe (+0.290 vs +0.255 partial corr). Combining all three channels catches 3.2x more errors. |
+| **Phase 7** | How does this compare to SAE-based probes? | **Raw observer wins** | A 768-dim linear observer outperforms a 24,576-feature SAE probe (+0.290 vs +0.255 partial corr). Combining all three channels catches 1.8x more errors. |
 
 **Key findings:**
 
-- Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) all collapse to near-zero partial correlation after controlling for output confidence. This holds on both MLPs and transformers.
-- Binary supervision is the unlock. Regression-trained observer heads find signal but disagree across seeds. Binary heads (predict residual sign) produce both stronger partial correlation and stable convergence.
-- The signal is linearly accessible. A learned linear projection recovers ~91% of what an MLP head finds. Phase 3 tested four specific linear directions and the informative one is a different combination entirely.
-- On GPT-2 124M, the signal peaks at layer 8 of 12. After controlling for the best possible output-derived prediction (a learned layer 11 predictor), layer 8 retains +0.099 partial correlation. This is not early access to output information. It is a different signal that the output does not carry.
-- At 10% flag rate on GPT-2, the layer 8 observer catches 4,368 high-loss tokens that output confidence does not flag (5.2% of test set, 87% precision). The observer is complementary to confidence, not redundant.
-- A 768-dim raw linear observer outperforms a 24,576-feature SAE probe on decision quality (+0.290 vs +0.255). The SAE's interpretable feature basis is not aligned with this signal. Combining raw observer, SAE probe, and confidence catches 14,661 high-loss tokens (3.2x any single channel).
+- **The bottleneck is the training target, not the architecture.** Binary supervision (predict whether loss residual is positive) produces both stronger signal and stable convergence. Regression on continuous residuals finds signal but disagrees across seeds. Linear heads recover ~91% of what MLP heads find. Phase 3's four hand-designed directions all fail; the informative direction is a different learned combination entirely.
+- **The signal is partially independent of output information.** On GPT-2 124M, the signal peaks at layer 8 of 12. After controlling for a trained MLP on the full layer-11 representation, layer 8 retains +0.099 partial correlation (+/- 0.008 across seeds). This is not early access to what the model will output. It is information the output does not carry.
+- **Multiple channels catch different errors.** At 10% flag rate, the observer catches 4,368 high-loss tokens confidence misses. An SAE probe catches a different 4,527. Combined with confidence, the three channels catch 1.8x more errors than any single channel. No one monitoring signal is sufficient.
 - FF induces real structural differences (sparser, lower-rank representations) independent of confounders, but these structural properties do not translate to per-example observability.
-
-**Bottom line:** There is a nearly deterministic linear direction in GPT-2's residual stream at layer 8 that predicts per-token decision quality beyond standard confidence controls, while every hand-designed statistic and SAE feature decomposition underperforms it. Three independent initializations converge to the same projection (+0.99 seed agreement). The signal is independent of the output distribution (+0.099 after full-output control), and combining it with SAE probes and confidence catches 3.2x more errors than any single channel.
 
 ## Why this matters
 
-Most deployed "observability" systems train binary classifiers on activations to predict output categories (misuse, PII, deception). These achieve high accuracy but measure something different from internal observation: they predict what the model will output, using activations as a cheaper feature space. Whether they capture anything about the decision process that output confidence doesn't already reveal is untested.
+Most deployed activation monitors predict what the model will output, using activations as a cheaper feature space. Whether they capture anything about the decision process that output confidence doesn't already reveal is untested. This project tests the harder question directly: after controlling for output confidence and activation norm, does any activation-derived signal carry independent information about decision quality?
 
-This matters because unfaithful probes are evadable. Models can maintain identical input-output behavior while rearranging activations into subspaces that defeat monitors. A faithful observer that reads causal structure should be harder to evade, because the model can't rearrange its causal computation without changing its outputs.
-
-This project tests the harder question: can you learn anything from activations that output confidence doesn't already tell you? The partial correlation methodology (controlling for output confidence and activation norm) is the key distinction. On MLPs, the confidence control is logit margin; on transformers, max softmax probability. Every phase applies this control, which is why the headline numbers are small. They measure the independent component, not the total correlation.
+The partial correlation methodology is the key distinction. On MLPs, the confidence control is logit margin; on transformers, max softmax probability. Every phase applies this control, which is why the headline numbers are small. They measure the independent component, not the total correlation. Most published probing results report total correlation without this control, which means their claimed signal may be entirely redundant with confidence.
 
 The results split "observability" into two problems that behave differently.
 
 - **Per-example monitoring** (does the observer flag likely errors on individual inputs?) fails under passive hand-designed readouts. But learned observer heads on frozen activations recover stable signal (Phases 4-5). The problem was not absence of information but absence of the right projection and the right training target.
 - **Neuron-level causal targeting** (does the observer identify neurons whose removal disproportionately harms performance?) works with simple statistics. FF-derived signals and magnitude rankings pick out causally important neurons, even though they fail as per-example monitors.
 
-The practical implication: per-example observability requires learning the right projection from activations, not computing hand-designed statistics. This holds across architectures. The learned projections that work on MLPs transfer to GPT-2 124M with no loss in signal strength and near-perfect stability across initializations.
+Two practical implications follow. First, per-example observability requires learning the right projection from activations, not computing hand-designed statistics. This holds across architectures; the learned projections that work on MLPs transfer to GPT-2 124M with no loss in signal strength. Second, no single monitoring channel is sufficient. Confidence, raw activation probes, and SAE-based probes each flag different subsets of errors (Phase 7). Production monitoring systems that rely on confidence alone, or on any one activation-derived signal, leave a measurable gap.
+
+A downstream concern: unfaithful probes are evadable. Models can maintain identical input-output behavior while rearranging activations into subspaces that defeat monitors. An observer that reads signal independent of the output distribution should be harder to evade, because the model can't rearrange that signal without changing its internal computation. The +0.099 output-controlled residual is a first measurement of that independence.
 
 ### The faithfulness bar
 
-Any observability system must pass three tests:
+Observability was evaluated against three tests. This project passes two cleanly and leaves the third open.
 
-- **Correlation.** Does the observer signal track decision-relevant metrics (per-example loss, logit margin) beyond what cheap baselines already capture?
-- **Intervention.** When neurons are ablated, does observer-guided targeting degrade performance faster than random, in a way that diverges from simple magnitude ranking?
-- **Prediction.** Can the observer rank likely failures better than max softmax, entropy, or a linear probe on the same activations?
+- **Correlation.** Does the observer signal track decision-relevant metrics beyond what cheap baselines capture? *Passed.* Partial correlation +0.282 after controlling for confidence and activation norm (Phases 4-5).
+- **Prediction.** Can the observer rank likely failures in a way that complements output confidence? *Passed.* 4,368 exclusive high-loss catches at 10% flag rate (Phase 6). Three-channel monitoring catches 1.8x more errors than any single channel (Phase 7).
+- **Intervention.** Does observer-guided neuron ablation degrade performance faster than random? *Passed on MLPs* (Phase 2 intervention). *Inconclusive on transformers* due to residual stream buffering (Phase 5d). A more sensitive causal design (activation patching, path patching) is needed.
 
 ## Phase 1: structural comparison (complete)
 
-### MNIST (4x500 MLP, 50 epochs, 3 seeds)
+Phase 1 establishes what local (Forward-Forward) vs. global (backpropagation) learning objectives do to representation structure. This is setup for the observer experiments: if FF produces structurally different representations, can those differences be read as decision-quality signals?
 
-|                                 | Local (FF) |    Global (BP) |    BP+norm | BP+overlay |
-| ------------------------------- | ---------: | -------------: | ---------: | ---------: |
-| Test accuracy                   |     94.57% |     **98.32%** |     98.29% |     95.09% |
-| Probe accuracy (label-masked)   |     99.55% |         97.65% |     97.20% | **99.85%** |
-| Pruning@90% (live neurons only) |     99.20% |         97.75% |     97.82% | **99.91%** |
-| Polysemanticity (classes/neuron) | 1.78 | **1.63** | 2.55 | 4.05 |
-| Dead neuron fraction            |      23.9% |       **6.9%** |      13.1% |       9.1% |
-| Effective rank (repr. dimensions) |       44.7 |      **164.2** |      145.3 |      112.0 |
-| Sparsity                        |  **87.6%** |          81.0% |      75.3% |      55.4% |
+4x500 MLPs, 50 epochs, 3 seeds. Two confound controls: BP+norm (adds layer normalization matching FF) and BP+overlay (trains BP on label-overlaid input, same scheme as FF).
 
-BP+norm: same architecture with per-layer L2 normalization matching FF. Normalization is not the confounder; BP+norm performs identically to BP.
+|                       | FF (MNIST) | BP (MNIST) | FF (CIFAR-10) | BP (CIFAR-10) |
+|-----------------------|-----------:|-----------:|---------------:|--------------:|
+| Test accuracy         |     94.57% |     98.32% |         47.49% |        54.15% |
+| Probe acc (label-masked) | 99.55% |     97.65% |         86.83% |        49.74% |
+| Sparsity              |      87.6% |      81.0% |          86.0% |         76.8% |
+| Dead neuron fraction  |      23.9% |       6.9% |          20.5% |          4.3% |
+| Effective rank        |       44.7 |      164.2 |          140.0 |         336.7 |
 
-BP+overlay: same architecture trained on label-overlaid input (same scheme as FF). **Label overlay is the dominant confounder.** BP+overlay matches or exceeds FF on probe accuracy and pruning robustness. The probe advantage originally attributed to FF was from the input conditioning scheme, not from local learning.
+**Label overlay is the dominant confounder.** BP+overlay matches or exceeds FF on probe accuracy and pruning robustness. The probe advantage originally attributed to FF comes from the input conditioning scheme, not from local learning.
 
-What FF genuinely produces, independent of label overlay: higher activation sparsity, lower effective rank, and more concentrated information in fewer neurons. These are real structural effects of local learning.
+What FF genuinely produces, independent of overlay: higher activation sparsity, lower effective rank, and more concentrated information in fewer neurons. These structural effects persist across all five model sizes (200K to 8M parameters) in the scaling study. But as Phases 2-3 will show, structural legibility does not translate to per-example observability.
 
-### CIFAR-10 (4x500 MLP, 50 epochs, 3 seeds)
-
-|                                 | Local (FF) |    Global (BP) |    BP+norm | BP+overlay |
-| ------------------------------- | ---------: | -------------: | ---------: | ---------: |
-| Test accuracy                   |     47.49% |     **54.15%** |     53.84% |     28.92% |
-| Probe accuracy (label-masked)   | **86.83%** |         49.74% |     53.79% |     99.91% |
-| Sparsity                        |  **86.0%** |         76.8% |      71.7% |      75.9% |
-| Dead neuron fraction            |      20.5% |       **4.3%** |      11.1% |      20.7% |
-| Effective rank                  |      140.0 |      **336.7** |      283.5 |      121.6 |
-
-CIFAR-10 amplifies the structural gaps. FF probe accuracy (86.8%) far exceeds BP (49.7%). BP+overlay collapses to 28.9% task accuracy, confirming label overlay is a severe confounder on harder tasks.
-
-Probes are trained on training-set activations and evaluated on test-set activations (no test-set contamination). Label-masked probing zeros the first n_cls dimensions. Pruning curves use live neurons only. Full analysis in `analyze.ipynb`.
-
-### Scaling study (MNIST, 5 sizes, 3 seeds each)
-
-Do these structural differences hold as models grow? Five configurations from 200K to 8M parameters.
-
-| Size | Params | Acc (FF-BP) | Dead frac (FF-BP) | Eff rank (FF-BP) | Sparsity (FF-BP) |
-|---|---|---|---|---|---|
-| XS (2x256) | 0.3M | -3.4% | +4.0% | -54 | +49.6% |
-| S (4x500) | 1.1M | -3.7% | +17.0% | -120 | +6.5% |
-| M (4x1000) | 3.8M | -3.0% | +19.8% | -183 | -0.6% |
-| L (6x1000) | 5.8M | -4.1% | +13.0% | -115 | -1.7% |
-| XL (8x1000) | 7.8M | -5.4% | +10.4% | -70 | -1.2% |
-
-FF consistently trades accuracy for more concentrated representations. Two patterns persist across all five sizes: higher dead neuron fraction and lower effective rank. The accuracy gap is stable at 3-5%, widening slightly at XL. Sparsity, the most visually striking difference at small scale (FF 89% vs BP 40% at XS), converges as BP models grow deeper and is negligible by M.
-
-Full scaling data in `results/scaling.json` and `assets/scaling.png`.
+Full per-variant tables in `results/mnist.json` and `results/cifar10.json`. Scaling data in `results/scaling.json`. Analysis and figures in `analyze.ipynb`.
 
 ## Phase 2: observer faithfulness (complete)
 
 ### Phase 2a: passive observer test (negative)
 
-FF goodness on vanilla BP activations against baselines (4x500 MLP, MNIST, 50 epochs, 3 seeds):
+FF goodness on vanilla BP activations (4x500 MLP, MNIST, 50 epochs, 3 seeds). Raw correlations look strong:
 
-| Observer          | Spearman vs loss | AUC (error detection) | Within-class rho |
-| ----------------- | ---------------: | --------------------: | ---------------: |
-| ff_goodness       |           -0.725 |                 0.923 |           +0.887 |
-| max_softmax       |           -0.998 |                 0.959 |           +0.801 |
-| logit_margin      |           -0.811 |                 0.965 |           +1.000 |
-| entropy           |           +0.811 |                 0.964 |           -0.999 |
-| activation_norm   |           -0.706 |                 0.917 |           +0.865 |
-| probe_confidence  |           -0.629 |                 0.970 |           +0.738 |
+| Observer          | Spearman vs loss | AUC (error detection) |
+| ----------------- | ---------------: | --------------------: |
+| ff_goodness       |           -0.725 |                 0.923 |
+| max_softmax       |           -0.998 |                 0.959 |
 
-Partial correlation of ff_goodness with loss, controlling for logit margin and activation norm: **-0.056** (+/- 0.039 across seeds). The effect is small and inconsistent in sign across seeds. The observer is not tracking decision structure beyond what confidence already captures. `sum(h²)` collapses into activation energy, which is a confidence proxy. Alternative structural observers are tested in Phase 3.
+But partial correlation of ff_goodness with loss, controlling for logit margin and activation norm: **-0.056** (+/- 0.039 across seeds). The independent component vanishes. `sum(h²)` collapses into activation energy, which is a confidence proxy. Full baseline table in `results/observe_mnist.json`.
 
 ### Phase 2b: co-training search
 
@@ -129,9 +92,9 @@ Two co-training formulations tested, both using `sum(h²)` as the observer:
 
 - **Overlay auxiliary** (BP + FF contrastive loss with label overlay). ff_goodness partial correlation: +0.015, inconsistent across seeds. The overlay creates a train/eval domain mismatch that makes the result uninterpretable.
 
-- **Denoising auxiliary** (BP + FF contrastive loss with noise corruption, no overlay). ff_goodness partial correlation: **+0.070** (p < 0.001). AUC dropped from 0.923 to 0.688: denoising decoupled goodness from confidence without replacing the lost predictive utility.
+- **Denoising auxiliary** (BP + FF contrastive loss with noise corruption, no overlay). ff_goodness partial correlation: **+0.066** (p < 0.001). AUC dropped from 0.923 to 0.624: denoising decoupled goodness from confidence without replacing the lost predictive utility.
 
-Denoising co-training produced the first positive significant partial correlation in the project (+0.070). The cost: raw error-detection AUC dropped from 0.923 to 0.688, while max softmax on the same model maintained 0.947. The denoising objective decoupled goodness from confidence but did not replace the lost information. This was the foothold for Phase 4: explicit shaping moved the partial correlation from negative to positive, suggesting that observability is trainable even though it is not passively readable.
+Denoising co-training produced the first positive significant partial correlation in the project (+0.066). The cost: raw error-detection AUC dropped from 0.923 to 0.624, while max softmax on the same model maintained 0.961. The denoising objective decoupled goodness from confidence but did not replace the lost information. This was the foothold for Phase 4: explicit shaping moved the partial correlation from negative to positive, suggesting that observability is trainable even though it is not passively readable.
 
 ### Intervention
 
@@ -197,7 +160,7 @@ Linear binary observer heads on frozen GPT-2 124M residual streams, 3 seeds, 84,
 
 |                | MLP (Phase 4)    | GPT-2 124M (Phase 5a) |
 |----------------|------------------|-----------------------|
-| Partial corr   | +0.276 +/- 0.070 | +0.283 +/- 0.001      |
+| Partial corr   | +0.276 +/- 0.070 | +0.282 +/- 0.001      |
 | Seed agreement | +0.36            | +0.99                 |
 
 The partial correlation is nearly identical. The seed agreement jumped from +0.36 to +0.99. On a fixed pretrained model, different observer head initializations converge to essentially the same ranking. The signal is not a per-seed artifact. It is one stable direction in the residual stream.
@@ -206,7 +169,7 @@ The MLP instability (Phase 4, +0.36 agreement) was from comparing across differe
 
 ### Phase 5b: layer sweep
 
-The observer signal exists at every layer, starting at +0.19 (layer 0) and peaking at layer 8 (+0.290). The profile is monotonically increasing through layer 8, then plateaus through layer 11 (+0.283). Full per-layer data in `results/transformer_observe.json`.
+The observer signal exists at every layer, starting at +0.19 (layer 0) and peaking at layer 8 (+0.290). The profile increases monotonically through layer 8, then declines slightly through layers 9-11 (0.285, 0.278, 0.282). Full per-layer data in `results/transformer_observe.json`.
 
 The peak at layer 8, not layer 11, means the observer is reading compositional structure formed during the middle-to-late layers, not the output distribution taking shape at the final layer. The decision-quality information is fully formed three layers before the model commits to a prediction.
 
@@ -220,7 +183,7 @@ The Phase 3 negative result replicates on transformers. All hand-designed statis
 | active_ratio          | -0.057                          |
 | act_entropy           | -0.110                          |
 | activation_norm       | -0.002                          |
-| Learned linear binary | **+0.283**                      |
+| Learned linear binary | **+0.282**                      |
 
 The gap between hand-designed and learned observers is not an MLP quirk. It is an architecture-general property: the decision-quality signal in frozen activations is invisible to standard statistics and recoverable only by a learned projection with the right training target.
 
@@ -297,7 +260,15 @@ At 10% flag rate, combining raw observer, SAE probe, and output confidence:
 | SAE probe | 0.842 | 4,527 |
 | **All three combined** | **0.864** | **14,661** |
 
-Three complementary channels, each reading different aspects of decision quality from the same activations, together catch 3.2x more high-loss tokens than any single method. The SAE probe catches a slightly different set of errors than the raw observer (4,527 vs 4,368 exclusive catches), confirming the 30% rank divergence from 7c translates to operationally distinct coverage.
+Three complementary channels, each reading different aspects of decision quality from the same activations, together catch 1.8x more high-loss tokens than the best single channel (confidence). The SAE probe catches a slightly different set of errors than the raw observer (4,527 vs 4,368 exclusive catches), confirming the 30% rank divergence from 7c translates to operationally distinct coverage.
+
+## What this means
+
+The experimental arc supports two claims, one methodological and one practical.
+
+**For evaluation:** published activation-monitoring results that report total correlation without controlling for output confidence are not measuring what they claim. The gap between raw Spearman (-0.725 in Phase 2a) and partial correlation (-0.056) is the difference between "this probe tracks loss" and "this probe tells you something confidence doesn't." Any system claiming to read internal state should report the independent component, not the total.
+
+**For deployment:** single-channel monitoring leaves errors on the table. Confidence is the strongest standalone signal (0.968 precision at 10% flag rate), but it misses a large class of errors that activation-based observers catch. The raw observer and SAE probe each flag different subsets of those misses. A production monitoring system that combines learned activation probes with confidence-based flagging has measurably better coverage than either alone.
 
 ## Limitations
 
@@ -306,9 +277,13 @@ Three complementary channels, each reading different aspects of decision quality
 - Hyperparameters not swept (FF lr=0.03, BP lr=0.001, auxiliary weight=0.1 based on convention).
 - Intervention on GPT-2 is inconclusive due to MLP robustness at layer 8. The causal link between observer-weighted neurons and model decisions is established on MLPs but not on transformers.
 
-## What this is not
+## Open questions
 
-This is not a claim that FF is better than BP, or that FF should replace BP, or that SAEs are wrong for interpretability. FF served as the starting point for a controlled investigation of what makes internal representations readable. SAEs decompose activations along interpretable axes; this project shows those axes are not aligned with decision quality. The main finding is that a simple learned linear projection on raw activations outperforms both hand-designed statistics and SAE-based probes for per-token decision-quality prediction. The remaining questions are whether the signal persists at larger scale and whether the causal link can be confirmed on transformers.
+Each of these is a separate project with different compute requirements and baselines.
+
+- **Scale.** Does the signal persist, strengthen, or vanish at billion-parameter scale? GPT-2 124M is a testbed. The answer at Llama 8B or larger would determine whether the finding is practically relevant for production monitoring.
+- **Causal intervention on transformers.** Phase 5d was inconclusive because residual stream skip connections buffer MLP ablation. A more sensitive design (attention head ablation, path patching, or activation patching) could confirm or deny the causal link on transformers.
+- **Cross-task transfer.** Does a single observer head trained on one domain (Wikipedia) flag errors on a different domain (code, dialogue, reasoning)? If so, the signal is a general property of the residual stream geometry, not task-specific.
 
 ## How to run
 
