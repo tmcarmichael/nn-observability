@@ -1,5 +1,9 @@
 # Learned Observers Recover Output-Independent Signal from Frozen Transformer Activations
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19435675.svg)](https://doi.org/10.5281/zenodo.19435675)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+
 Can a neural network's internal activations tell you something about its decisions that output confidence does not?
 
 The short answer is yes, but every obvious approach fails. Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) all collapse to near-zero independent signal once you control for output confidence. The finding that works is specific: a learned linear projection trained with binary supervision on frozen activations recovers a stable direction that confidence cannot access. Across GPT-2 124M to 1.5B, independent initializations produce highly consistent token rankings (seed agreement 0.88-0.95), and the component of signal that survives after controlling for a strong output-side predictor increases across this scaling curve (+0.099 at 124M, +0.174 at 1.5B).

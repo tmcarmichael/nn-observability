@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "Learned Observers Recover Output-Independent Signal from Frozen Transformer Activations"
+message: "If you use this work, please cite it using the metadata from this file."
+type: software
+authors:
+  - family-names: Carmichael
+    given-names: Thomas
+license: MIT
+doi: "10.5281/zenodo.19435675"
+repository-code: "https://github.com/tmcarmichael/nn-observability"
+keywords:
+  - neural network observability
+  - activation monitoring
+  - learned probes
+  - transformer interpretability
+  - decision quality
+  - partial correlation
