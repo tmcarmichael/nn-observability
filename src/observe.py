@@ -41,7 +41,17 @@ from sklearn.metrics import roc_auc_score
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from train import BPNet, eval_bp, get_data, overlay_label, train_bp, wrong_labels
+
+def _import_train():
+    """Lazy import of train.py to avoid torchvision dependency at import time.
+
+    Metric functions (partial_spearman, compute_loss_residuals) don't need
+    train.py. Only the training/main pipeline does.
+    """
+    from train import BPNet, eval_bp, get_data, overlay_label, train_bp, wrong_labels
+
+    return BPNet, eval_bp, get_data, overlay_label, train_bp, wrong_labels
+
 
 # ---------------------------------------------------------------------------
 # Types
@@ -308,6 +318,7 @@ def train_bp_auxiliary(model, loader, epochs, bp_lr, device, n_cls, ff_weight=0.
     Evaluation later uses non-overlaid inputs only, testing whether the
     FF shaping persists in the raw representation.
     """
+    _, _, _, overlay_label, _, wrong_labels = _import_train()
     model.to(device)
     opt = torch.optim.Adam(model.parameters(), lr=bp_lr)
     bp_crit = nn.CrossEntropyLoss()
@@ -710,6 +721,7 @@ def plot_intervention(all_runs, n_layers, dataset, out_path):
 
 def run_once(args, seed):
     """One seed: train BP, compute all observer metrics."""
+    BPNet, eval_bp, get_data, _, train_bp, _ = _import_train()
     torch.manual_seed(seed)
     np.random.seed(seed)
     tr_dl, te_dl, in_dim, n_cls = get_data(args.dataset, args.batch, args.device)

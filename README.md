@@ -6,15 +6,15 @@
 
 Can a neural network's internal activations tell you something about its decisions that output confidence does not?
 
-The short answer is yes, but every obvious approach fails. Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) all collapse to near-zero independent signal once you control for output confidence. The finding that works is specific: a learned linear projection trained with binary supervision on frozen activations recovers a stable direction that confidence cannot access. Across GPT-2 124M to 1.5B, independent initializations produce highly consistent token rankings (seed agreement 0.88-0.95), and the component of signal that survives after controlling for a strong output-side predictor increases across this scaling curve (+0.099 at 124M, +0.174 at 1.5B).
+The short answer is yes, but every obvious approach fails. Hand-designed activation statistics (energy, sparsity, entropy, prototype similarity) all collapse to near-zero independent signal once you control for output confidence. The finding that works is specific: a learned linear projection trained with binary supervision on frozen activations recovers a stable direction that confidence cannot access. Across GPT-2 124M to 1.5B, independent initializations produce highly consistent token rankings (seed agreement 0.88-0.95), and the component of signal that survives after controlling for a strong output-side predictor increases across this scaling curve (+0.099 at 124M, +0.174 at 1.5B). The result replicates outside the GPT-2 family: Qwen 2.5 1.5B produces +0.284 partial correlation with an output-controlled residual of +0.207.
 
-This project builds to that conclusion through eight phases, each motivated by the previous result's failure or limitation. Phases 1-3 systematically close off the easy paths. Phases 4-7 show what does work and what it buys in practice. Phase 8 tests the signal across the GPT-2 family.
+This project builds to that conclusion through nine phases, each motivated by the previous result's failure or limitation. Phases 1-3 systematically close off the easy paths. Phases 4-7 show what does work and what it buys in practice. Phase 8 tests the signal across the GPT-2 family. Phase 9 tests cross-family replication.
 
 ## At a glance
 
 **Core question:** Do frozen activations contain decision-quality signal independent of output confidence?
 
-**Answer:** Yes. A learned linear projection with binary supervision recovers it; hand-designed statistics cannot. The signal is stable across GPT-2 124M to 1.5B (partial corr +0.279 to +0.290) and increasingly separable from output information across this scaling curve (+0.099 to +0.174 after a strong output-side control).
+**Answer:** Yes. A learned linear projection with binary supervision recovers it; hand-designed statistics cannot. The signal is stable across GPT-2 124M to 1.5B (partial corr +0.279 to +0.290) and replicates outside the GPT-2 family (Qwen 2.5 1.5B: +0.284, output-controlled +0.207). The output-independent component increases across both scaling curves.
 
 | Phase | Question | Result | Takeaway |
 |---|---|---|---|
@@ -27,6 +27,7 @@ This project builds to that conclusion through eight phases, each motivated by t
 | **Phase 6** | Does the signal catch errors confidence misses? | **Yes** | At 10% flag rate, the layer 8 observer catches 4,368 high-loss tokens (5.2% of test set) that output confidence does not flag. |
 | **Phase 7** | How does this compare to SAE-based probes? | **Raw observer wins** | A 768-dim linear observer outperforms a 24,576-feature SAE probe (+0.290 vs +0.255 partial corr). Combining all three channels catches substantially more errors than any single channel. |
 | **Phase 8** | Does the signal persist across model scale? | **Yes** | Partial corr +0.279 to +0.290 across GPT-2 124M to 1.5B. Output-independent component increases from +0.099 to +0.174 across this scaling curve. Seed agreement 0.88-0.95. Peak at roughly two-thirds depth throughout. |
+| **Phase 9** | Does the signal replicate outside GPT-2? | **Yes** | Qwen 2.5 1.5B: partial corr +0.284, output-controlled +0.207, seed agreement +0.982, peak at 68% depth. Hand-designed baselines collapse. Full failure-then-recovery pattern replicates. Gemma 2 2B in progress. |
 
 **Key findings:**
 
@@ -48,7 +49,7 @@ The results split "observability" into two problems that behave differently.
 
 Per-example observability requires learning the right projection from activations, not computing hand-designed statistics. This holds across architectures and scales; the learned projections that work on MLPs transfer to GPT-2 124M through 1.5B with no loss in signal strength. No single monitoring channel is sufficient. Confidence, raw activation probes, and SAE-based probes each flag different subsets of errors (Phase 7). Production monitoring systems that rely on confidence alone, or on any one activation-derived signal, leave a measurable gap.
 
-Even systems with strong output-based evaluation (calibrated confidence, external classifiers, eval harnesses) operate on the end result of computation. The observer signal is available before the final mapping into the output distribution, which means failure detection can happen during inference rather than only after it. Output-based monitors are also limited to what the model's logits reveal. Phase 8 suggests that outputs expose a shrinking fraction of the model's internally encoded decision-quality signal as models grow. An internal monitoring channel that reads signal not fully captured by the output becomes more important at larger scale, not less.
+Even systems with strong output-based evaluation operate on the end result of computation. The observer signal is available earlier in the forward pass, before the final mapping into the output distribution, so failure detection can occur during inference rather than only after generation. Output-based monitors are limited to what the model's logits reveal. Phase 8 suggests that, under a strong output-side control, logits capture a shrinking fraction of the internally encoded decision-quality signal across the GPT-2 scaling curve. That makes an internal monitoring channel, one that reads signal not fully captured by the output, more useful at larger scale, not less.
 
 A downstream concern: unfaithful probes are evadable. Models can maintain identical input-output behavior while rearranging activations into subspaces that defeat monitors. An observer that reads signal independent of the output distribution should be harder to evade, because the model can't rearrange that signal without changing its internal computation. The output-controlled residual measures that independence: +0.099 at 124M, increasing to +0.174 at 1.5B (Phase 8).
 
@@ -336,13 +337,43 @@ Three supplementary experiments tighten the GPT-2 124M results without changing 
 
 **Cross-domain transfer** (`just cross-domain`). Trains the observer on WikiText-103, evaluates on OpenWebText (web text) and CodeSearchNet (Python functions). If partial correlation transfers, the signal is a general property of the residual stream, not a Wikipedia-specific artifact.
 
+## Phase 9: Cross-family replication (complete)
+
+Phase 8 established the signal across the GPT-2 family. Phase 9 tests whether it is a GPT-2-specific artifact or a broader property of pretrained decoder-only transformers. Same evaluation protocol: layer sweep, three-seed battery, output-controlled residual, and negative baselines (hand-designed observers, random head).
+
+### 9b: Qwen 2.5 (0.5B, 1.5B)
+
+| Model | Params | Peak layer | Partial corr | Output-controlled | Seed agreement |
+|---|---|---|---|---|---|
+| Qwen 2.5 0.5B | 495M | L0 (0%) | +0.134 | +0.055 | +0.998 |
+| Qwen 2.5 1.5B | 1544M | L19 (68%) | +0.284 | +0.207 | +0.982 |
+
+**Qwen 2.5 1.5B replicates the full finding.** Partial correlation (+0.284) is in the GPT-2 band (+0.279 to +0.290). The output-controlled residual (+0.207) is the highest measured in the project, exceeding GPT-2 XL (+0.174). Seed agreement is +0.982. The peak layer falls at 68% depth, consistent with the two-thirds-depth pattern observed across the GPT-2 family. All hand-designed baselines collapse to near zero (ff_goodness -0.000, active_ratio +0.017, act_entropy -0.027, activation_norm +0.001). The random head baseline is -0.035. The full failure-then-recovery pattern replicates.
+
+**Qwen 2.5 0.5B shows weaker signal.** Partial correlation is +0.134 with a positive but small output-controlled residual (+0.055). The layer profile does not form a clean mid-depth peak; the signal is present but does not concentrate at two-thirds depth in this 24-layer model. This is consistent with the pattern from Phase 8: signal strength and geometric stability increase with model capacity.
+
+**Cross-family comparison at matched scale (~1.5B):**
+
+| Model | Family | Partial corr | Output-controlled | Seed agreement | Peak depth |
+|---|---|---|---|---|---|
+| GPT-2 XL | GPT-2 | +0.290 | +0.174 | +0.952 | 71% |
+| Qwen 2.5 1.5B | Qwen | +0.284 | +0.207 | +0.982 | 68% |
+
+At matched parameter count, a different architecture family trained on different data with a different tokenizer produces nearly identical signal strength, higher output independence, and the same relative peak depth. The learned observer signal is not a GPT-2 artifact.
+
+### 9a: Gemma 2 2B (in progress)
+
+Google Gemma 2 2B provides a third architecture family (Google, distinct from both OpenAI-lineage GPT-2 and Alibaba Qwen). Results will be added when the run completes.
+
+Run: `just phase9a` (Gemma), `just phase9b` (Qwen), `just phase9` (both)
+
 ## What this means
 
-Across the GPT-2 scaling curve, decision-quality signal remains stably encoded in the residual stream while its output-independent component increases with model size under the current output-side control. This single empirical result has two complementary readings depending on the objective.
+Across GPT-2 and Qwen scaling curves, decision-quality signal remains stably encoded in the residual stream while its output-independent component increases with model size under the current output-side control. This result has two complementary readings depending on the objective.
 
 **For observability,** this is a strong positive result. The signal persists, stays linearly accessible, and becomes more cleanly separable from output-derived information at larger model sizes. A learned linear projection recovers nearly the same partial correlation (+0.279 to +0.290) at every model size tested, and the component that survives after controlling for a strong output-side predictor increases from +0.099 to +0.174 across this four-point curve. The residual-stream decision-quality signal is real, stable, and increasingly distinguishable from outputs.
 
-**For deployment and safety,** the same result implies that output-based monitoring captures a shrinking fraction of the model's internally encoded decision-quality signal across this scaling curve. Confidence-only oversight is not just incomplete (Phase 6 already showed that); it becomes progressively more incomplete across the GPT-2 family. At GPT-2 XL, 60% of the observer's signal is not captured by the output-side predictor, compared to 34% at GPT-2 124M. Whether this trend continues beyond the GPT-2 family is an open question.
+**For deployment and safety,** the same result implies that output-based monitoring captures a shrinking fraction of the model's internally encoded decision-quality signal as models scale. Confidence-only oversight is not just incomplete (Phase 6 already showed that); it becomes progressively more incomplete. At Qwen 1.5B, 73% of the observer's signal is not captured by the output-side predictor, compared to 34% at GPT-2 124M. This pattern holds across two architecture families (Phase 9).
 
 **For evaluation methodology,** published activation-monitoring results that report total correlation without controlling for output confidence are not measuring what they claim. The gap between raw Spearman (-0.725 in Phase 2a) and partial correlation (-0.056) is the difference between "this probe tracks loss" and "this probe tells you something confidence doesn't." Any system claiming to read internal state should report the independent component, not the total.
 
@@ -350,7 +381,7 @@ Across the GPT-2 scaling curve, decision-quality signal remains stably encoded i
 
 ## Limitations
 
-- Tested on the GPT-2 family only (124M to 1.5B). Whether the signal persists across architecture families (Llama, Mistral) and at frontier scale (8B+) is unknown.
+- Tested on GPT-2 (124M to 1.5B), Qwen 2.5 (0.5B, 1.5B), and Gemma 2 (2B, pending). All base models. Whether the signal persists at frontier scale (8B+) or in instruction-tuned models is unknown.
 - No circuit discovery or feature visualization. Statistical proxies only.
 - Hyperparameters not swept (FF lr=0.03, BP lr=0.001, auxiliary weight=0.1 based on convention).
 - Causal evidence on transformers is partial. Directional ablation (Phase 5f) shows weak but bidirectional functional relevance; the observer direction is not a dominant causal axis of output formation.
@@ -360,7 +391,7 @@ Across the GPT-2 scaling curve, decision-quality signal remains stably encoded i
 
 Each of these is a separate project with different compute requirements and baselines.
 
-- **Scale beyond GPT-2.** Phase 8 covers GPT-2 124M through 1.5B within one architecture family. Whether the signal persists at Llama 8B or larger, across a different architecture family and training distribution, would determine whether this is a GPT-2 property or a transformer property.
+- **Frontier scale.** Phases 8-9 cover GPT-2 and Qwen up to 1.5B. Whether the signal persists at 8B+ would determine whether the finding is practically relevant for production-scale monitoring.
 - **Stronger causal evidence.** Phase 5f provides partial causal support (monotonic dose-response, amplification preferentially helps flagged tokens). Stronger designs (multi-direction projection, activation patching, path patching) could establish whether the observer direction is causally necessary for specific decisions, not just functionally correlated.
 - **Cross-domain transfer.** The cross-domain experiment tests WikiText-to-OpenWebText and WikiText-to-code transfer. Broader coverage (dialogue, reasoning, multilingual) would further characterize the signal's generality.
 - **Mechanism.** What is the learned direction actually encoding? Circuit-level analysis or feature visualization could connect the statistical finding to a mechanistic account.
@@ -400,6 +431,9 @@ just transformer-all        # All transformer experiments (5a-6a)
 just sae-compare            # Phase 7: SAE comparison (7a + 7c + 7d)
 just causal                 # 7b: three-channel causal decomposition
 just phase8                 # Phase 8: GPT-2 scaling curve (124M → 1.5B)
+just phase9a                # Phase 9a: Gemma 2 2B cross-family test
+just phase9b                # Phase 9b: Qwen 2.5 0.5B + 1.5B replication
+just phase9                 # Phase 9: all cross-family experiments
 just hardening              # 20-seed statistical hardening
 just control-sensitivity    # Control sensitivity analysis
 just cross-domain           # Cross-domain transfer test
@@ -415,7 +449,7 @@ Results go to `results/`. Phase 1 charts are generated by `analyze.ipynb`. Phase
 - `src/observer_variants.py` Phase 4: observer head variant sweep (linear/MLP, regression/binary)
 - `src/seed_agreement.py` Phase 4: cross-seed ranking agreement test
 - `src/inspect_weights.py` Phase 4: weight vector analysis for linear binary heads
-- `src/transformer_observe.py` Phases 5-6, 8: GPT-2 observer heads, layer sweep, baselines, flagging, scaling curve, methodology hardening
+- `src/transformer_observe.py` Phases 5-6, 8-9: GPT-2 and cross-family observer heads, layer sweep, baselines, flagging, scaling, cross-family replication
 - `src/sae_compare.py` Phase 7: SAE comparison (probe, rank overlap, three-channel flagging, causal decomposition)
 - `analyze.ipynb` generates Phase 1 figures and analysis from result JSON files
 - `results/` result data (JSON, committed)

@@ -103,7 +103,7 @@ cross-domain seeds=default_seeds device=default_device:
 phase8 seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --scale --seeds {{seeds}} --device {{device}}
 
-# Phase 9a: cross-family replication (Llama 3.2 1B)
+# Phase 9a: cross-family replication (Gemma 2 2B)
 phase9a seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --phase9a --seeds {{seeds}} --device {{device}}
 
@@ -127,7 +127,7 @@ smoke device=default_device:
 test:
     uv run pytest tests/ -v
 
-# Reproduce published results exactly
+# Reproduce published results (Phases 1-8)
 reproduce device=default_device:
     just train mnist 3 50 {{device}}
     just cifar10 3 50 {{device}}
@@ -140,6 +140,7 @@ reproduce device=default_device:
     just inspect-weights {{device}}
     just transformer-all 3 {{device}}
     just sae-compare 3 {{device}}
+    just phase8 3 {{device}}
 
 # Lint source files
 lint:
@@ -149,10 +150,26 @@ lint:
 fmt:
     uv run ruff format src/
 
-# Run all checks (lint + format check)
+# Run all checks (lint + format check + version consistency)
 check:
     uv run ruff check src/
     uv run ruff format --check src/
+    @just check-version
+
+# Verify pyproject.toml version matches latest git tag
+check-version:
+    #!/usr/bin/env bash
+    toml_version=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+    latest_tag=$(git tag -l 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
+    if [ -z "$latest_tag" ]; then
+        echo "  version: $toml_version (no tags yet)"
+        exit 0
+    fi
+    if [ "$toml_version" != "$latest_tag" ]; then
+        echo "  WARNING: pyproject.toml version ($toml_version) != latest tag (v$latest_tag)"
+    else
+        echo "  version: $toml_version (matches v$latest_tag)"
+    fi
 
 # Remove generated results and charts
 clean:

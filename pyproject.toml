@@ -1,6 +1,6 @@
 [project]
 name = "nn-observability"
-version = "0.1.0"
+version = "0.9.0"
 description = "Neural network observability research. Learned binary observer heads on frozen activations recover decision-quality signal independent of output confidence."
 readme = "README.md"
 license = {text = "MIT"}

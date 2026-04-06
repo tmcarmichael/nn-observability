@@ -153,7 +153,7 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000,
 
     print(f"    collected {total_tokens} positions from {len(all_acts)} documents")
     return {
-        "activations": torch.cat(all_acts),
+        "activations": torch.cat(all_acts).float(),  # ensure float32 for probe training
         "losses": torch.cat(all_losses).numpy(),
         "max_softmax": torch.cat(all_softmax).numpy(),
         "logit_entropy": torch.cat(all_logit_entropy).numpy(),
@@ -1497,10 +1497,15 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
         print(f"  {n_layers} layers, hidden dim {hidden_dim}")
 
         # Scale token counts inversely with hidden dim to keep memory bounded
-        scale_factor = 768 / hidden_dim
-        adj_train = int(max_tokens_train * scale_factor)
-        adj_test = int(max_tokens_test * scale_factor)
-        print(f"  Token budget: {adj_train} train, {adj_test} test (scaled {scale_factor:.2f}x)")
+        # Scale token budget to maintain examples-per-dimension ratio.
+        # GPT-2 baseline: 200k tokens / 768 dim = ~260 ex/dim.
+        # Floor at 150 ex/dim for credible linear probe fitting.
+        min_ex_per_dim = 150
+        min_train = min_ex_per_dim * hidden_dim
+        adj_train = max(min_train, int(max_tokens_train * (768 / hidden_dim)))
+        adj_test = max(min_train // 2, int(max_tokens_test * (768 / hidden_dim)))
+        ex_per_dim = adj_train / hidden_dim
+        print(f"  Token budget: {adj_train} train, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
 
         # Step 1: coarse layer sweep to find peak
         print("\n  Step 1: Layer sweep")
@@ -1722,9 +1727,11 @@ def run_cross_family(
 
         print(f"  Loading {model_id}...")
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id, trust_remote_code=True, torch_dtype=torch.float32
-        ).to(device)
+        # Use float16 for faster inference on MPS/CUDA; probes train in float32 on CPU tensors
+        dtype = torch.float16 if device in ("mps", "cuda") else torch.float32
+        model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype=dtype).to(
+            device
+        )
         model.eval()
 
         n_layers = model.config.num_hidden_layers
@@ -1734,10 +1741,15 @@ def run_cross_family(
         print(f"  {n_params_m}M params, {n_layers} layers, hidden dim {hidden_dim}")
 
         # Scale token budget inversely with hidden dim
-        scale_factor = 768 / hidden_dim
-        adj_train = int(max_tokens_train * scale_factor)
-        adj_test = int(max_tokens_test * scale_factor)
-        print(f"  Token budget: {adj_train} train, {adj_test} test (scaled {scale_factor:.2f}x)")
+        # Scale token budget to maintain examples-per-dimension ratio.
+        # GPT-2 baseline: 200k tokens / 768 dim = ~260 ex/dim.
+        # Floor at 150 ex/dim for credible linear probe fitting.
+        min_ex_per_dim = 150
+        min_train = min_ex_per_dim * hidden_dim
+        adj_train = max(min_train, int(max_tokens_train * (768 / hidden_dim)))
+        adj_test = max(min_train // 2, int(max_tokens_test * (768 / hidden_dim)))
+        ex_per_dim = adj_train / hidden_dim
+        print(f"  Token budget: {adj_train} train, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
 
         # Ensure tokenizer has a pad token (some models lack one)
         if tokenizer.pad_token is None:
@@ -1962,7 +1974,7 @@ def main():
     P.add_argument("--cross-domain", action="store_true", help="Cross-domain transfer test")
     P.add_argument("--scale", "--phase8", action="store_true", help="Phase 8: scaling across GPT-2 family")
     P.add_argument("--model", default="gpt2", help="Model for single-model scaling run")
-    P.add_argument("--phase9a", action="store_true", help="Phase 9a: Llama 3.2 1B cross-family test")
+    P.add_argument("--phase9a", action="store_true", help="Phase 9a: Gemma 2 2B cross-family test")
     P.add_argument("--phase9b", action="store_true", help="Phase 9b: Qwen 2.5 0.5B + 1.5B replication")
     P.add_argument("--phase9", action="store_true", help="Phase 9: all cross-family experiments (9a + 9b)")
     a = P.parse_args()
