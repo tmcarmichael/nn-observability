@@ -1249,6 +1249,347 @@
       "top_10_capture": 0.037440793835079554,
       "top_50_capture": 0.2468359560039369,
       "top_100_capture": 0.3456596668830133
+    },
+    "shapley_decomposition": {
+      "raw_spearman": 0.5558676263872265,
+      "shapley_values": {
+        "confidence": {
+          "mean": 0.11100556419060757,
+          "min": -0.024479348011876956,
+          "max": 0.26167777975622963
+        },
+        "entropy": {
+          "mean": 0.1982211111681321,
+          "min": 0.04795042684064654,
+          "max": 0.36247386976884244
+        },
+        "typicality": {
+          "mean": 0.035074874961866793,
+          "min": 0.0060038272123097425,
+          "max": 0.08738616497405072
+        },
+        "frequency": {
+          "mean": 0.02604566229798595,
+          "min": 0.00970675017849884,
+          "max": 0.05857729254602789
+        }
+      },
+      "total_explained_pct": 66.62507313577612,
+      "unexplained_pct": 33.37492686422388,
+      "all_orderings": [
+        {
+          "ordering": [
+            "confidence",
+            "entropy",
+            "typicality",
+            "frequency"
+          ],
+          "confidence": 0.26167777975622963,
+          "entropy": 0.07721924049068044,
+          "typicality": 0.007889096880279028,
+          "frequency": 0.023561095491403283,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "confidence",
+            "entropy",
+            "frequency",
+            "typicality"
+          ],
+          "confidence": 0.26167777975622963,
+          "entropy": 0.07721924049068044,
+          "frequency": 0.00970675017849884,
+          "typicality": 0.021743442193183554,
+          "unexplained": 0.18552041376863407
+        },
+        {
+          "ordering": [
+            "confidence",
+            "typicality",
+            "entropy",
+            "frequency"
+          ],
+          "confidence": 0.26167777975622963,
+          "typicality": 0.02182823904880299,
+          "entropy": 0.06328009832215653,
+          "frequency": 0.023561095491403283,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "confidence",
+            "typicality",
+            "frequency",
+            "entropy"
+          ],
+          "confidence": 0.26167777975622963,
+          "typicality": 0.02182823904880299,
+          "frequency": 0.038890766972913215,
+          "entropy": 0.04795042684064654,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "confidence",
+            "frequency",
+            "entropy",
+            "typicality"
+          ],
+          "confidence": 0.26167777975622963,
+          "frequency": 0.017029979868990575,
+          "entropy": 0.0698960108001887,
+          "typicality": 0.021743442193183443,
+          "unexplained": 0.18552041376863418
+        },
+        {
+          "ordering": [
+            "confidence",
+            "frequency",
+            "typicality",
+            "entropy"
+          ],
+          "confidence": 0.26167777975622963,
+          "frequency": 0.017029979868990575,
+          "typicality": 0.043689026152725574,
+          "entropy": 0.04795042684064668,
+          "unexplained": 0.18552041376863407
+        },
+        {
+          "ordering": [
+            "entropy",
+            "confidence",
+            "typicality",
+            "frequency"
+          ],
+          "entropy": 0.36247386976884244,
+          "confidence": -0.023576849521932453,
+          "typicality": 0.007889096880279112,
+          "frequency": 0.023561095491403283,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "entropy",
+            "confidence",
+            "frequency",
+            "typicality"
+          ],
+          "entropy": 0.36247386976884244,
+          "confidence": -0.023576849521932453,
+          "frequency": 0.009706750178498952,
+          "typicality": 0.0217434421931835,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "entropy",
+            "typicality",
+            "confidence",
+            "frequency"
+          ],
+          "entropy": 0.36247386976884244,
+          "typicality": 0.0060038272123097425,
+          "confidence": -0.021691579853963083,
+          "frequency": 0.023561095491403228,
+          "unexplained": 0.1855204137686342
+        },
+        {
+          "ordering": [
+            "entropy",
+            "typicality",
+            "frequency",
+            "confidence"
+          ],
+          "entropy": 0.36247386976884244,
+          "typicality": 0.0060038272123097425,
+          "frequency": 0.025096121222661888,
+          "confidence": -0.023226605585221688,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "entropy",
+            "frequency",
+            "confidence",
+            "typicality"
+          ],
+          "entropy": 0.36247386976884244,
+          "frequency": 0.010609248668443316,
+          "confidence": -0.024479348011876817,
+          "typicality": 0.0217434421931835,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "entropy",
+            "frequency",
+            "typicality",
+            "confidence"
+          ],
+          "entropy": 0.36247386976884244,
+          "frequency": 0.010609248668443316,
+          "typicality": 0.02049069976652826,
+          "confidence": -0.023226605585221577,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "typicality",
+            "confidence",
+            "entropy",
+            "frequency"
+          ],
+          "typicality": 0.056127039642718146,
+          "confidence": 0.22737897916231442,
+          "entropy": 0.06328009832215653,
+          "frequency": 0.02356109549140334,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "typicality",
+            "confidence",
+            "frequency",
+            "entropy"
+          ],
+          "typicality": 0.056127039642718146,
+          "confidence": 0.22737897916231442,
+          "frequency": 0.0388907669729133,
+          "entropy": 0.0479504268406466,
+          "unexplained": 0.18552041376863407
+        },
+        {
+          "ordering": [
+            "typicality",
+            "entropy",
+            "confidence",
+            "frequency"
+          ],
+          "typicality": 0.056127039642718146,
+          "entropy": 0.31235065733843403,
+          "confidence": -0.02169157985396311,
+          "frequency": 0.02356109549140334,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "typicality",
+            "entropy",
+            "frequency",
+            "confidence"
+          ],
+          "typicality": 0.056127039642718146,
+          "entropy": 0.31235065733843403,
+          "frequency": 0.02509612122266172,
+          "confidence": -0.023226605585221466,
+          "unexplained": 0.18552041376863407
+        },
+        {
+          "ordering": [
+            "typicality",
+            "frequency",
+            "confidence",
+            "entropy"
+          ],
+          "typicality": 0.056127039642718146,
+          "frequency": 0.05857729254602789,
+          "confidence": 0.2076924535891998,
+          "entropy": 0.04795042684064654,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "typicality",
+            "frequency",
+            "entropy",
+            "confidence"
+          ],
+          "typicality": 0.056127039642718146,
+          "frequency": 0.05857729254602789,
+          "entropy": 0.278869486015068,
+          "confidence": -0.023226605585221605,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "frequency",
+            "confidence",
+            "entropy",
+            "typicality"
+          ],
+          "frequency": 0.027318167214695266,
+          "confidence": 0.2513895924105249,
+          "entropy": 0.0698960108001887,
+          "typicality": 0.02174344219318361,
+          "unexplained": 0.18552041376863407
+        },
+        {
+          "ordering": [
+            "frequency",
+            "confidence",
+            "typicality",
+            "entropy"
+          ],
+          "frequency": 0.027318167214695266,
+          "confidence": 0.2513895924105249,
+          "typicality": 0.04368902615272563,
+          "entropy": 0.047950426840646654,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "frequency",
+            "entropy",
+            "confidence",
+            "typicality"
+          ],
+          "frequency": 0.027318167214695266,
+          "entropy": 0.34576495122259054,
+          "confidence": -0.024479348011876956,
+          "typicality": 0.021743442193183637,
+          "unexplained": 0.18552041376863404
+        },
+        {
+          "ordering": [
+            "frequency",
+            "entropy",
+            "typicality",
+            "confidence"
+          ],
+          "frequency": 0.027318167214695266,
+          "entropy": 0.34576495122259054,
+          "typicality": 0.020490699766528286,
+          "confidence": -0.02322660558522166,
+          "unexplained": 0.1855204137686341
+        },
+        {
+          "ordering": [
+            "frequency",
+            "typicality",
+            "confidence",
+            "entropy"
+          ],
+          "frequency": 0.027318167214695266,
+          "typicality": 0.08738616497405072,
+          "confidence": 0.20769245358919985,
+          "entropy": 0.04795042684064654,
+          "unexplained": 0.18552041376863415
+        },
+        {
+          "ordering": [
+            "frequency",
+            "typicality",
+            "entropy",
+            "confidence"
+          ],
+          "frequency": 0.027318167214695266,
+          "typicality": 0.08738616497405072,
+          "entropy": 0.27886948601506806,
+          "confidence": -0.02322660558522155,
+          "unexplained": 0.18552041376863404
+        }
+      ]
     }
   },
   "activation_patching": {

@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "Learned Observers Recover Output-Independent Signal from Frozen Transformer Activations"
+title: "Training-Time Design Preserves or Suppresses Internal Quality Signals in Transformer Activations"
 message: "If you use this work, please cite it using the metadata from this file."
 type: software
 authors:

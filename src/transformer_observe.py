@@ -1565,16 +1565,77 @@ def run_signal_decomposition(
         frac = (projections[:k] ** 2).sum()
         print(f"    Top-{k} PCs capture {frac * 100:.1f}% of observer direction")
 
+    # --- 5. Shapley-robust decomposition ---
+    print("\n  5. Shapley-robust decomposition (4 controls, 24 orderings)")
+
+    # Compute Mahalanobis distance for geometric typicality control
+    acts_train = train_data["activations"].numpy()
+    mean_act = acts_train.mean(axis=0)
+    centered_train = acts_train - mean_act
+    cov = np.cov(centered_train, rowvar=False) + 1e-4 * np.eye(centered_train.shape[1])
+    cov_inv = np.linalg.inv(cov)
+    L = np.linalg.cholesky(cov_inv)
+    test_centered = acts_test - mean_act
+    projected_mahal = test_centered @ L
+    mahalanobis = np.sqrt((projected_mahal**2).sum(axis=1))
+
+    # Named controls for Shapley decomposition
+    control_map = {
+        "confidence": test_data["max_softmax"],
+        "entropy": test_data["logit_entropy"],
+        "typicality": mahalanobis,
+        "frequency": log_freq,
+    }
+    control_names = list(control_map.keys())
+
+    # Baseline: no controls (raw Spearman)
+    from itertools import permutations
+
+    rho_raw, _ = _sp(obs_scores, test_data["losses"])
+
+    # Compute partial correlation for every subset via all 24 orderings
+    ordering_results = []
+    for perm in permutations(control_names):
+        row = {"ordering": list(perm)}
+        cumulative_controls = []
+        prev_rho = float(rho_raw)
+        for ctrl_name in perm:
+            cumulative_controls.append(control_map[ctrl_name])
+            rho_after, _ = partial_spearman(obs_scores, test_data["losses"], cumulative_controls)
+            marginal = prev_rho - float(rho_after)
+            row[ctrl_name] = float(marginal)
+            prev_rho = float(rho_after)
+        row["unexplained"] = float(prev_rho)
+        ordering_results.append(row)
+
+    # Shapley values: average marginal contribution per control
+    shapley_values = {}
+    for ctrl_name in control_names:
+        vals = [r[ctrl_name] for r in ordering_results]
+        shapley_values[ctrl_name] = {
+            "mean": float(np.mean(vals)),
+            "min": float(np.min(vals)),
+            "max": float(np.max(vals)),
+        }
+
+    unexplained_vals = [r["unexplained"] for r in ordering_results]
+    total_explained = sum(sv["mean"] for sv in shapley_values.values())
+    total_explained_pct = total_explained / float(rho_raw) * 100
+    unexplained_pct = 100 - total_explained_pct
+
+    print(f"\n  {'Control':<16} {'Shapley mean':>13} {'Min':>8} {'Max':>8} {'% of raw':>10}")
+    print(f"  {'-' * 57}")
+    for ctrl_name in control_names:
+        sv = shapley_values[ctrl_name]
+        pct = sv["mean"] / float(rho_raw) * 100
+        print(f"  {ctrl_name:<16} {sv['mean']:>+13.4f} {sv['min']:>+8.4f} {sv['max']:>+8.4f} {pct:>9.1f}%")
+    print(f"  {'unexplained':<16} {float(np.mean(unexplained_vals)):>+13.4f}")
+    print(f"\n  Total explained: {total_explained_pct:.1f}%, unexplained: {unexplained_pct:.1f}%")
+
     # --- Summary ---
     print("\n  SIGNAL DECOMPOSITION SUMMARY")
-    print(f"  {'Component':<30} {'Absorbed':>10} {'Source':>20}")
-    print(f"  {'-' * 62}")
-    print(f"  {'Confidence (max softmax)':<30} {'~48%':>10} {'control sensitivity':>20}")
-    print(f"  {'Distributional shape (entropy)':<30} {'~16%':>10} {'control sensitivity':>20}")
-    print(f"  {'Geometric typicality (Mahal.)':<30} {'~7%':>10} {'mechanism probes':>20}")
-    print(f"  {'Token frequency':<30} {f'~{freq_absorbed:.0f}%':>10} {'this experiment':>20}")
-    total_explained = 48 + 16 + 7 + max(0, freq_absorbed)
-    print(f"  {'Unexplained':<30} {f'~{100 - total_explained:.0f}%':>10}")
+    print(f"  Raw Spearman: {rho_raw:+.4f}")
+    print(f"  Shapley-explained: {total_explained_pct:.1f}%, unexplained: {unexplained_pct:.1f}%")
 
     return {
         "layer": layer,
@@ -1591,6 +1652,13 @@ def run_signal_decomposition(
             "top_10_capture": float((projections[:10] ** 2).sum()),
             "top_50_capture": float((projections[:50] ** 2).sum()),
             "top_100_capture": float((projections[:100] ** 2).sum()),
+        },
+        "shapley_decomposition": {
+            "raw_spearman": float(rho_raw),
+            "shapley_values": shapley_values,
+            "total_explained_pct": float(total_explained_pct),
+            "unexplained_pct": float(unexplained_pct),
+            "all_orderings": ordering_results,
         },
     }
 

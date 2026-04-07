@@ -1,0 +1,130 @@
+{
+  "gpt2": {
+    "hidden_dim": 768,
+    "peak_layer": 8,
+    "fixed_bottleneck": 64,
+    "proportional_bottleneck": 64,
+    "standard": {
+      "mean": 0.2896393730913998,
+      "per_seed": [
+        0.29428733645837063,
+        0.28744961972859884,
+        0.28718116308722996
+      ]
+    },
+    "output_controlled_fixed": {
+      "mean": 0.09909691633416744,
+      "per_seed": [
+        0.11100302826172592,
+        0.09275364403631886,
+        0.09353407670445751
+      ]
+    },
+    "output_controlled_proportional": {
+      "mean": 0.09909691633416744,
+      "per_seed": [
+        0.11100302826172592,
+        0.09275364403631886,
+        0.09353407670445751
+      ]
+    },
+    "absorbed_fraction_fixed": 0.658,
+    "absorbed_fraction_proportional": 0.658
+  },
+  "gpt2-medium": {
+    "hidden_dim": 1024,
+    "peak_layer": 16,
+    "fixed_bottleneck": 64,
+    "proportional_bottleneck": 85,
+    "standard": {
+      "mean": 0.2740290944604789,
+      "per_seed": [
+        0.2802541432763397,
+        0.2643446548576901,
+        0.277488485247407
+      ]
+    },
+    "output_controlled_fixed": {
+      "mean": 0.12321128617310684,
+      "per_seed": [
+        0.17920256799787765,
+        0.0992224251529766,
+        0.09120886536846631
+      ]
+    },
+    "output_controlled_proportional": {
+      "mean": 0.10224297053026887,
+      "per_seed": [
+        0.11359430425667637,
+        0.1104166222620497,
+        0.08271798507208059
+      ]
+    },
+    "absorbed_fraction_fixed": 0.55,
+    "absorbed_fraction_proportional": 0.627
+  },
+  "gpt2-large": {
+    "hidden_dim": 1280,
+    "peak_layer": 24,
+    "fixed_bottleneck": 64,
+    "proportional_bottleneck": 106,
+    "standard": {
+      "mean": 0.2855984793394044,
+      "per_seed": [
+        0.2849706035139009,
+        0.28539045518949396,
+        0.2864343793148183
+      ]
+    },
+    "output_controlled_fixed": {
+      "mean": 0.15875853645048196,
+      "per_seed": [
+        0.15917810396899623,
+        0.16263353010293935,
+        0.15446397527951028
+      ]
+    },
+    "output_controlled_proportional": {
+      "mean": 0.18226278468541737,
+      "per_seed": [
+        0.1808120983071706,
+        0.1870683477764018,
+        0.1789079079726798
+      ]
+    },
+    "absorbed_fraction_fixed": 0.444,
+    "absorbed_fraction_proportional": 0.362
+  },
+  "gpt2-xl": {
+    "hidden_dim": 1600,
+    "peak_layer": 34,
+    "fixed_bottleneck": 64,
+    "proportional_bottleneck": 133,
+    "standard": {
+      "mean": 0.30934559969230074,
+      "per_seed": [
+        0.313705287902446,
+        0.3153010916799289,
+        0.29903041949452724
+      ]
+    },
+    "output_controlled_fixed": {
+      "mean": 0.1838357922380621,
+      "per_seed": [
+        0.19171236584437945,
+        0.17719804231884362,
+        0.18259696855096322
+      ]
+    },
+    "output_controlled_proportional": {
+      "mean": 0.21131513534877822,
+      "per_seed": [
+        0.21198768703179843,
+        0.21637169606562598,
+        0.20558602294891026
+      ]
+    },
+    "absorbed_fraction_fixed": 0.406,
+    "absorbed_fraction_proportional": 0.317
+  }
+}

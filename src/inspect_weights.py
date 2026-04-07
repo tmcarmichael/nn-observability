@@ -1,5 +1,6 @@
 """Inspect linear binary observer head weight vectors across seeds."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -122,9 +123,47 @@ def main():
     print(f"{'=' * 50}")
     uniform = np.ones(500)
     uniform /= np.linalg.norm(uniform)
+    uniform_cosines = []
     for si, seed in enumerate(seeds):
         w_unit = weights[si] / (np.linalg.norm(weights[si]) + 1e-8)
-        print(f"  Seed {seed}: cos(w, uniform) = {np.dot(w_unit, uniform):+.4f}")
+        cos_val = float(np.dot(w_unit, uniform))
+        uniform_cosines.append(cos_val)
+        print(f"  Seed {seed}: cos(w, uniform) = {cos_val:+.4f}")
+
+    # Save results
+    results = {
+        "seeds": seeds,
+        "weight_cosine_similarity": {},
+        "top_neuron_overlap": {},
+        "score_ranking_agreement": {},
+        "uniform_projection": {str(s): float(c) for s, c in zip(seeds, uniform_cosines)},
+        "per_seed": {},
+    }
+    for i in range(3):
+        for j in range(i + 1, 3):
+            key = f"{seeds[i]}_vs_{seeds[j]}"
+            cos = float(np.dot(weights[i], weights[j]) / (np.linalg.norm(weights[i]) * np.linalg.norm(weights[j])))
+            results["weight_cosine_similarity"][key] = cos
+            rho, _ = spearmanr(all_scores[i], all_scores[j])
+            results["score_ranking_agreement"][key] = float(rho)
+        sorted_abs = np.sort(np.abs(weights[i]))[::-1]
+        cumsum = np.cumsum(sorted_abs) / sorted_abs.sum()
+        n_90 = int(np.searchsorted(cumsum, 0.9)) + 1
+        results["per_seed"][str(seeds[i])] = {
+            "norm": float(np.linalg.norm(weights[i])),
+            "n_neurons_90pct": n_90,
+        }
+    for k in [20, 50]:
+        top_sets = [set(np.argsort(-np.abs(w))[:k]) for w in weights]
+        for i in range(3):
+            for j in range(i + 1, 3):
+                key = f"top{k}_{seeds[i]}_vs_{seeds[j]}"
+                results["top_neuron_overlap"][key] = len(top_sets[i] & top_sets[j])
+
+    out_path = Path(__file__).resolve().parent.parent / "results" / "inspect_weights.json"
+    with open(out_path, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"\nSaved {out_path}")
 
 
 if __name__ == "__main__":
