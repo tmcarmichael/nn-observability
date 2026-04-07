@@ -281,12 +281,12 @@ Token budgets scaled to maintain at least 150 examples per hidden dimension (e.g
 | Llama 3.2 1B  | Meta   | 1.2B   | L6 (38%)   | +0.250       | +0.126            |
 | Qwen 2.5 1.5B | Qwen   | 1.5B   | L19 (68%)  | +0.284       | +0.207            |
 | GPT-2 XL      | GPT-2  | 1.5B   | L34 (71%)  | +0.290       | +0.174            |
-| Qwen 2.5 3B   | Qwen   | 3B     | L24 (67%)  | +0.234       | —                 |
+| Qwen 2.5 3B   | Qwen   | 3B     | L28 (78%)  | +0.227       | —                 |
 | Llama 3.2 3B  | Meta   | 3B     | L14 (50%)  | +0.021       | —                 |
 | Qwen 2.5 7B   | Qwen   | 7B     | L18 (64%)  | +0.240       | +0.177            |
 | Llama 3.1 8B  | Meta   | 8B     | L0 (flat)  | +0.088       | +0.054            |
 
-**The signal's scaling behavior diverges across architecture families.** Within Qwen, the signal is present at all sizes from 0.5B to 7B, peaking at 1.5B (+0.284) with slight decline at 3B (+0.234) and 7B (+0.240). Within Llama, it weakens sharply: Llama 3.2 drops from +0.250 (1B) to +0.021 (3B), and Llama 3.1 8B shows +0.088. The divergence occurs under identical evaluation protocol, same partial correlation controls, same WikiText-103 data, same token budgets scaled by examples-per-dimension.
+**The signal's scaling behavior diverges across architecture families.** Within Qwen, the signal is present at all sizes from 0.5B to 7B, peaking at 1.5B (+0.284) with slight decline at 3B (+0.227) and 7B (+0.240). Within Llama, it weakens sharply: Llama 3.2 drops from +0.250 (1B) to +0.021 (3B), and Llama 3.1 8B shows +0.088. The divergence occurs under identical evaluation protocol, same partial correlation controls, same WikiText-103 data, same token budgets scaled by examples-per-dimension.
 
 Linear readability does not emerge uniformly with scale. Architectural or training procedure differences between model families modulate whether the signal remains linearly accessible at larger sizes. Within the Llama 3.2 series, the 1B and 3B variants share the same training data, tokenizer, and team, differing primarily in architecture (16 vs 28 layers, 2048 vs 3072 dim). The signal is present in the smaller variant and absent in the larger one. Meta's Llama 3.2 documentation indicates both the 1B and 3B text models were produced using pruning and distillation from the Llama 3.1 8B. Both underwent the same high-level procedure, yet the 1B preserves the signal and the 3B does not. The divergence therefore reflects differences in how the pruning and distillation were applied (different pruning ratios, different distillation objectives, or different training durations), not whether distillation occurred.
 
