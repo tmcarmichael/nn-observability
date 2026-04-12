@@ -5,7 +5,7 @@ Tests whether representation structure differences hold, or change, as models sc
 Uses confounder-controlled metrics (label-masked probing, live-neuron pruning).
 
 Usage:
-    uv run scale.py                  # full sweep (~25 min on MPS)
+    uv run scale.py                  # full sweep
     uv run scale.py --device cuda    # faster on GPU
     uv run scale.py --epochs 100     # longer training
 

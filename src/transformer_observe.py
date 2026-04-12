@@ -82,6 +82,26 @@ def _save_results(results, filename="transformer_observe.json"):
 
 
 # ---------------------------------------------------------------------------
+# Architecture-agnostic helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_layer_modules(model, layer_idx):
+    """Return (attn_module, mlp_module) for a given layer index.
+
+    Supports GPT-2 (model.transformer.h) and HuggingFace AutoModel
+    architectures (Qwen, Llama, Mistral: model.model.layers).
+    """
+    if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
+        block = model.transformer.h[layer_idx]
+        return block.attn, block.mlp
+    if hasattr(model, "model") and hasattr(model.model, "layers"):
+        block = model.model.layers[layer_idx]
+        return block.self_attn, block.mlp
+    raise ValueError(f"Unsupported model architecture: {type(model).__name__}")
+
+
+# ---------------------------------------------------------------------------
 # Data collection
 # ---------------------------------------------------------------------------
 
@@ -285,32 +305,52 @@ def run_5a(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_tr
     }
 
 
-def run_5b(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_train, max_tokens_test):
-    """5b: Layer sweep across all 12 layers."""
+def run_5b(
+    model,
+    tokenizer,
+    device,
+    seeds,
+    train_docs,
+    val_docs,
+    test_docs,
+    max_tokens_train,
+    max_tokens_val,
+    max_tokens_test,
+):
+    """5b: Layer sweep across all 12 layers.
+
+    Sweeps on val_docs for layer selection, confirms peak on held-out test_docs.
+    """
     n_layers = 12
     print(f"\n{'=' * 60}")
     print(f"  5b: Layer sweep (0-{n_layers - 1})")
     print(f"{'=' * 60}")
 
+    # Sweep all layers on validation split
     layer_results = {}
 
     for layer in range(n_layers):
-        print(f"\n  Layer {layer}:")
+        print(f"\n  Layer {layer} [val]:")
         train_data = collect_layer_data(model, tokenizer, train_docs, layer, device, max_tokens_train)
-        test_data = collect_layer_data(model, tokenizer, test_docs, layer, device, max_tokens_test)
+        val_data = collect_layer_data(model, tokenizer, val_docs, layer, device, max_tokens_val)
 
         rhos = []
         for seed in seeds:
             head = train_linear_binary(train_data, seed=seed)
-            _, rho, p = evaluate_head(head, test_data)
+            _, rho, p = evaluate_head(head, val_data)
             rhos.append(rho)
 
         mean_rho = np.mean(rhos)
         print(f"    mean partial corr: {mean_rho:+.4f} +/- {np.std(rhos):.4f}")
-        layer_results[layer] = {"mean": float(mean_rho), "std": float(np.std(rhos)), "per_seed": rhos}
+        layer_results[layer] = {
+            "mean": float(mean_rho),
+            "std": float(np.std(rhos)),
+            "per_seed": rhos,
+            "split": "validation",
+        }
 
     # Summary
-    print("\n  5b LAYER PROFILE:")
+    print("\n  5b LAYER PROFILE (validation):")
     print(f"  {'Layer':>6} {'Partial corr':>14}")
     print(f"  {'-' * 22}")
     for layer in range(n_layers):
@@ -318,7 +358,28 @@ def run_5b(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_tr
         print(f"  {layer:>6} {r['mean']:>+14.4f}")
 
     peak_layer = max(range(n_layers), key=lambda l: layer_results[l]["mean"])
-    print(f"\n  Peak at layer {peak_layer}: {layer_results[peak_layer]['mean']:+.4f}")
+    print(f"\n  Val-selected peak at layer {peak_layer}: {layer_results[peak_layer]['mean']:+.4f}")
+
+    # Confirm peak on held-out test split
+    print(f"\n  Confirming layer {peak_layer} on held-out test split:")
+    train_data = collect_layer_data(model, tokenizer, train_docs, peak_layer, device, max_tokens_train)
+    test_data = collect_layer_data(model, tokenizer, test_docs, peak_layer, device, max_tokens_test)
+    test_rhos = []
+    for seed in seeds:
+        head = train_linear_binary(train_data, seed=seed)
+        _, rho, p = evaluate_head(head, test_data)
+        test_rhos.append(rho)
+    test_mean = float(np.mean(test_rhos))
+    print(f"    held-out test partial corr: {test_mean:+.4f} +/- {np.std(test_rhos):.4f}")
+
+    layer_results["held_out_test"] = {
+        "peak_layer": peak_layer,
+        "peak_layer_source": "validation",
+        "val_partial_corr": float(layer_results[peak_layer]["mean"]),
+        "test_partial_corr": test_mean,
+        "test_std": float(np.std(test_rhos)),
+        "test_per_seed": [float(r) for r in test_rhos],
+    }
 
     return layer_results
 
@@ -2412,6 +2473,282 @@ def _residualized_delta(base_obs, patched_obs, base_sm, patched_sm):
     return float(residualized.mean())
 
 
+# ---------------------------------------------------------------------------
+# Model-agnostic mechanistic analysis (generalizes run_mechanistic_analysis)
+# ---------------------------------------------------------------------------
+
+
+def _compute_component_means_general(model, tokenizer, docs, device, max_layer, max_tokens):
+    """Collect mean activation for each attn and MLP output, architecture-agnostic."""
+    accumulators = {}
+
+    def make_accumulator_hook(key):
+        def hook_fn(module, inp, out):
+            val = out[0] if isinstance(out, tuple) else out
+            if key not in accumulators:
+                accumulators[key] = []
+            accumulators[key].append(val.detach().cpu())
+            return out
+
+        return hook_fn
+
+    handles = []
+    for layer in range(max_layer + 1):
+        attn, mlp = _get_layer_modules(model, layer)
+        handles.append(attn.register_forward_hook(make_accumulator_hook((layer, "attn"))))
+        handles.append(mlp.register_forward_hook(make_accumulator_hook((layer, "mlp"))))
+
+    total = 0
+    model.eval()
+    with torch.inference_mode():
+        for doc in docs:
+            if total >= max_tokens:
+                break
+            if not doc.strip():
+                continue
+            tokens = tokenizer(doc, return_tensors="pt", truncation=True, max_length=512)
+            input_ids = tokens["input_ids"].to(device)
+            if input_ids.size(1) < 2:
+                continue
+            model(input_ids)
+            total += input_ids.size(1) - 1
+
+    for h in handles:
+        h.remove()
+
+    means = {}
+    for key, tensors in accumulators.items():
+        cat = torch.cat(tensors, dim=1)
+        means[key] = cat.mean(dim=1, keepdim=True)  # [1, 1, hidden_dim]
+
+    return means
+
+
+def _mean_ablate_component_general(
+    model, tokenizer, observer, peak_layer, docs, device, max_tokens, target_layer, component, means
+):
+    """Replace a component's output with its dataset mean, architecture-agnostic."""
+    mean_val = means[(target_layer, component)]
+    attn, mlp = _get_layer_modules(model, target_layer)
+    target = attn if component == "attn" else mlp
+
+    def hook_fn(module, inp, out):
+        m = mean_val.to(out[0].device if isinstance(out, tuple) else out.device)
+        expanded = m.expand_as(out[0] if isinstance(out, tuple) else out)
+        if isinstance(out, tuple):
+            return (expanded,) + out[1:]
+        return expanded
+
+    handle = target.register_forward_hook(hook_fn)
+    result = _collect_full_baseline(model, tokenizer, observer, peak_layer, docs, device, max_tokens)
+    handle.remove()
+    return result
+
+
+def _mean_ablate_group_general(
+    model, tokenizer, observer, peak_layer, docs, device, max_tokens, components, means
+):
+    """Mean-ablate multiple components simultaneously, architecture-agnostic."""
+    handles = []
+    for layer, comp in components:
+        mean_val = means[(layer, comp)]
+        attn, mlp = _get_layer_modules(model, layer)
+        target = attn if comp == "attn" else mlp
+
+        def make_hook(mv):
+            def hook_fn(module, inp, out):
+                m = mv.to(out[0].device if isinstance(out, tuple) else out.device)
+                expanded = m.expand_as(out[0] if isinstance(out, tuple) else out)
+                if isinstance(out, tuple):
+                    return (expanded,) + out[1:]
+                return expanded
+
+            return hook_fn
+
+        handles.append(target.register_forward_hook(make_hook(mean_val)))
+
+    result = _collect_full_baseline(model, tokenizer, observer, peak_layer, docs, device, max_tokens)
+    for h in handles:
+        h.remove()
+    return result
+
+
+def run_mechanistic_general(
+    model,
+    tokenizer,
+    device,
+    train_docs,
+    test_docs,
+    max_tokens_train,
+    max_tokens_test,
+    peak_layer,
+    eval_budget=15000,
+    skip_heads=True,
+):
+    """Model-agnostic mechanistic analysis via mean-ablation patching.
+
+    Same methodology as run_mechanistic_analysis but works on any HF causal LM.
+    Composition groups are computed from Part 1 results rather than hardcoded.
+    Head-level analysis is skipped by default (expensive at 7B+).
+    """
+    print("\n" + "=" * 60)
+    print("  Mechanistic analysis (model-agnostic)")
+    print(f"  Peak layer: {peak_layer}, eval budget: {eval_budget}")
+    print("=" * 60)
+
+    # Train observer at peak layer
+    print(f"  Collecting train data at layer {peak_layer}...")
+    train_data = collect_layer_data(model, tokenizer, train_docs, peak_layer, device, max_tokens_train)
+    observer = train_linear_binary(train_data, seed=42)
+    observer.eval()
+
+    # Compute mean component outputs
+    print("  Computing mean component activations...")
+    eval_docs = test_docs[:200]
+    component_means = _compute_component_means_general(
+        model, tokenizer, eval_docs, device, peak_layer, eval_budget
+    )
+
+    # Baseline scores
+    print("  Computing baseline scores...")
+    baseline = _collect_full_baseline(model, tokenizer, observer, peak_layer, eval_docs, device, eval_budget)
+    n_eval = baseline["n"]
+    print(f"    {n_eval} positions")
+
+    # --- Part 1: Per-component mean ablation ---
+    print(f"\n  Part 1: Mean ablation (layers 0-{peak_layer})")
+    print(f"  {'Layer':<8} {'Comp':<6} {'Obs resid delta':>16} {'Loss delta':>12} {'Raw obs delta':>15}")
+    print(f"  {'-' * 59}")
+
+    ablation_results = {}
+    for layer in range(peak_layer + 1):
+        layer_r = {}
+        for comp in ["attn", "mlp"]:
+            patched = _mean_ablate_component_general(
+                model,
+                tokenizer,
+                observer,
+                peak_layer,
+                eval_docs,
+                device,
+                eval_budget,
+                layer,
+                comp,
+                component_means,
+            )
+            obs_resid_delta = _residualized_delta(
+                baseline["obs_scores"],
+                patched["obs_scores"],
+                baseline["max_softmax"],
+                patched["max_softmax"],
+            )
+            loss_delta = float(patched["losses"].mean() - baseline["losses"].mean())
+            raw_obs_delta = float(patched["obs_scores"].mean() - baseline["obs_scores"].mean())
+
+            layer_r[comp] = {
+                "obs_resid_delta": obs_resid_delta,
+                "loss_delta": loss_delta,
+                "raw_obs_delta": raw_obs_delta,
+            }
+            print(
+                f"  {layer:<8} {comp:<6} {obs_resid_delta:>+16.4f} {loss_delta:>+12.4f} {raw_obs_delta:>+15.4f}"
+            )
+
+        ablation_results[layer] = layer_r
+
+    # --- Part 2: Composition tests (data-driven groups) ---
+    print("\n  Part 2: Composition tests")
+
+    # Rank layers by absolute residualized delta
+    attn_ranked = sorted(
+        [(l, ablation_results[l]["attn"]["obs_resid_delta"]) for l in range(peak_layer + 1)],
+        key=lambda x: abs(x[1]),
+        reverse=True,
+    )
+    mlp_ranked = sorted(
+        [(l, ablation_results[l]["mlp"]["obs_resid_delta"]) for l in range(peak_layer + 1)],
+        key=lambda x: abs(x[1]),
+        reverse=True,
+    )
+
+    top2_attn = sorted([attn_ranked[0][0], attn_ranked[1][0]])
+    top4_attn = sorted([r[0] for r in attn_ranked[:4]])
+    top2_mlp = sorted([mlp_ranked[0][0], mlp_ranked[1][0]])
+
+    groups = {
+        f"attn_{top2_attn[0]}_{top2_attn[1]}": [(l, "attn") for l in top2_attn],
+        "attn_top4": [(l, "attn") for l in top4_attn],
+        f"mlp_{top2_mlp[0]}_{top2_mlp[1]}": [(l, "mlp") for l in top2_mlp],
+        "all_top": [(l, "attn") for l in top4_attn] + [(l, "mlp") for l in top2_mlp],
+    }
+
+    composition_results = {}
+    for gname, components in groups.items():
+        patched = _mean_ablate_group_general(
+            model,
+            tokenizer,
+            observer,
+            peak_layer,
+            eval_docs,
+            device,
+            eval_budget,
+            components,
+            component_means,
+        )
+        obs_resid = _residualized_delta(
+            baseline["obs_scores"],
+            patched["obs_scores"],
+            baseline["max_softmax"],
+            patched["max_softmax"],
+        )
+        loss_d = float(patched["losses"].mean() - baseline["losses"].mean())
+        expected = sum(ablation_results[l][c]["obs_resid_delta"] for l, c in components)
+
+        composition_results[gname] = {
+            "obs_resid_delta": obs_resid,
+            "loss_delta": loss_d,
+            "expected_additive": expected,
+            "interaction": obs_resid - expected,
+            "components": [[l, c] for l, c in components],
+        }
+        print(
+            f"    {gname:<18}: obs_resid={obs_resid:+.4f}  loss={loss_d:+.4f}  "
+            f"expected={expected:+.4f}  interaction={obs_resid - expected:+.4f}"
+        )
+
+    # --- Summary ---
+    print(f"\n  MECHANISTIC ANALYSIS SUMMARY (peak layer {peak_layer})")
+    print(f"  {'Layer':<8} {'Attn obs_resid':>15} {'MLP obs_resid':>15} {'Attn loss':>11} {'MLP loss':>11}")
+    print(f"  {'-' * 62}")
+    for layer in range(peak_layer + 1):
+        ar = ablation_results[layer]
+        print(
+            f"  {layer:<8} {ar['attn']['obs_resid_delta']:>+15.4f} {ar['mlp']['obs_resid_delta']:>+15.4f}"
+            f" {ar['attn']['loss_delta']:>+11.4f} {ar['mlp']['loss_delta']:>+11.4f}"
+        )
+
+    print("\n  Composition:")
+    for gname, vals in composition_results.items():
+        additive = (
+            "additive" if abs(vals["interaction"]) < 0.01 else f"interaction={vals['interaction']:+.4f}"
+        )
+        print(f"    {gname:<18}: {vals['obs_resid_delta']:+.4f} ({additive})")
+
+    # Top attention layers for comparison with GPT-2
+    top_attn_layers = [r[0] for r in attn_ranked[:3]]
+    n_layers = model.config.num_hidden_layers
+    depth_range = f"{min(top_attn_layers) / n_layers:.2f}-{max(top_attn_layers) / n_layers:.2f}"
+
+    return {
+        "peak_layer": peak_layer,
+        "n_eval": n_eval,
+        "ablation_results": {str(k): v for k, v in ablation_results.items()},
+        "composition_results": composition_results,
+        "top_attn_layers": top_attn_layers,
+        "top_attn_depth_range": depth_range,
+    }
+
+
 def run_8c(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_train, max_tokens_test):
     """8c: Cross-domain transfer.
 
@@ -2572,9 +2909,12 @@ GPT2_MODELS = [
 
 
 def _coarse_layer_sweep(
-    model, tokenizer, device, train_docs, test_docs, n_layers, max_tokens_train, max_tokens_test
+    model, tokenizer, device, train_docs, val_docs, n_layers, max_tokens_train, max_tokens_val
 ):
     """Sweep layers with 1 seed to find peak partial correlation.
+
+    Layer selection uses val_docs (not test_docs) to avoid selection bias.
+    Callers report final numbers on a held-out test split.
 
     For models with many layers, sweep every Nth layer first (coarse),
     then sweep densely around the peak region.
@@ -2585,12 +2925,12 @@ def _coarse_layer_sweep(
         coarse_layers.append(n_layers - 1)
 
     profile = {}
-    print(f"  Coarse sweep: {len(coarse_layers)} layers (stride {stride})")
+    print(f"  Coarse sweep: {len(coarse_layers)} layers (stride {stride}) [on validation split]")
     for layer in coarse_layers:
         train_data = collect_layer_data(model, tokenizer, train_docs, layer, device, max_tokens_train)
-        test_data = collect_layer_data(model, tokenizer, test_docs, layer, device, max_tokens_test)
+        val_data = collect_layer_data(model, tokenizer, val_docs, layer, device, max_tokens_val)
         head = train_linear_binary(train_data, seed=42)
-        _, rho, _ = evaluate_head(head, test_data)
+        _, rho, _ = evaluate_head(head, val_data)
         profile[layer] = float(rho)
         print(f"    layer {layer:>3}: {rho:+.4f}")
 
@@ -2605,9 +2945,9 @@ def _coarse_layer_sweep(
             print(f"  Dense sweep: layers {dense_lo}-{dense_hi}")
             for layer in dense_layers:
                 train_data = collect_layer_data(model, tokenizer, train_docs, layer, device, max_tokens_train)
-                test_data = collect_layer_data(model, tokenizer, test_docs, layer, device, max_tokens_test)
+                val_data = collect_layer_data(model, tokenizer, val_docs, layer, device, max_tokens_val)
                 head = train_linear_binary(train_data, seed=42)
-                _, rho, _ = evaluate_head(head, test_data)
+                _, rho, _ = evaluate_head(head, val_data)
                 profile[layer] = float(rho)
                 print(f"    layer {layer:>3}: {rho:+.4f}")
 
@@ -2615,12 +2955,23 @@ def _coarse_layer_sweep(
     return peak_layer, profile
 
 
-def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens_test, model_names=None):
+def run_scale(
+    device,
+    seeds,
+    train_docs,
+    val_docs,
+    test_docs,
+    max_tokens_train,
+    max_tokens_val,
+    max_tokens_test,
+    model_names=None,
+):
     """Phase 8: Scale characterization across GPT-2 family.
 
-    For each model: coarse layer sweep to find peak, full battery at peak
-    (partial correlation + seed agreement), output-controlled residual.
-    Models loaded and unloaded sequentially to manage memory.
+    For each model: coarse layer sweep on val_docs to find peak, full battery
+    at peak on held-out test_docs (partial correlation + seed agreement),
+    output-controlled residual. Models loaded and unloaded sequentially to
+    manage memory.
     """
     from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
@@ -2660,14 +3011,15 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
         min_ex_per_dim = 150
         min_train = min_ex_per_dim * hidden_dim
         adj_train = max(min_train, int(max_tokens_train * (768 / hidden_dim)))
+        adj_val = max(min_train // 2, int(max_tokens_val * (768 / hidden_dim)))
         adj_test = max(min_train // 2, int(max_tokens_test * (768 / hidden_dim)))
         ex_per_dim = adj_train / hidden_dim
-        print(f"  Token budget: {adj_train} train, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
+        print(f"  Token budget: {adj_train} train, {adj_val} val, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
 
-        # Step 1: coarse layer sweep to find peak
-        print("\n  Step 1: Layer sweep")
+        # Step 1: coarse layer sweep on validation split to find peak
+        print("\n  Step 1: Layer sweep (validation split)")
         peak_layer, layer_profile = _coarse_layer_sweep(
-            model, tokenizer, device, train_docs, test_docs, n_layers, adj_train, adj_test
+            model, tokenizer, device, train_docs, val_docs, n_layers, adj_train, adj_val
         )
 
         # Guard: if peak is within 2 layers of output, the output-control test
@@ -2686,10 +3038,11 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
                     f"  Using mid-depth peak at layer {mid_peak} ({mid_peak / n_layers:.0%} depth) for output control."
                 )
         peak_layer = mid_peak
-        print(f"  Peak layer: {peak_layer} (partial corr {layer_profile[peak_layer]:+.4f})")
+        val_rho_at_peak = layer_profile[peak_layer]
+        print(f"  Peak layer: {peak_layer} (val partial corr {val_rho_at_peak:+.4f})")
 
-        # Step 2: full battery at peak layer
-        print(f"\n  Step 2: Full battery at layer {peak_layer} ({len(seeds)} seeds)")
+        # Step 2: full battery at peak layer (held-out test split)
+        print(f"\n  Step 2: Full battery at layer {peak_layer} ({len(seeds)} seeds) [held-out test]")
         train_peak = collect_layer_data(model, tokenizer, train_docs, peak_layer, device, adj_train)
         test_peak = collect_layer_data(model, tokenizer, test_docs, peak_layer, device, adj_test)
 
@@ -2765,8 +3118,11 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
 
         # Summary for this model
         print(f"\n  {model_id} SUMMARY:")
-        print(f"    peak layer:       {peak_layer} ({peak_layer / n_layers:.0%} depth)")
-        print(f"    partial corr:     {mean_rho:+.4f}  95% CI [{rho_ci[0]:+.4f}, {rho_ci[1]:+.4f}]")
+        print(f"    peak layer:       {peak_layer} ({peak_layer / n_layers:.0%} depth, selected on val)")
+        print(f"    val partial corr: {val_rho_at_peak:+.4f}  (layer selection split)")
+        print(
+            f"    partial corr:     {mean_rho:+.4f}  95% CI [{rho_ci[0]:+.4f}, {rho_ci[1]:+.4f}]  (held-out test)"
+        )
         print(f"    seed agreement:   {mean_agree:+.4f}  95% CI [{agree_ci[0]:+.4f}, {agree_ci[1]:+.4f}]")
         print(f"    output-controlled:{mean_ctrl:+.4f}  95% CI [{ctrl_ci[0]:+.4f}, {ctrl_ci[1]:+.4f}]")
 
@@ -2776,13 +3132,17 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
             "hidden_dim": hidden_dim,
             "n_params_m": n_params_m,
             "peak_layer": peak_layer,
+            "peak_layer_source": "validation",
             "peak_layer_frac": round(peak_layer / n_layers, 2),
+            "layer_profile_split": "validation",
             "layer_profile": {str(k): v for k, v in sorted(layer_profile.items())},
+            "val_partial_corr_at_peak": val_rho_at_peak,
             "partial_corr": {
                 "mean": mean_rho,
                 "std": float(np.std(all_rhos)),
                 "per_seed": all_rhos,
                 "ci_95": list(rho_ci),
+                "split": "test",
             },
             "seed_agreement": {
                 "mean": mean_agree,
@@ -2796,6 +3156,7 @@ def run_scale(device, seeds, train_docs, test_docs, max_tokens_train, max_tokens
                 "ci_95": list(ctrl_ci),
             },
             "n_train_tokens": adj_train,
+            "n_val_tokens": adj_val,
             "n_test_tokens": adj_test,
         }
 
@@ -2845,13 +3206,23 @@ CROSS_FAMILY_MODELS = {
 
 
 def run_cross_family(
-    phase, device, seeds, train_docs, test_docs, max_tokens_train, max_tokens_test, model_id_override=None
+    phase,
+    device,
+    seeds,
+    train_docs,
+    val_docs,
+    test_docs,
+    max_tokens_train,
+    max_tokens_val,
+    max_tokens_test,
+    model_id_override=None,
 ):
     """Phase 9: Cross-family replication of the observer signal.
 
-    Same evaluation protocol as Phase 8 (layer sweep, three-seed battery,
-    output-controlled residual), plus negative baselines (hand-designed
-    observers, random head). Uses AutoModel for architecture-agnostic loading.
+    Same evaluation protocol as Phase 8 (layer sweep on val_docs, three-seed
+    battery on held-out test_docs, output-controlled residual), plus negative
+    baselines (hand-designed observers, random head). Uses AutoModel for
+    architecture-agnostic loading.
 
     Saves to cross_family.json with deep merge (safe for partial reruns).
 
@@ -2904,18 +3275,19 @@ def run_cross_family(
         min_ex_per_dim = 150
         min_train = min_ex_per_dim * hidden_dim
         adj_train = max(min_train, int(max_tokens_train * (768 / hidden_dim)))
+        adj_val = max(min_train // 2, int(max_tokens_val * (768 / hidden_dim)))
         adj_test = max(min_train // 2, int(max_tokens_test * (768 / hidden_dim)))
         ex_per_dim = adj_train / hidden_dim
-        print(f"  Token budget: {adj_train} train, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
+        print(f"  Token budget: {adj_train} train, {adj_val} val, {adj_test} test ({ex_per_dim:.0f} ex/dim)")
 
         # Ensure tokenizer has a pad token (some models lack one)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
-        # --- Step 1: Layer sweep ---
-        print("\n  Step 1: Layer sweep")
+        # --- Step 1: Layer sweep on validation split ---
+        print("\n  Step 1: Layer sweep (validation split)")
         peak_layer, layer_profile = _coarse_layer_sweep(
-            model, tokenizer, device, train_docs, test_docs, n_layers, adj_train, adj_test
+            model, tokenizer, device, train_docs, val_docs, n_layers, adj_train, adj_val
         )
 
         # Guard against peak at output layer (same fix as Phase 8 medium)
@@ -2931,10 +3303,11 @@ def run_cross_family(
                     f"  Using mid-depth peak at layer {mid_peak} ({mid_peak / n_layers:.0%} depth) for output control."
                 )
                 peak_layer = mid_peak
-        print(f"  Peak layer: {peak_layer} (partial corr {layer_profile[peak_layer]:+.4f})")
+        val_rho_at_peak = layer_profile[peak_layer]
+        print(f"  Peak layer: {peak_layer} (val partial corr {val_rho_at_peak:+.4f})")
 
-        # --- Step 2: Full battery at peak layer ---
-        print(f"\n  Step 2: Full battery at layer {peak_layer} ({len(seeds)} seeds)")
+        # --- Step 2: Full battery at peak layer (held-out test split) ---
+        print(f"\n  Step 2: Full battery at layer {peak_layer} ({len(seeds)} seeds) [held-out test]")
         train_peak = collect_layer_data(model, tokenizer, train_docs, peak_layer, device, adj_train)
         test_peak = collect_layer_data(model, tokenizer, test_docs, peak_layer, device, adj_test)
 
@@ -3031,8 +3404,11 @@ def run_cross_family(
 
         # --- Summary ---
         print(f"\n  {model_id} SUMMARY:")
-        print(f"    peak layer:       {peak_layer} ({peak_layer / n_layers:.0%} depth)")
-        print(f"    partial corr:     {mean_rho:+.4f}  95% CI [{rho_ci[0]:+.4f}, {rho_ci[1]:+.4f}]")
+        print(f"    peak layer:       {peak_layer} ({peak_layer / n_layers:.0%} depth, selected on val)")
+        print(f"    val partial corr: {val_rho_at_peak:+.4f}  (layer selection split)")
+        print(
+            f"    partial corr:     {mean_rho:+.4f}  95% CI [{rho_ci[0]:+.4f}, {rho_ci[1]:+.4f}]  (held-out test)"
+        )
         print(f"    seed agreement:   {mean_agree:+.4f}  95% CI [{agree_ci[0]:+.4f}, {agree_ci[1]:+.4f}]")
         print(f"    output-controlled:{mean_ctrl:+.4f}  95% CI [{ctrl_ci[0]:+.4f}, {ctrl_ci[1]:+.4f}]")
         print(f"    baselines: {baseline_results}")
@@ -3054,13 +3430,17 @@ def run_cross_family(
             "hidden_dim": hidden_dim,
             "n_params_m": n_params_m,
             "peak_layer": peak_layer,
+            "peak_layer_source": "validation",
             "peak_layer_frac": round(peak_layer / n_layers, 2),
+            "layer_profile_split": "validation",
             "layer_profile": {str(k): v for k, v in sorted(layer_profile.items())},
+            "val_partial_corr_at_peak": val_rho_at_peak,
             "partial_corr": {
                 "mean": mean_rho,
                 "std": float(np.std(all_rhos)),
                 "per_seed": all_rhos,
                 "ci_95": list(rho_ci),
+                "split": "test",
             },
             "seed_agreement": {
                 "mean": mean_agree,
@@ -3075,6 +3455,7 @@ def run_cross_family(
             },
             "baselines": baseline_results,
             "n_train_tokens": adj_train,
+            "n_val_tokens": adj_val,
             "n_test_tokens": adj_test,
         }
 
@@ -3116,6 +3497,7 @@ def main():
     P.add_argument("--seeds", type=int, default=3, help="Number of observer head seeds")
     P.add_argument("--device", default="auto")
     P.add_argument("--max-tokens-train", type=int, default=200000)
+    P.add_argument("--max-tokens-val", type=int, default=100000)
     P.add_argument("--max-tokens-test", type=int, default=100000)
     P.add_argument("--layer-sweep", action="store_true", help="Run 5b layer sweep")
     P.add_argument("--baselines", action="store_true", help="Run 5c hand-designed baselines")
@@ -3155,6 +3537,11 @@ def main():
     P.add_argument("--phase9a", action="store_true", help="Phase 9a: Llama 3.2 1B cross-family test")
     P.add_argument("--phase9b", action="store_true", help="Phase 9b: Qwen 2.5 0.5B + 1.5B replication")
     P.add_argument("--phase9", action="store_true", help="Phase 9: all cross-family experiments (9a + 9b)")
+    P.add_argument(
+        "--mechanistic-7b",
+        action="store_true",
+        help="Mechanistic analysis on Qwen 7B (mean-ablation patching at scale)",
+    )
     a = P.parse_args()
 
     if a.device == "auto":
@@ -3166,13 +3553,19 @@ def main():
 
     print("Transformer observer experiments")
     print(f"Device: {a.device}  Seeds: {seeds}")
-    print(f"Train tokens: {a.max_tokens_train}  Test tokens: {a.max_tokens_test}")
+    print(
+        f"Train tokens: {a.max_tokens_train}  Val tokens: {a.max_tokens_val}  Test tokens: {a.max_tokens_test}"
+    )
 
     # Load data (shared across all experiments)
+    # Three-way split: train for probe fitting, validation for layer selection,
+    # held-out test for final reporting. Prevents selection bias from choosing
+    # the peak layer on the same data used to report partial correlations.
     print("\nLoading WikiText-103...")
     train_docs = load_wikitext("train", max_docs=2000)
+    val_docs = load_wikitext("validation", max_docs=500)
     test_docs = load_wikitext("test", max_docs=500)
-    print(f"  {len(train_docs)} train docs, {len(test_docs)} test docs")
+    print(f"  {len(train_docs)} train docs, {len(val_docs)} val docs, {len(test_docs)} test docs")
 
     results = {}
     t0 = time.time()
@@ -3181,7 +3574,15 @@ def main():
     if a.scale:
         model_names = [m[0] for m in GPT2_MODELS] if a.model == "gpt2" else [a.model]
         results["8"] = run_scale(
-            a.device, seeds, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test, model_names
+            a.device,
+            seeds,
+            train_docs,
+            val_docs,
+            test_docs,
+            a.max_tokens_train,
+            a.max_tokens_val,
+            a.max_tokens_test,
+            model_names,
         )
         elapsed = time.time() - t0
         print(f"\nTotal time: {elapsed:.0f}s")
@@ -3192,15 +3593,87 @@ def main():
     if a.phase9a or a.phase9 or a.phase9b:
         if a.phase9a or a.phase9:
             results["9a"] = run_cross_family(
-                "9a", a.device, seeds, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test
+                "9a",
+                a.device,
+                seeds,
+                train_docs,
+                val_docs,
+                test_docs,
+                a.max_tokens_train,
+                a.max_tokens_val,
+                a.max_tokens_test,
             )
         if a.phase9b or a.phase9:
             results["9b"] = run_cross_family(
-                "9b", a.device, seeds, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test
+                "9b",
+                a.device,
+                seeds,
+                train_docs,
+                val_docs,
+                test_docs,
+                a.max_tokens_train,
+                a.max_tokens_val,
+                a.max_tokens_test,
             )
         elapsed = time.time() - t0
         print(f"\nTotal time: {elapsed:.0f}s")
         _save_results(results, filename="cross_family.json")
+        return
+
+    # Mechanistic analysis at 7B (handles its own model loading)
+    if a.mechanistic_7b:
+        import gc
+
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        model_id = "Qwen/Qwen2.5-7B"
+        print(f"\nLoading {model_id} for mechanistic analysis...")
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        dtype = torch.float16 if a.device in ("mps", "cuda") else torch.float32
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            trust_remote_code=True,
+            torch_dtype=dtype,
+        ).to(a.device)
+        model.eval()
+
+        n_layers = model.config.num_hidden_layers
+        hidden_dim = model.config.hidden_size
+        n_params = sum(p.numel() for p in model.parameters())
+        print(f"  {n_params / 1e9:.1f}B params, {n_layers} layers, hidden dim {hidden_dim}")
+
+        # Scale token budgets for 7B
+        min_ex_per_dim = 150
+        adj_train = max(min_ex_per_dim * hidden_dim, int(a.max_tokens_train * (768 / hidden_dim)))
+        adj_test = max(min_ex_per_dim * hidden_dim // 2, int(a.max_tokens_test * (768 / hidden_dim)))
+
+        peak_layer = 18  # from Phase 9c results
+        mech_result = run_mechanistic_general(
+            model,
+            tokenizer,
+            a.device,
+            train_docs,
+            test_docs,
+            adj_train,
+            adj_test,
+            peak_layer=peak_layer,
+            eval_budget=15000,
+        )
+        mech_result["model"] = model_id
+        mech_result["n_params_b"] = round(n_params / 1e9, 1)
+        mech_result["n_layers"] = n_layers
+        mech_result["hidden_dim"] = hidden_dim
+
+        elapsed = time.time() - t0
+        print(f"\nTotal time: {elapsed:.0f}s")
+        _save_results({"mechanistic_7b": mech_result}, filename="mechanistic_7b.json")
+
+        del model, tokenizer
+        gc.collect()
+        if a.device == "cuda":
+            torch.cuda.empty_cache()
         return
 
     # Phases 5-8: load GPT-2 124M
@@ -3241,7 +3714,16 @@ def main():
     # 5b: layer sweep
     if a.layer_sweep or a.all:
         results["5b"] = run_5b(
-            model, tokenizer, a.device, seeds, train_docs, test_docs, a.max_tokens_train, a.max_tokens_test
+            model,
+            tokenizer,
+            a.device,
+            seeds,
+            train_docs,
+            val_docs,
+            test_docs,
+            a.max_tokens_train,
+            a.max_tokens_val,
+            a.max_tokens_test,
         )
 
     # 5c: baselines

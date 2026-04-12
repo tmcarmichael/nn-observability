@@ -1,4 +1,4 @@
-# Learned Observers Recover Decision-Quality Signal from Frozen Activations
+# Architecture Predicts Linear Readability of Decision Quality in Transformers
 # Run `just` to see all available recipes
 
 set dotenv-load := false
@@ -115,6 +115,14 @@ phase9b seeds=default_seeds device=default_device:
 phase9 seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --phase9 --seeds {{seeds}} --device {{device}}
 
+# Mechanistic analysis on Qwen 7B (mean-ablation patching at scale)
+mechanistic-7b device=default_device:
+    uv run --extra transformer src/transformer_observe.py --mechanistic-7b --device {{device}}
+
+# Phase 11: Selective prediction on TriviaQA (Qwen 7B Instruct)
+selective-prediction seeds=default_seeds device=default_device:
+    uv run --extra transformer src/selective_prediction.py --seeds {{seeds}} --device {{device}}
+
 # Run all experiments (alias for reproduce)
 all device=default_device:
     just reproduce {{device}}
@@ -142,6 +150,14 @@ reproduce device=default_device:
     just sae-compare 3 {{device}}
     just phase8 3 {{device}}
     just phase9 3 {{device}}
+
+# Generate all paper figures (outputs to ../nn-observability-paper/figures/)
+figures:
+    uv run python figures/generate_all.py
+
+# Generate a single figure (e.g., just figure fig_cross_family)
+figure name:
+    uv run python figures/{{name}}.py
 
 # Lint source files
 lint:

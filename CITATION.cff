@@ -1,17 +1,22 @@
 cff-version: 1.2.0
-title: "Training-Time Design Preserves or Suppresses Internal Quality Signals in Transformer Activations"
+title: "Architecture Predicts Linear Readability of Decision Quality in Transformers"
 message: "If you use this work, please cite it using the metadata from this file."
 type: software
 authors:
   - family-names: Carmichael
     given-names: Thomas
+version: "2.0.0"
+date-released: "2026-04-12"
 license: MIT
 doi: "10.5281/zenodo.19435674"
 repository-code: "https://github.com/tmcarmichael/nn-observability"
+abstract: "Half the signal in standard activation probes is output confidence in disguise, and what remains varies by architecture family, not model scale. A linear probe on frozen activations, evaluated by partial Spearman correlation after controlling for max softmax probability and activation norm, recovers a stable signal across five Qwen 2.5 scales (0.5B-14B) and four architecture families (GPT-2, Qwen, Gemma, Llama). At matched hyperparameters, a nonlinear MLP does not exceed the linear probe on any of eight models tested. Llama 3.2 3B produces a 2.8x gap with Qwen at matched scale (permutation test p = 0.014). At every tested point, 9-10% of model errors are invisible to output confidence but caught by the observer."
 keywords:
   - neural network observability
-  - activation monitoring
-  - learned probes
   - transformer interpretability
   - decision quality
+  - learned probes
+  - confidence controls
+  - architecture-dependent readability
   - partial correlation
+  - cross-family evaluation

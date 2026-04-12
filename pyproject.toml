@@ -1,11 +1,29 @@
 [project]
 name = "nn-observability"
-version = "1.0.0"
-description = "Neural network observability research. Learned binary observer heads on frozen activations recover decision-quality signal independent of output confidence."
+version = "2.0.0"
+description = "Architecture predicts linear readability of decision quality in transformer activations. Cross-family evaluation with confidence controls across four model families."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]
 requires-python = ">=3.12"
+keywords = [
+    "transformer interpretability",
+    "neural network observability",
+    "learned probes",
+    "decision quality",
+    "confidence controls",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Repository = "https://github.com/tmcarmichael/nn-observability"
+Issues = "https://github.com/tmcarmichael/nn-observability/issues"
 dependencies = [
     "matplotlib>=3.8.0",
     "numpy>=1.26.0",
@@ -55,7 +73,7 @@ ignore = [
 max-complexity = 25
 
 [tool.ruff.lint.isort]
-known-first-party = ["train", "observe", "scale", "observer_variants", "seed_agreement", "inspect_weights", "transformer_observe", "sae_compare"]
+known-first-party = ["train", "observe", "scale", "observer_variants", "seed_agreement", "inspect_weights", "transformer_observe", "sae_compare", "selective_prediction"]
 
 [tool.ruff.format]
 quote-style = "double"

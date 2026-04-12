@@ -142,7 +142,9 @@ def main():
     for i in range(3):
         for j in range(i + 1, 3):
             key = f"{seeds[i]}_vs_{seeds[j]}"
-            cos = float(np.dot(weights[i], weights[j]) / (np.linalg.norm(weights[i]) * np.linalg.norm(weights[j])))
+            cos = float(
+                np.dot(weights[i], weights[j]) / (np.linalg.norm(weights[i]) * np.linalg.norm(weights[j]))
+            )
             results["weight_cosine_similarity"][key] = cos
             rho, _ = spearmanr(all_scores[i], all_scores[j])
             results["score_ranking_agreement"][key] = float(rho)

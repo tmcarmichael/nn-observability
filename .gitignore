@@ -39,9 +39,13 @@ CLAUDE.md
 .claude/
 .worktreeinclude
 
-# Generated charts (reproducible via analyze.ipynb)
+# Generated charts and analysis output
 *.png
 !assets/*.png
+analysis/*.pdf
 
 # Internal review
 review/
+INVENTORY.md
+logs/
+archive/
