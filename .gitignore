@@ -46,6 +46,7 @@ analysis/*.pdf
 
 # Internal review
 review/
-INVENTORY.md
-logs/
-notes/
+docs/internal/
+
+# Archived scripts and notebooks
+archive/

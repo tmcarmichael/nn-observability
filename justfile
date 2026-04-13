@@ -131,6 +131,10 @@ all device=default_device:
 smoke device=default_device:
     uv run src/train.py --dataset mnist --epochs 5 --seeds 1 --device {{device}}
 
+# Smoke test for run_model.py (GPT-2 124M, ~3 min on CPU)
+smoke-gpu:
+    uv run pytest tests/test_smoke_run_model.py -v --timeout=600
+
 # Run metric tests
 test:
     uv run pytest tests/ -v
@@ -155,9 +159,22 @@ reproduce device=default_device:
 figures:
     uv run python figures/generate_all.py
 
+# Generate paper tables (outputs to ../nn-observability-paper/tables/)
+tables:
+    uv run python analysis/generate_tables.py
+
+# Generate data_macros.sty for the paper
+data-macros:
+    uv run python analysis/generate_data_macros.py
+
 # Generate a single figure (e.g., just figure fig_cross_family)
 figure name:
     uv run python figures/{{name}}.py
+
+# Install pre-commit hooks (ruff on commit, version check on push)
+install-hooks:
+    uv run pre-commit install
+    uv run pre-commit install --hook-type pre-push
 
 # Lint source files
 lint:

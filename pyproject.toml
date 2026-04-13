@@ -1,7 +1,7 @@
 [project]
 name = "nn-observability"
-version = "2.0.0"
-description = "Architecture predicts linear readability of decision quality in transformer activations. Cross-family evaluation with confidence controls across four model families."
+version = "2.2.1"
+description = "Architecture predicts linear readability of decision quality in transformer activations. Cross-family evaluation with confidence controls across five model families."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]
@@ -20,10 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
-[project.urls]
-Repository = "https://github.com/tmcarmichael/nn-observability"
-Issues = "https://github.com/tmcarmichael/nn-observability/issues"
 dependencies = [
     "matplotlib>=3.8.0",
     "numpy>=1.26.0",
@@ -32,6 +28,10 @@ dependencies = [
     "torch>=2.2.0",
     "torchvision>=0.17.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/tmcarmichael/nn-observability"
+Issues = "https://github.com/tmcarmichael/nn-observability/issues"
 
 [project.optional-dependencies]
 transformer = [
@@ -44,6 +44,7 @@ transformer = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.15",
+    "pre-commit>=4.0",
 ]
 
 [tool.pytest.ini_options]
@@ -67,7 +68,16 @@ ignore = [
     "B006",   # mutable default args — false positives with lists in signatures
     "B905",   # zip() without strict= — paired iterators always match in this codebase
     "UP007",  # X | Y union syntax
+    "E402",   # module-level import not at top — lazy imports at call sites (CLAUDE.md)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"analysis/nonlinear_probe.py" = ["I001"]    # inline import gc after del model
+"scripts/legacy/auxiliary_loss.py" = ["I001"] # inline import time for MPS sleep
+"analysis/generate_data_macros.py" = ["I001"] # sys.path before import
+"analysis/generate_tables.py" = ["I001"]      # sys.path before import
+"figures/fig_cross_family.py" = ["I001"]    # style must import before load_results (sets sys.path)
+"scripts/run_model.py" = ["I001", "E402"]  # lazy imports for optional deps (datasets, transformers)
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25

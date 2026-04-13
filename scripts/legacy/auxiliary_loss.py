@@ -8,13 +8,15 @@ Usage: uv run --extra transformer scripts/auxiliary_loss.py
 
 from __future__ import annotations
 
-import subprocess, shutil
-if shutil.which('nvidia-smi'):
-    subprocess.run(['nvidia-smi'], check=False)
-elif shutil.which('rocm-smi'):
-    subprocess.run(['rocm-smi'], check=False)
+import shutil
+import subprocess
+
+if shutil.which("nvidia-smi"):
+    subprocess.run(["nvidia-smi"], check=False)
+elif shutil.which("rocm-smi"):
+    subprocess.run(["rocm-smi"], check=False)
 else:
-    print('No GPU management tool found (nvidia-smi / rocm-smi)')
+    print("No GPU management tool found (nvidia-smi / rocm-smi)")
 
 import gc
 import json
@@ -33,18 +35,25 @@ print(f"Device: {DEVICE}")
 # Utilities
 # ---------------------------------------------------------------------------
 
+
 def load_wikitext(split="test", max_docs=None):
     from datasets import load_dataset
+
     ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
     docs, current = [], []
     for row in ds:
         text = row["text"]
         if text.strip() == "" and current:
-            docs.append("\n".join(current)); current = []
-            if max_docs and len(docs) >= max_docs: break
-        elif text.strip(): current.append(text)
-    if current: docs.append("\n".join(current))
+            docs.append("\n".join(current))
+            current = []
+            if max_docs and len(docs) >= max_docs:
+                break
+        elif text.strip():
+            current.append(text)
+    if current:
+        docs.append("\n".join(current))
     return docs
+
 
 def partial_spearman(x, y, covariates):
     rx, ry = rankdata(x), rankdata(y)
@@ -55,21 +64,26 @@ def partial_spearman(x, y, covariates):
     r, p = pearsonr(rx - rc @ coef_x, ry - rc @ coef_y)
     return float(r), float(p)
 
+
 def compute_loss_residuals(losses, max_softmax, activation_norm):
     X = np.column_stack([max_softmax, activation_norm, np.ones(len(losses))])
     beta, _, _, _ = np.linalg.lstsq(X, losses, rcond=None)
     return losses - X @ beta
+
 
 def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000, max_length=512):
     model.eval()
     all_acts, all_losses, all_softmax, all_norms = [], [], [], []
     total = 0
     for doc in docs:
-        if total >= max_tokens: break
-        if not doc.strip(): continue
+        if total >= max_tokens:
+            break
+        if not doc.strip():
+            continue
         tokens = tokenizer(doc, return_tensors="pt", truncation=True, max_length=max_length)
         input_ids = tokens["input_ids"].to(device)
-        if input_ids.size(1) < 2: continue
+        if input_ids.size(1) < 2:
+            continue
         with torch.inference_mode():
             outputs = model(input_ids, output_hidden_states=True)
         h = outputs.hidden_states[layer + 1][0, :-1, :].cpu()
@@ -78,7 +92,10 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000,
         losses = F.cross_entropy(logits, labels, reduction="none").cpu()
         sm = F.softmax(logits, dim=-1).max(dim=-1).values.cpu()
         norms = h.norm(dim=-1)
-        all_acts.append(h); all_losses.append(losses); all_softmax.append(sm); all_norms.append(norms)
+        all_acts.append(h)
+        all_losses.append(losses)
+        all_softmax.append(sm)
+        all_norms.append(norms)
         total += h.size(0)
     print(f"    {total} positions from {len(all_acts)} documents")
     return {
@@ -88,11 +105,14 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000,
         "activation_norm": torch.cat(all_norms).float().numpy(),
     }
 
+
 def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3):
-    torch.manual_seed(seed); np.random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     acts = train_data["activations"]
     residuals = compute_loss_residuals(
-        train_data["losses"], train_data["max_softmax"], train_data["activation_norm"])
+        train_data["losses"], train_data["max_softmax"], train_data["activation_norm"]
+    )
     targets = torch.from_numpy((residuals > 0).astype(np.float32))
     head = torch.nn.Linear(acts.size(1), 1)
     opt = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=1e-4)
@@ -102,40 +122,51 @@ def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3):
     for _ in range(epochs):
         for bx, by in dl:
             loss = F.binary_cross_entropy_with_logits(head(bx).squeeze(-1), by)
-            opt.zero_grad(set_to_none=True); loss.backward(); opt.step()
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            opt.step()
     return head
+
 
 def evaluate_head(head, test_data):
     head.eval()
     with torch.inference_mode():
         scores = head(test_data["activations"]).squeeze(-1).numpy()
-    rho, p = partial_spearman(scores, test_data["losses"],
-                               [test_data["max_softmax"], test_data["activation_norm"]])
+    rho, p = partial_spearman(
+        scores, test_data["losses"], [test_data["max_softmax"], test_data["activation_norm"]]
+    )
     return scores, rho, p
+
 
 def measure_perplexity(model, tokenizer, docs, device, max_tokens=50000):
     model.eval()
     total_loss, total_tokens = 0.0, 0
     with torch.inference_mode():
         for doc in docs:
-            if total_tokens >= max_tokens: break
-            if not doc.strip(): continue
+            if total_tokens >= max_tokens:
+                break
+            if not doc.strip():
+                continue
             ids = tokenizer(doc, return_tensors="pt", truncation=True, max_length=512)["input_ids"].to(device)
-            if ids.size(1) < 2: continue
+            if ids.size(1) < 2:
+                continue
             logits = model(ids).logits[0, :-1, :]
             loss = F.cross_entropy(logits, ids[0, 1:], reduction="sum").item()
             total_loss += loss
             total_tokens += ids.size(1) - 1
     return float(np.exp(total_loss / total_tokens))
 
+
 def clear_cache():
     gc.collect()
     if DEVICE == "cuda":
         torch.cuda.empty_cache()
 
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     MODEL_ID = "Qwen/Qwen2.5-0.5B"
@@ -149,8 +180,7 @@ def main():
     # Load model
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, trust_remote_code=True, torch_dtype=torch.bfloat16,
-        attn_implementation="sdpa"
+        MODEL_ID, trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="sdpa"
     ).to(DEVICE)
     model.eval()
     if tokenizer.pad_token is None:
@@ -158,7 +188,9 @@ def main():
 
     N_LAYERS = model.config.num_hidden_layers
     HIDDEN_DIM = model.config.hidden_size
-    print(f"{sum(p.numel() for p in model.parameters())/1e6:.0f}M params, {N_LAYERS} layers, {HIDDEN_DIM} dim")
+    print(
+        f"{sum(p.numel() for p in model.parameters()) / 1e6:.0f}M params, {N_LAYERS} layers, {HIDDEN_DIM} dim"
+    )
 
     # Load data
     wiki_train = load_wikitext("train", max_docs=2000)
@@ -189,8 +221,9 @@ def main():
     # -----------------------------------------------------------------------
     print("\n=== FROZEN PROBE ===")
     probe_train = collect_layer_data(model, tokenizer, wiki_train, TARGET_LAYER, DEVICE, MAX_TRAIN)
-    X_ols = np.column_stack([probe_train["max_softmax"], probe_train["activation_norm"],
-                              np.ones(len(probe_train["losses"]))])
+    X_ols = np.column_stack(
+        [probe_train["max_softmax"], probe_train["activation_norm"], np.ones(len(probe_train["losses"]))]
+    )
     ols_beta = np.linalg.lstsq(X_ols, probe_train["losses"], rcond=None)[0]
     ols_beta_tensor = torch.tensor(ols_beta, dtype=torch.float32).to(DEVICE)
 
@@ -206,7 +239,9 @@ def main():
     print(f"Frozen probe baseline at L{TARGET_LAYER}: {baseline_rho_target:+.4f}")
     del probe_train, probe_test
     clear_cache()
-    import time; time.sleep(1)  # let MPS release memory
+    import time
+
+    time.sleep(1)  # let MPS release memory
 
     # -----------------------------------------------------------------------
     # Fine-tune
@@ -214,7 +249,8 @@ def main():
     print(f"\n=== FINE-TUNING (lambda={AUX_LAMBDA}, steps={N_STEPS}) ===")
     train_ids = []
     for doc in wiki_train:
-        if not doc.strip(): continue
+        if not doc.strip():
+            continue
         ids = tokenizer(doc, return_tensors="pt", truncation=True, max_length=BATCH_SEQ_LEN)["input_ids"]
         if ids.size(1) >= 64:
             train_ids.append(ids.squeeze(0))
@@ -244,8 +280,7 @@ def main():
             binary_target = (per_token_loss - predicted > 0).float()
 
         h_for_probe = outputs.hidden_states[TARGET_LAYER + 1][0, :-1, :].float()
-        aux_loss = F.binary_cross_entropy_with_logits(
-            frozen_probe(h_for_probe).squeeze(-1), binary_target)
+        aux_loss = F.binary_cross_entropy_with_logits(frozen_probe(h_for_probe).squeeze(-1), binary_target)
 
         total_loss = lm_loss + AUX_LAMBDA * aux_loss
         optimizer.zero_grad(set_to_none=True)
@@ -256,8 +291,10 @@ def main():
         lm_losses.append(lm_loss.item())
         aux_losses.append(aux_loss.item())
         if (step + 1) % LOG_EVERY == 0:
-            print(f"  step {step+1}/{N_STEPS}: lm={np.mean(lm_losses[-LOG_EVERY:]):.4f}  "
-                  f"aux={np.mean(aux_losses[-LOG_EVERY:]):.4f}")
+            print(
+                f"  step {step + 1}/{N_STEPS}: lm={np.mean(lm_losses[-LOG_EVERY:]):.4f}  "
+                f"aux={np.mean(aux_losses[-LOG_EVERY:]):.4f}"
+            )
 
     model.eval()
     print("Fine-tuning complete.")
@@ -285,7 +322,8 @@ def main():
     post_ppl = measure_perplexity(model, tokenizer, wiki_test, DEVICE)
     print(f"Perplexity: {baseline_ppl:.2f} -> {post_ppl:.2f} (delta {post_ppl - baseline_ppl:+.2f})")
 
-    del model; clear_cache()
+    del model
+    clear_cache()
 
     # -----------------------------------------------------------------------
     # Lambda sweep
@@ -297,8 +335,7 @@ def main():
     for lam in lambdas_to_test:
         print(f"\n--- Lambda = {lam} ---")
         m = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID, trust_remote_code=True, torch_dtype=torch.bfloat16,
-            attn_implementation="sdpa"
+            MODEL_ID, trust_remote_code=True, torch_dtype=torch.bfloat16, attn_implementation="sdpa"
         ).to(DEVICE)
 
         if lam > 0:
@@ -322,8 +359,10 @@ def main():
                 h_fp = out.hidden_states[TARGET_LAYER + 1][0, :-1, :].float()
                 al = F.binary_cross_entropy_with_logits(frozen_probe(h_fp).squeeze(-1), bt)
                 total = lm_l + lam * al
-                opt.zero_grad(set_to_none=True); total.backward()
-                torch.nn.utils.clip_grad_norm_(m.parameters(), 1.0); opt.step()
+                opt.zero_grad(set_to_none=True)
+                total.backward()
+                torch.nn.utils.clip_grad_norm_(m.parameters(), 1.0)
+                opt.step()
 
         m.eval()
         tr = collect_layer_data(m, tokenizer, wiki_train, TARGET_LAYER, DEVICE, MAX_TRAIN)
@@ -334,15 +373,18 @@ def main():
 
         print(f"  Observability: {rho:+.4f}  Perplexity: {ppl:.2f}")
         sweep_results.append({"lambda": lam, "partial_corr": float(rho), "perplexity": float(ppl)})
-        del m, tr, te; clear_cache()
+        del m, tr, te
+        clear_cache()
 
-    print(f'\n{"Lambda":<10} {"Partial corr":>14} {"Perplexity":>12} {"Obs delta":>12} {"PPL delta":>12}')
+    print(f"\n{'Lambda':<10} {'Partial corr':>14} {'Perplexity':>12} {'Obs delta':>12} {'PPL delta':>12}")
     print("-" * 62)
     base_obs = sweep_results[0]["partial_corr"]
     base_ppl_sweep = sweep_results[0]["perplexity"]
     for r in sweep_results:
-        print(f'{r["lambda"]:<10} {r["partial_corr"]:>+14.4f} {r["perplexity"]:>12.2f} '
-              f'{r["partial_corr"] - base_obs:>+12.4f} {r["perplexity"] - base_ppl_sweep:>+12.2f}')
+        print(
+            f"{r['lambda']:<10} {r['partial_corr']:>+14.4f} {r['perplexity']:>12.2f} "
+            f"{r['partial_corr'] - base_obs:>+12.4f} {r['perplexity'] - base_ppl_sweep:>+12.2f}"
+        )
 
     # -----------------------------------------------------------------------
     # Save
@@ -377,6 +419,7 @@ def main():
         json.dump(output, f, indent=2)
     print(f"\nSaved {out_path}")
     print(json.dumps(output, indent=2))
+
 
 if __name__ == "__main__":
     main()

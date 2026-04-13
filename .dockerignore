@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+results/
+assets/
+archive/
+notebooks/
+.ruff_cache

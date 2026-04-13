@@ -33,20 +33,16 @@ def exclusive_catch_table(name: str, flagging: dict) -> None:
     # observer_exclusive at 10% / (known fraction from paper) gives total,
     # but we can compute directly: errors = tokens with loss > median (~50%)
     # Use the median_loss threshold: tokens above median are "errors"
-    median_loss = flagging.get("median_loss", None)
+    flagging.get("median_loss", None)
 
     # Compute total errors from the data at 10% rate using the
     # observer + confidence union coverage
-    obs_10 = np.mean(
-        [s["exclusive"]["0.1"]["observer_only"] for s in per_seed]
-    )
-    conf_10 = np.mean(
-        [s["exclusive"]["0.1"]["confidence_only"] for s in per_seed]
-    )
+    np.mean([s["exclusive"]["0.1"]["observer_only"] for s in per_seed])
+    np.mean([s["exclusive"]["0.1"]["confidence_only"] for s in per_seed])
     # Both catch = flagged by both at 10%
-    n_flagged_10 = n_test * 0.1
-    obs_prec_10 = np.mean([s["observer"]["0.1"] for s in per_seed])
-    conf_prec_10 = np.mean([s["confidence"]["0.1"] for s in per_seed])
+    n_test * 0.1
+    np.mean([s["observer"]["0.1"] for s in per_seed])
+    np.mean([s["confidence"]["0.1"] for s in per_seed])
     # Total errors ≈ n_test * error_rate. Error rate from precision:
     # precision = errors_flagged / n_flagged, so errors_flagged = (1-prec) * n_flagged
     # But we need TOTAL errors, not just flagged ones.
@@ -60,20 +56,11 @@ def exclusive_catch_table(name: str, flagging: dict) -> None:
     print(f"{'-' * 10}  {'-' * 14}  {'-' * 15}  {'-' * 12}")
 
     for rate in FLAG_RATES:
-        obs_only = np.mean(
-            [s["exclusive"][rate]["observer_only"] for s in per_seed]
-        )
-        conf_only = np.mean(
-            [s["exclusive"][rate]["confidence_only"] for s in per_seed]
-        )
+        obs_only = np.mean([s["exclusive"][rate]["observer_only"] for s in per_seed])
+        conf_only = np.mean([s["exclusive"][rate]["confidence_only"] for s in per_seed])
         pct_errors = obs_only / total_errors * 100
 
-        print(
-            f"{float(rate) * 100:>9.0f}%  "
-            f"{obs_only:>14,.0f}  "
-            f"{conf_only:>15,.0f}  "
-            f"{pct_errors:>11.1f}%"
-        )
+        print(f"{float(rate) * 100:>9.0f}%  {obs_only:>14,.0f}  {conf_only:>15,.0f}  {pct_errors:>11.1f}%")
 
 
 def main():

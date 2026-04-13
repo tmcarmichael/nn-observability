@@ -11,8 +11,7 @@ from itertools import permutations
 from math import factorial
 
 import numpy as np
-
-from load_results import load_model_means, load_all_models
+from load_results import load_all_models, load_model_means
 
 
 def family_f_stat(families, log_params, pcorrs):
@@ -29,11 +28,11 @@ def family_f_stat(families, log_params, pcorrs):
         group_ns.append(mask.sum())
 
     grand_mean = resid.mean()
-    ss_between = sum(n * (m - grand_mean)**2 for n, m in zip(group_ns, group_means))
+    ss_between = sum(n * (m - grand_mean) ** 2 for n, m in zip(group_ns, group_means))
     ss_within = 0
     for fam, m in zip(unique_fam, group_means):
         mask = np.array([f == fam for f in families])
-        ss_within += ((resid[mask] - m)**2).sum()
+        ss_within += ((resid[mask] - m) ** 2).sum()
 
     k = len(unique_fam)
     n = len(families)
@@ -44,6 +43,7 @@ def family_f_stat(families, log_params, pcorrs):
 
 def n_unique_permutations(families):
     from collections import Counter
+
     counts = Counter(families)
     n = factorial(len(families))
     for c in counts.values():
@@ -56,10 +56,10 @@ def run_permutation_test(mc_threshold=100000, mc_n=50000, seed=42):
 
     models = load_model_means()
     if len(models) < 3:
-        print(f'Only {len(models)} models.')
+        print(f"Only {len(models)} models.")
         sys.exit(1)
 
-    print(f'Loaded {len(models)} models')
+    print(f"Loaded {len(models)} models")
     load_all_models(verbose=True)
     print()
 
@@ -79,37 +79,39 @@ def run_permutation_test(mc_threshold=100000, mc_n=50000, seed=42):
             seen.add(perm)
             null_fs.append(family_f_stat(list(perm), log_params, pcorrs))
         null_fs = np.array(null_fs)
-        method = f'exact ({len(null_fs)} unique permutations)'
+        method = f"exact ({len(null_fs)} unique permutations)"
     else:
-        null_fs = np.array([
-            family_f_stat(list(rng.permutation(families)), log_params, pcorrs)
-            for _ in range(mc_n)])
-        method = f'Monte Carlo ({mc_n} samples of {n_unique} possible)'
+        null_fs = np.array(
+            [family_f_stat(list(rng.permutation(families)), log_params, pcorrs) for _ in range(mc_n)]
+        )
+        method = f"Monte Carlo ({mc_n} samples of {n_unique} possible)"
 
     n_total = len(null_fs)
     p_value = (null_fs >= observed_f).mean()
     min_p = 1.0 / n_total
 
-    print('=== Permutation test for family effect ===')
-    print(f'  Models: {len(models)}')
-    print(f'  Families: {sorted(set(families))}')
-    print(f'  Method: {method}')
-    print(f'  Observed F-statistic: {observed_f:.4f}')
-    print(f'  p-value: {p_value:.6f}')
-    print(f'  Minimum achievable p: {min_p:.6f} (1/{n_total})')
-    print(f'  Null F-stat: mean={null_fs.mean():.4f}, '
-          f'95th={np.percentile(null_fs, 95):.4f}, '
-          f'99th={np.percentile(null_fs, 99):.4f}')
+    print("=== Permutation test for family effect ===")
+    print(f"  Models: {len(models)}")
+    print(f"  Families: {sorted(set(families))}")
+    print(f"  Method: {method}")
+    print(f"  Observed F-statistic: {observed_f:.4f}")
+    print(f"  p-value: {p_value:.6f}")
+    print(f"  Minimum achievable p: {min_p:.6f} (1/{n_total})")
+    print(
+        f"  Null F-stat: mean={null_fs.mean():.4f}, "
+        f"95th={np.percentile(null_fs, 95):.4f}, "
+        f"99th={np.percentile(null_fs, 99):.4f}"
+    )
 
     n_families = len(set(families))
     if n_families < 3:
-        print(f'\n  Note: only {n_families} families loaded. Test is underpowered')
-        print(f'  by design. Llama/Gemma data will increase separation.')
+        print(f"\n  Note: only {n_families} families loaded. Test is underpowered")
+        print("  by design. Llama/Gemma data will increase separation.")
 
-    print('\n=== Per-model data ===')
+    print("\n=== Per-model data ===")
     for fam, lp, pc in sorted(models, key=lambda x: (x[0], x[1])):
-        print(f'  {fam:<8} {10**lp:.3f}B  pcorr={pc:+.4f}')
+        print(f"  {fam:<8} {10**lp:.3f}B  pcorr={pc:+.4f}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_permutation_test()

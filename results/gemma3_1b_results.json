@@ -175,7 +175,8 @@
       "0.3": {
         "observer_exclusive": 1739.6666666666667
       }
-    }
+    },
+    "_invalid": "Suspected inverted observer score polarity. Exclusive catch counts are unreliable. Needs recomputation with sign check. See 2026-04-13 session."
   },
   "exdim_validation": {
     "target_ex_per_dim": 350,

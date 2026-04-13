@@ -25,7 +25,8 @@ At every flag rate tested, the observer catches errors confidence misses: 6-7% o
 <p align="center">
 <img src="assets/cross_family_scaling.png" width="85%" alt="Cross-family scaling">
 </p>
-*Confidence-independent decision quality signal across four transformer families and 11 scales. Same evaluation protocol, same data, same controls. Qwen and GPT-2 maintain a stable signal. Llama drops sharply above 1B. The difference is architectural. Shaded band marks the detection threshold. Open markers are preliminary (3 seeds).*
+
+*Confidence-independent decision quality signal across five transformer families. Same evaluation protocol, same data, same controls. Qwen, GPT-2, and Mistral maintain a stable signal. Llama drops sharply above 1B. The difference is architectural. Shaded band marks the detection threshold. Open markers are preliminary (3 seeds).*
 
 ## Cross-family results
 
@@ -39,6 +40,7 @@ At every flag rate tested, the observer catches errors confidence misses: 6-7% o
 | Qwen 2.5 3B | Qwen | 3B | L25 (69%) | +0.263 | +0.144 | +0.925 |
 | Llama 3.2 3B | Llama | 3B | L0 (0%) | +0.089 | +0.033 | +0.999 |
 | Qwen 2.5 7B | Qwen | 7B | L17 (61%) | +0.255 | +0.137 | +0.964 |
+| Mistral 7B | Mistral | 7.2B | L22 (69%) | +0.313 | +0.156 | +0.995 |
 | Llama 3.1 8B\* | Llama | 8B | L0 (0%) | +0.088 | +0.054 | --- |
 | Qwen 2.5 14B | Qwen | 14B | L30 (62%) | +0.214 | +0.096 | +0.851 |
 
@@ -50,52 +52,87 @@ At every flag rate tested, the observer catches errors confidence misses: 6-7% o
 git clone https://github.com/tmcarmichael/nn-observability
 cd nn-observability
 uv sync
+just install-hooks                 # ruff on commit, version check on push
 
 just test                          # run tests
-just check                         # lint + format check
-just reproduce                     # reproduce MLP + GPT-2 results
-
-uv sync --extra transformer        # transformer dependencies
-just transformer model=gpt2        # run a single model
-just phase9                        # cross-family evaluation
+just check                         # lint + format + version
+just smoke-gpu                     # end-to-end smoke test (GPT-2 124M, ~3 min CPU)
 ```
+
+## Adding a new model
+
+The most valuable contribution is data from a new architecture family. On a GPU (RunPod, Colab, or local):
+
+```bash
+# Option A: script (recommended for RunPod / SSH)
+uv sync --extra transformer
+python scripts/run_model.py --model <hf-model-id> --output <name>_results.json
+
+# Option B: notebook (recommended for Colab)
+# Copy notebooks/qwen7b_base_instruct_v2.ipynb, change MODEL_ID
+```
+
+Then integrate:
+
+```bash
+cp <name>_results.json results/                 # 1. add the JSON
+# 2. add one entry to analysis/load_results.py
+# 3. add color + marker to figures/style.py
+uv run python analysis/run_all.py               # 4. updated stats
+just figures                                     # 5. new point in Figure 1
+```
+
+A 7B model takes ~2 hours on an H100. Token budgets must be at least 200 ex/dim (target 350 for models above 3B). See `results/README.md` for the output schema and `mistral7b_results.json` for a complete example.
 
 ## Reproducing the analysis
 
 The CPU analysis scripts run on the committed result JSONs without any GPU:
 
 ```bash
-cd analysis && python run_all.py
+uv run python analysis/run_all.py
 ```
 
-This produces the permutation test (p = 0.014), mixed-effects model (88% family variance), ANCOVA, selectivity analysis, exclusive catch rates across flag rates, and funnel plot. All scripts import from `load_results.py`, the single source of truth for which result files are in scope.
+This produces the permutation test (p = 0.004 with 5 families), mixed-effects model (88% family variance), ANCOVA, selectivity analysis, exclusive catch rates across flag rates, and funnel plot. All scripts import from `load_results.py`, the single source of truth for which result files are in scope.
 
 ## Repository structure
 
 ```
 src/                       Core library
-  observe.py                 MLP observer
-  transformer_observe.py     Transformer observer
+  probe.py                   Shared probing functions (partial correlation,
+                               activation collection, probe training)
+  observe.py                 MLP observer (phases 1-3)
+  transformer_observe.py     Transformer observer (phases 5-9)
   selective_prediction.py    TriviaQA selective prediction
 
-scripts/                   Data collection scripts (one per model)
+scripts/                   GPU data collection
+  run_model.py               Parameterized entry point for any HF model
+  *.py                       Per-model scripts (legacy, use run_model.py)
+
 notebooks/                 Colab/Jupyter notebooks for GPU collection
 
-analysis/                  Statistical analysis (all CPU)
+analysis/                  Statistical analysis (all CPU, no GPU needed)
   load_results.py            Single source of truth for result loading
   run_all.py                 Run all analysis scripts
-  exclusive_catch_rates.py   Multi-rate exclusive catch analysis
-  nonlinear_probe.py         Linear vs MLP probe comparison
   meta_regression.py         Mixed-effects model + variance decomposition
   permutation_test.py        Exact permutation test for family effect
+  exclusive_catch_rates.py   Multi-rate exclusive catch analysis
+  nonlinear_probe.py         Linear vs MLP probe comparison
   ancova_family.py           ANCOVA supplement
   selectivity.py             Random head baselines + control gap
   pearson_vs_spearman.py     Rank correlation methodology check
   loocv_scaling.py           Leave-one-out CV on Qwen scaling
   funnel_plot.py             Publication bias diagnostic
 
-results/                   All result JSONs (committed)
-assets/                    Figures and images
+figures/                   Paper figure generation scripts
+  style.py                   Shared matplotlib style and palette
+  fig_cross_family.py        Figure 1: cross-family scaling
+  fig_layer_profiles.py      Figure 2: Qwen vs Llama layer sweep
+  fig_waterfall.py           Figure 3: control sensitivity cascade
+  fig_exdim.py               Figure 4: ex/dim sensitivity
+  generate_all.py            Regenerate all figures
+
+results/                   All result JSONs (committed, reproducible)
+assets/                    Figures for README
 tests/                     Pytest suite
 ```
 

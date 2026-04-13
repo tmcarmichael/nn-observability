@@ -1,0 +1,24 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-version
+        name: check pyproject.toml version matches git tag
+        entry: |
+          bash -c '
+            toml_v=$(grep "^version" pyproject.toml | head -1 | sed "s/.*\"\(.*\)\"/\1/")
+            tag_v=$(git tag -l "v*" --sort=-v:refname | head -1 | sed "s/^v//")
+            if [ -n "$tag_v" ] && [ "$toml_v" != "$tag_v" ]; then
+              echo "ERROR: pyproject.toml ($toml_v) != latest tag (v$tag_v)"
+              exit 1
+            fi
+          '
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
