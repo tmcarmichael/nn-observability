@@ -15,6 +15,7 @@ SCRIPTS = [
     'pearson_vs_spearman.py',
     'loocv_scaling.py',
     'funnel_plot.py',
+    'exclusive_catch_rates.py',
 ]
 
 analysis_dir = Path(__file__).resolve().parent

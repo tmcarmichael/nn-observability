@@ -4,23 +4,28 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-Half the signal in standard activation probes is output confidence in disguise. After controlling for it, a stable linear signal remains, and its strength depends on architecture family, not model scale.
+> *Transformers carry internal error signals long before output. Architecture determines whether those signals are linearly monitorable or effectively hidden.*
+
+AI models can detect their own mistakes internally, but whether anyone can read that signal depends on architecture choices made before deployment. Some architectures make it readable, others don't. Current interpretability methods can't recover what the architecture didn't produce. Which architecture you deploy determines whether a 13-15% blind spot in confidence monitoring is visible or permanently opaque.
 
 ## Key findings
 
 **Confidence controls eliminate most of what probes measure.**
-Raw Spearman correlation between a linear probe and per-token loss is +0.55 on GPT-2 124M. After controlling for max softmax probability and activation norm, only +0.28 survives. Four hand-designed activation statistics that show strong raw correlation all collapse to near zero under the same controls. Published probing results without confidence controls are difficult to interpret.
+Raw Spearman correlation between a linear probe and per-token loss is +0.55 on GPT-2 124M. After controlling for max softmax probability and activation norm, only +0.28 survives. Four hand-designed activation statistics that show strong raw correlation all collapse to near zero under the same controls. The probe is standard; the measurement is not.
 
 **The surviving signal is stable, linear, and reproducible.**
-Twenty independent probe initializations on frozen GPT-2 124M converge to the same direction (rho_partial = +0.282 +/- 0.001, seed agreement +0.993). A nonlinear MLP does not exceed the linear probe at matched hyperparameters on any of eight models tested. The signal peaks at two-thirds depth across GPT-2 (124M--1.5B) and Qwen 2.5 (0.5B--14B).
+Twenty independent probe initializations on frozen GPT-2 124M converge to the same direction (rho_partial = +0.282 +/- 0.001, seed agreement +0.993). A nonlinear MLP does not exceed the linear probe at matched hyperparameters on any of eight models tested. A five-layer sweep across Llama 3.2 3B confirms the signal is absent at every depth under both linear and nonlinear probing.
 
 **Architecture family predicts observability; scale does not.**
-Under identical evaluation, Qwen 2.5 maintains rho_partial ~ +0.25 from 0.5B to 14B (28x range). GPT-2 is stable at +0.28 from 124M to 1.5B. Llama 3.2 3B produces +0.089, a 2.8x gap with Qwen at matched scale (permutation test p = 0.014, 88% of variance between families). Instruction tuning preserves the signal at every Qwen scale tested.
+Under identical evaluation, Qwen 2.5 maintains rho_partial ~ +0.25 from 0.5B to 14B (28x range). GPT-2 is stable at +0.28 from 124M to 1.5B. Llama 3.2 3B produces +0.089, a 3.0x gap with Qwen at matched scale (permutation test p = 0.014, 88% of variance between families). Instruction tuning preserves the signal at every Qwen scale and improves its operational stability across monitoring budgets (at 30% flag rate, Qwen 7B instruct holds at 13.9% exclusive catches while base drops to 12.0%).
 
-**9--10% of model errors are invisible to confidence.**
-At 10% flag rate, the observer catches tokens where the model is confident but wrong. This fraction is stable from GPT-2 124M through Qwen 2.5 14B, across base and instruct variants, and across WikiText-to-C4 domain transfer. Confidence precision is 1.000 on all Qwen variants: no confidence threshold would flag these tokens.
+**The observer catches errors confidence can never see.**
+At every flag rate tested, the observer catches errors confidence misses: 6-7% of all errors at 5% flag rate, 9-10% at 10%, saturating near 13-15% at 20%. This fraction is stable from GPT-2 124M through Qwen 2.5 14B, across base and instruct variants, and across WikiText-to-C4 domain transfer. Confidence precision is 1.000 on all Qwen variants: no confidence threshold would flag these tokens.
 
-![Cross-family scaling](assets/cross_family_scaling.png)
+<p align="center">
+<img src="assets/cross_family_scaling.png" width="85%" alt="Cross-family scaling">
+</p>
+*Confidence-independent decision quality signal across four transformer families and 11 scales. Same evaluation protocol, same data, same controls. Qwen and GPT-2 maintain a stable signal. Llama drops sharply above 1B. The difference is architectural. Shaded band marks the detection threshold. Open markers are preliminary (3 seeds).*
 
 ## Cross-family results
 
@@ -63,7 +68,7 @@ The CPU analysis scripts run on the committed result JSONs without any GPU:
 cd analysis && python run_all.py
 ```
 
-This produces the permutation test (p = 0.014), mixed-effects model (88% family variance), ANCOVA, selectivity analysis, and funnel plot. All scripts import from `load_results.py`, the single source of truth for which result files are in scope.
+This produces the permutation test (p = 0.014), mixed-effects model (88% family variance), ANCOVA, selectivity analysis, exclusive catch rates across flag rates, and funnel plot. All scripts import from `load_results.py`, the single source of truth for which result files are in scope.
 
 ## Repository structure
 
@@ -79,6 +84,7 @@ notebooks/                 Colab/Jupyter notebooks for GPU collection
 analysis/                  Statistical analysis (all CPU)
   load_results.py            Single source of truth for result loading
   run_all.py                 Run all analysis scripts
+  exclusive_catch_rates.py   Multi-rate exclusive catch analysis
   nonlinear_probe.py         Linear vs MLP probe comparison
   meta_regression.py         Mixed-effects model + variance decomposition
   permutation_test.py        Exact permutation test for family effect
