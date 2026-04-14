@@ -20,7 +20,7 @@ OUTPUT_NAME = "cross_family_scaling.pdf"
 # Points not in load_results scope but in the figure.
 # Llama 1B: full protocol but excluded from family-level stats
 # (different architecture from 3B, inflates within-family variance).
-# Llama 8B: full protocol in progress, preliminary 3-seed data shown.
+# Llama 8B: excluded from family-level stats (see load_results.py).
 EXTRA_POINTS = []
 
 # Llama 1B: load from committed full-protocol JSON if available
@@ -49,7 +49,7 @@ else:
         }
     )
 
-# Llama 8B: check for full-protocol JSON, fall back to preliminary
+# Llama 8B: load from committed JSON if available
 _llama8b_path = RESULTS_DIR / "llama8b_results.json"
 if _llama8b_path.exists():
     _d = json.loads(_llama8b_path.read_text())
@@ -80,7 +80,7 @@ def main():
     apply_style()
     models = load_all_models(verbose=True)
 
-    fig, ax = plt.subplots(figsize=(5.5, 3.2))
+    fig, ax = plt.subplots(figsize=(5.5, 3.5))
 
     points = []
 
@@ -155,16 +155,18 @@ def main():
     ax.axhline(0.15, color="gray", linewidth=0.6, linestyle=":", alpha=0.4)
 
     ax.legend(
-        loc="lower right",
-        fontsize=7,
-        framealpha=0.9,
-        handlelength=1.0,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.18),
+        ncol=6,
+        fontsize=6.5,
+        frameon=False,
+        handlelength=1.2,
         handletextpad=0.3,
-        borderpad=0.2,
-        labelspacing=0.2,
-        markerscale=0.8,
+        columnspacing=0.8,
+        markerscale=0.9,
     )
     ax.grid(True, alpha=0.2)
+    fig.subplots_adjust(bottom=0.22)
 
     save_fig(fig, OUTPUT_NAME)
 

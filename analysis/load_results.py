@@ -30,9 +30,7 @@ QWEN_MODELS = [
     # v3 results at 600 ex/dim (0.5B needs higher ex/dim)
     ("qwen05b_v3_results.json", 0.5, "Qwen-0.5B"),
     ("qwen1_5b_v3_results.json", 1.5, "Qwen-1.5B"),
-    # v3 results with CS (will fall back to v2 if v3 not yet available)
     ("qwen3b_v3_results.json", 3.0, "Qwen-3B"),
-    # v3 results (will fall back to older if not yet available)
     ("qwen7b_v3_results.json", 7.6, "Qwen-7B"),
     ("qwen14b_v3_results.json", 14.0, "Qwen-14B"),
     # 32B excluded from v1 (reconstructed data, incomplete battery)
@@ -47,12 +45,11 @@ QWEN_FALLBACKS = {
 }
 
 LLAMA_MODELS = [
-    ("llama3b_v2_results.json", 3.0, "Llama-3B"),
+    ("llama3b_v3_results.json", 3.0, "Llama-3B"),
     # Llama 1B (+0.286) excluded from family-level analysis because its
     # architecture (16L, 2048d) differs from 3B (28L, 3072d). Including it
     # inflates within-family variance and obscures the between-family effect.
     # Reported separately as within-family evidence in the architecture section.
-    # llama8b_results.json: full protocol in progress, preliminary +0.082
 ]
 
 GEMMA_MODELS = [

@@ -1,6 +1,5 @@
 #!/bin/bash
-# Wait for Mistral to finish, then run Phi-3 Mini.
-# Upload to /workspace/ and run: bash /workspace/wait_and_phi3.sh
+# Usage: bash /workspace/wait_and_phi3.sh
 # Requires HF_HOME and HF_TOKEN set in the terminal before running.
 
 set -e

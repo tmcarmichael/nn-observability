@@ -1,6 +1,6 @@
 """Run the full observability protocol on any HuggingFace causal LM.
 
-Single file, no local imports. Upload to /workspace/ and run directly.
+Single file, no local imports.
 
 Examples:
   python run_model.py --model Qwen/Qwen2.5-7B --output qwen7b_v3_results.json
@@ -98,13 +98,16 @@ def compute_loss_residuals(losses, max_softmax, activation_norm):
 def _get_layer_list(model):
     """Return the nn.ModuleList of transformer layers, architecture-agnostic."""
     if hasattr(model, "model") and hasattr(model.model, "layers"):
-        return model.model.layers  # Llama, Qwen, Mistral, Gemma, Phi
+        return model.model.layers  # Llama, Qwen, Mistral, Phi
+    if hasattr(model, "model") and hasattr(model.model, "language_model"):
+        lm = model.model.language_model
+        if hasattr(lm, "layers"):
+            return lm.layers  # Gemma 3 (multimodal wrapper)
+        if hasattr(lm, "model") and hasattr(lm.model, "layers"):
+            return lm.model.layers
     if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
         return model.transformer.h  # GPT-2
-    raise ValueError(
-        f"Unsupported architecture: {type(model).__name__}. "
-        "Expected model.model.layers or model.transformer.h"
-    )
+    raise ValueError(f"Unsupported architecture: {type(model).__name__}. Could not find layer list.")
 
 
 def collect_multi_layer_fast(model, batches, layers, max_tokens, device, sm_chunk=8):
@@ -322,7 +325,7 @@ def save_checkpoint(phase, **data):
             json.dump(ckpt, f, indent=2)
         print(f"  [checkpoint saved: phase {phase}, {CHECKPOINT_PATH}]")
     except OSError:
-        pass  # non-pod environment, skip checkpointing
+        pass  # no writable checkpoint directory, skip
 
 
 # ===========================================================================
@@ -346,8 +349,10 @@ if tokenizer.pad_token is None:
 model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **load_kwargs).to(DEVICE)
 model.eval()
 
-N_LAYERS = model.config.num_hidden_layers
-HIDDEN_DIM = model.config.hidden_size
+# Some models (e.g., Gemma 3) nest config under text_config
+_cfg = getattr(model.config, "text_config", model.config)
+N_LAYERS = _cfg.num_hidden_layers
+HIDDEN_DIM = _cfg.hidden_size
 n_params = sum(p.numel() for p in model.parameters()) / 1e9
 MAX_TRAIN = TARGET_EX_PER_DIM * HIDDEN_DIM
 LAYER_SELECT_SEED = 42
@@ -561,27 +566,29 @@ with torch.inference_mode():
 for n, v in baseline_results.items():
     print(f"    {n}: {v:+.4f}")
 
-# Output-controlled
+# Output-controlled (train on GPU since model is unloaded)
 print("\n  Output-controlled:")
+OC_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Move training data to GPU once, reuse across seeds
+oc_train_acts = wiki_train_output["activations"].to(OC_DEVICE)
+oc_train_losses = torch.from_numpy(wiki_train_output["losses"]).float().to(OC_DEVICE)
+oc_tds = torch.utils.data.TensorDataset(oc_train_acts, oc_train_losses)
+oc_tdl = torch.utils.data.DataLoader(oc_tds, batch_size=1024, shuffle=True)
 ctrl_rhos = []
 for seed in EVAL_SEEDS[:3]:
     torch.manual_seed(seed)
     np.random.seed(seed)
     pred = torch.nn.Sequential(
-        torch.nn.Linear(wiki_train_output["activations"].size(1), 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)
-    )
+        torch.nn.Linear(oc_train_acts.size(1), 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)
+    ).to(OC_DEVICE)
     opt = torch.optim.Adam(pred.parameters(), lr=1e-3, weight_decay=1e-4)
-    tds = torch.utils.data.TensorDataset(
-        wiki_train_output["activations"], torch.from_numpy(wiki_train_output["losses"]).float()
-    )
-    tdl = torch.utils.data.DataLoader(tds, batch_size=1024, shuffle=True)
     for _ in range(20):
-        for bx, by in tdl:
+        for bx, by in oc_tdl:
             l = F.mse_loss(pred(bx).squeeze(-1), by)
             opt.zero_grad(set_to_none=True)
             l.backward()
             opt.step()
-    pred.eval()
+    pred.eval().cpu()
     with torch.inference_mode():
         ps = pred(wiki_val_output["activations"]).squeeze(-1).numpy()
     obs = _train(wiki_train_peak, seed=seed)
@@ -593,6 +600,9 @@ for seed in EVAL_SEEDS[:3]:
     )
     ctrl_rhos.append(float(r))
     print(f"    seed {seed}: {r:+.4f}")
+del oc_train_acts, oc_train_losses, oc_tds
+if OC_DEVICE == "cuda":
+    torch.cuda.empty_cache()
 
 # Cross-domain
 print("\n  Cross-domain:")
@@ -618,14 +628,16 @@ else:
     print("    c4: skipped")
     print("    c4_within: skipped")
 
-# Control sensitivity
+# Control sensitivity (train on GPU)
 print("\n  Control sensitivity:")
 torch.manual_seed(42)
-conf_feats = torch.from_numpy(
-    np.column_stack([wiki_train_peak["max_softmax"], wiki_train_peak["activation_norm"]])
-).float()
-loss_tgt = torch.from_numpy(wiki_train_peak["losses"]).float()
-mlp_ctrl = torch.nn.Sequential(torch.nn.Linear(2, 64), torch.nn.ReLU(), torch.nn.Linear(64, 1))
+conf_feats = (
+    torch.from_numpy(np.column_stack([wiki_train_peak["max_softmax"], wiki_train_peak["activation_norm"]]))
+    .float()
+    .to(OC_DEVICE)
+)
+loss_tgt = torch.from_numpy(wiki_train_peak["losses"]).float().to(OC_DEVICE)
+mlp_ctrl = torch.nn.Sequential(torch.nn.Linear(2, 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)).to(OC_DEVICE)
 opt = torch.optim.Adam(mlp_ctrl.parameters(), lr=1e-3, weight_decay=1e-4)
 cs_ds = torch.utils.data.TensorDataset(conf_feats, loss_tgt)
 cs_dl = torch.utils.data.DataLoader(cs_ds, batch_size=1024, shuffle=True)
@@ -635,7 +647,10 @@ for _ in range(20):
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step()
-mlp_ctrl.eval()
+mlp_ctrl.eval().cpu()
+del conf_feats, loss_tgt
+if OC_DEVICE == "cuda":
+    torch.cuda.empty_cache()
 with torch.inference_mode():
     mlp_pred = (
         mlp_ctrl(
@@ -678,17 +693,26 @@ fa = wiki_val_peak["activations"][:nf]
 ml = float(np.median(fl))
 ihl = fl > ml
 fr = [0.05, 0.10, 0.20, 0.30]
+# Precompute confidence thresholds once (same for all seeds)
+conf_thresholds = {}
+fsm_sorted = np.sort(fsm)
+for rate in fr:
+    k = int(nf * rate)
+    conf_thresholds[rate] = fsm_sorted[k]
+del fsm_sorted
+
 fres = []
 for seed in EVAL_SEEDS[:3]:
     h = _train(wiki_train_peak, seed=seed)
     h.eval()
     with torch.inference_mode():
         osc = h(fa).squeeze(-1).numpy()
+    osc_sorted = np.sort(osc)
     sr = {"observer": {}, "confidence": {}, "exclusive": {}}
     for rate in fr:
         k = int(nf * rate)
-        of = osc >= np.sort(osc)[-k]
-        cf = fsm <= np.sort(fsm)[k]
+        of = osc >= osc_sorted[-k]
+        cf = fsm <= conf_thresholds[rate]
         sr["observer"][str(rate)] = float(ihl[of].mean()) if of.sum() > 0 else 0.0
         sr["confidence"][str(rate)] = float(ihl[cf].mean()) if cf.sum() > 0 else 0.0
         sr["exclusive"][str(rate)] = {"observer_only": int((of & ~cf & ihl).sum())}
@@ -735,7 +759,7 @@ output = {
     "flagging_6a": {"n_tokens": nf, "summary": fs},
 }
 
-# Save to /workspace/ if it exists (GPU pod), otherwise results/
+# Save to /workspace/ if it exists, otherwise results/
 if Path("/workspace").exists():
     out_path = Path(f"/workspace/{args.output}")
 else:
