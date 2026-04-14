@@ -9,8 +9,8 @@ Examples:
   python run_model.py --model meta-llama/Llama-3.2-3B --output llama3b_results.json --ex-dim 200
   python run_model.py --model meta-llama/Llama-3.1-8B --output llama8b_results.json --trust-remote-code
 
-Protocol: layer selected on val with seed 42, evaluated on val with seeds 43-49 (7 seeds).
-Full battery: baselines, output-controlled, cross-domain C4, control sensitivity, flagging.
+Protocol: layer selected on val with seed 42, evaluated on val with seeds 43-49 (7 default, configurable via --seeds).
+Full battery: baselines, output-controlled, cross-domain C4 (skippable via --skip-c4), control sensitivity, flagging.
 """
 
 import argparse
@@ -35,7 +35,8 @@ from scipy.stats import pearsonr, rankdata, spearmanr
 def load_wikitext(split="test", max_docs=None):
     from datasets import load_dataset
 
-    ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
+    # Stream when max_docs is set to avoid downloading the full split
+    ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split, streaming=bool(max_docs))
     docs, current = [], []
     for row in ds:
         text = row["text"]
@@ -266,6 +267,18 @@ parser.add_argument(
     choices=["sdpa", "eager", "flash_attention_2"],
     help="Attention implementation",
 )
+parser.add_argument("--seeds", type=int, default=7, help="Number of eval seeds (default: 7)")
+parser.add_argument(
+    "--skip-c4",
+    action="store_true",
+    help="Skip C4 cross-domain eval (saves time and avoids network dependency)",
+)
+parser.add_argument(
+    "--max-docs",
+    type=int,
+    default=None,
+    help="Limit WikiText docs loaded per split (default: 12000 train, unlimited val/test)",
+)
 args = parser.parse_args()
 
 
@@ -338,7 +351,7 @@ HIDDEN_DIM = model.config.hidden_size
 n_params = sum(p.numel() for p in model.parameters()) / 1e9
 MAX_TRAIN = TARGET_EX_PER_DIM * HIDDEN_DIM
 LAYER_SELECT_SEED = 42
-EVAL_SEEDS = list(range(43, 50))
+EVAL_SEEDS = list(range(43, 43 + args.seeds))
 
 print(f"{n_params:.1f}B, {N_LAYERS} layers, {HIDDEN_DIM} dim")
 print(
@@ -347,9 +360,11 @@ print(
 
 # --- Pre-tokenize ---
 print(f"\n=== Pre-tokenizing [{elapsed_str()}] ===")
-wiki_train_docs = load_wikitext("train", max_docs=12000)
-wiki_val_docs = load_wikitext("validation", max_docs=None)
-wiki_test_docs = load_wikitext("test", max_docs=None)
+_train_max = args.max_docs or 12000
+_other_max = args.max_docs  # None means unlimited (default for val/test)
+wiki_train_docs = load_wikitext("train", max_docs=_train_max)
+wiki_val_docs = load_wikitext("validation", max_docs=_other_max)
+wiki_test_docs = load_wikitext("test", max_docs=_other_max)
 print(f"{len(wiki_train_docs)} train, {len(wiki_val_docs)} val, {len(wiki_test_docs)} test docs")
 
 wiki_train_enc = pretokenize(wiki_train_docs, tokenizer)
@@ -475,34 +490,40 @@ save_checkpoint(
 print(f"\n=== Phase 4: Test + C4 at FINAL [{elapsed_str()}] ===")
 wiki_test_peak = collect_single_layer_fast(model, test_batches, FINAL, MAX_TRAIN, DEVICE)
 
-print("  Loading C4...")
-from datasets import load_dataset
+c4_test_peak = None
+c4_train_peak = None
 
-c4_docs = []
-ds = load_dataset("allenai/c4", "en", split="validation", streaming=True)
-for i, row in enumerate(ds):
-    if i < 50000:
-        continue
-    text = row["text"].strip()
-    if len(text) > 100:
-        c4_docs.append(text)
-    if len(c4_docs) >= 500:
-        break
-c4_test_enc = pretokenize(c4_docs, tokenizer)
-c4_test_batches = build_batches(c4_test_enc, BATCH_SIZE)
-c4_test_peak = collect_single_layer_fast(model, c4_test_batches, FINAL, MAX_TRAIN // 2, DEVICE)
+if not args.skip_c4:
+    print("  Loading C4...")
+    from datasets import load_dataset
 
-c4_train_docs = []
-ds2 = load_dataset("allenai/c4", "en", split="validation", streaming=True)
-for row in ds2:
-    text = row["text"].strip()
-    if len(text) > 100:
-        c4_train_docs.append(text)
-    if len(c4_train_docs) >= 8000:
-        break
-c4_train_enc = pretokenize(c4_train_docs, tokenizer)
-c4_train_batches = build_batches(c4_train_enc, BATCH_SIZE)
-c4_train_peak = collect_single_layer_fast(model, c4_train_batches, FINAL, MAX_TRAIN, DEVICE)
+    c4_docs = []
+    ds = load_dataset("allenai/c4", "en", split="validation", streaming=True)
+    for i, row in enumerate(ds):
+        if i < 50000:
+            continue
+        text = row["text"].strip()
+        if len(text) > 100:
+            c4_docs.append(text)
+        if len(c4_docs) >= 500:
+            break
+    c4_test_enc = pretokenize(c4_docs, tokenizer)
+    c4_test_batches = build_batches(c4_test_enc, BATCH_SIZE)
+    c4_test_peak = collect_single_layer_fast(model, c4_test_batches, FINAL, MAX_TRAIN // 2, DEVICE)
+
+    c4_train_docs = []
+    ds2 = load_dataset("allenai/c4", "en", split="validation", streaming=True)
+    for row in ds2:
+        text = row["text"].strip()
+        if len(text) > 100:
+            c4_train_docs.append(text)
+        if len(c4_train_docs) >= 8000:
+            break
+    c4_train_enc = pretokenize(c4_train_docs, tokenizer)
+    c4_train_batches = build_batches(c4_train_enc, BATCH_SIZE)
+    c4_train_peak = collect_single_layer_fast(model, c4_train_batches, FINAL, MAX_TRAIN, DEVICE)
+else:
+    print("  Skipping C4 (--skip-c4)")
 
 del model
 gc.collect()
@@ -576,15 +597,26 @@ for seed in EVAL_SEEDS[:3]:
 # Cross-domain
 print("\n  Cross-domain:")
 domain_results = {}
-for dn, td in [("wikitext", wiki_val_peak), ("c4", c4_test_peak)]:
-    domain_results[dn] = float(
-        np.mean([float(evaluate_head(_train(wiki_train_peak, seed=s), td)[1]) for s in EVAL_SEEDS[:3]])
-    )
-    print(f"    {dn}: {domain_results[dn]:+.4f}")
-domain_results["c4_within"] = float(
-    np.mean([float(evaluate_head(_train(c4_train_peak, seed=s), c4_test_peak)[1]) for s in EVAL_SEEDS[:3]])
+domain_results["wikitext"] = float(
+    np.mean([float(evaluate_head(_train(wiki_train_peak, seed=s), wiki_val_peak)[1]) for s in EVAL_SEEDS[:3]])
 )
-print(f"    c4_within: {domain_results['c4_within']:+.4f}")
+print(f"    wikitext: {domain_results['wikitext']:+.4f}")
+if c4_test_peak is not None:
+    domain_results["c4"] = float(
+        np.mean(
+            [float(evaluate_head(_train(wiki_train_peak, seed=s), c4_test_peak)[1]) for s in EVAL_SEEDS[:3]]
+        )
+    )
+    print(f"    c4: {domain_results['c4']:+.4f}")
+    domain_results["c4_within"] = float(
+        np.mean(
+            [float(evaluate_head(_train(c4_train_peak, seed=s), c4_test_peak)[1]) for s in EVAL_SEEDS[:3]]
+        )
+    )
+    print(f"    c4_within: {domain_results['c4_within']:+.4f}")
+else:
+    print("    c4: skipped")
+    print("    c4_within: skipped")
 
 # Control sensitivity
 print("\n  Control sensitivity:")

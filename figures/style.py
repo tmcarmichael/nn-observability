@@ -30,6 +30,7 @@ PALETTE = {
     "Llama": "#C44E52",
     "Gemma": "#2CA02C",
     "Mistral": "#9467BD",
+    "Phi": "#8C564B",
 }
 
 # Markers per family
@@ -39,6 +40,7 @@ MARKERS = {
     "Llama": "D",
     "Gemma": "^",
     "Mistral": "P",
+    "Phi": "X",
 }
 
 

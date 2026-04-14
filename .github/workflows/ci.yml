@@ -29,28 +29,8 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check src/ scripts/ figures/ analysis/
 
-      - name: Run unit tests
-        run: uv run pytest tests/ -v --ignore=tests/test_smoke_run_model.py
-
-  smoke-test:
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-tags: true
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies (with transformer extras for smoke test)
-        run: uv sync --extra transformer
-
-      - name: Smoke test run_model.py (GPT-2 124M, CPU)
-        run: uv run pytest tests/test_smoke_run_model.py -v
+      - name: Run tests
+        run: uv run pytest tests/ -v
 
       - name: Check version consistency
         run: |

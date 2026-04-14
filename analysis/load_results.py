@@ -58,6 +58,10 @@ MISTRAL_MODELS = [
     ("mistral7b_results.json", 7.25, "Mistral-7B"),
 ]
 
+PHI_MODELS = [
+    ("phi3_mini_results.json", 3.82, "Phi-3-Mini"),
+]
+
 
 def _load_gpt2() -> dict[str, dict[str, Any]]:
     """Load GPT-2 models from transformer_observe.json phase 8."""
@@ -104,6 +108,12 @@ def _load_family(
         if not pc or "mean" not in pc:
             print(f"  WARNING: {path.name} has no partial_corr for {label}")
             continue
+        mean_val = pc["mean"]
+        if not isinstance(mean_val, (int, float)) or abs(mean_val) > 1.0:
+            print(f"  WARNING: {path.name} has invalid partial_corr.mean={mean_val} for {label}")
+            continue
+        if "per_seed" not in pc:
+            print(f"  WARNING: {path.name} has no per_seed data for {label}")
         entry = {
             "family": family_name,
             "params_b": params_b,
@@ -128,6 +138,7 @@ def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
     models.update(_load_family(LLAMA_MODELS, "Llama"))
     models.update(_load_family(GEMMA_MODELS, "Gemma"))
     models.update(_load_family(MISTRAL_MODELS, "Mistral"))
+    models.update(_load_family(PHI_MODELS, "Phi"))
 
     if verbose:
         # Report what loaded and what's missing
@@ -137,6 +148,7 @@ def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
             + [(l, "Llama") for _, _, l in LLAMA_MODELS]
             + [(l, "Gemma") for _, _, l in GEMMA_MODELS]
             + [(l, "Mistral") for _, _, l in MISTRAL_MODELS]
+            + [(l, "Phi") for _, _, l in PHI_MODELS]
         )
         loaded = set(models.keys())
         missing = [(l, f) for l, f in expected if l not in loaded]

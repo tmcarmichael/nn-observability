@@ -66,3 +66,25 @@ def test_no_nan_values():
     for label, m in models.items():
         val = m["partial_corr"]["mean"]
         assert not math.isnan(val), f"{label} has NaN partial_corr"
+
+
+def test_pcorr_in_valid_range():
+    """Partial correlations must be in [-1, 1]."""
+    models = load_all_models()
+    for label, m in models.items():
+        val = m["partial_corr"]["mean"]
+        assert -1.0 <= val <= 1.0, f"{label} partial_corr.mean={val} out of range"
+
+
+def test_six_families():
+    """v2.2.1+ should have six families."""
+    models = load_all_models()
+    families = {m["family"] for m in models.values()}
+    for expected in ("GPT-2", "Qwen", "Llama", "Gemma", "Mistral", "Phi"):
+        assert expected in families, f"Family {expected} missing"
+
+
+def test_minimum_model_count():
+    """v2.2.1+ should have at least 13 models."""
+    models = load_all_models()
+    assert len(models) >= 13, f"Only {len(models)} models loaded, expected >= 13"
