@@ -16,6 +16,94 @@ import numpy as np
 
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
+
+# ── Schema for paper-scope results JSONs ──────────────────────────────
+
+# Required fields and their types for any results file used in the paper.
+# Checked on load; violations are printed as warnings (not exceptions)
+# so partially complete files can still be used during development.
+
+REQUIRED_FIELDS = {
+    "model": str,
+    "partial_corr.mean": (int, float),
+    "partial_corr.per_seed": list,
+    "output_controlled.mean": (int, float),
+    "peak_layer_frac": (int, float),
+    "seed_agreement": (dict, int, float),
+    "baselines": dict,
+}
+
+# Fields where either name is acceptable (older vs newer convention)
+REQUIRED_ALIASES = {
+    "peak_layer_final": ["peak_layer_final", "peak_layer"],
+}
+
+RECOMMENDED_FIELDS = {
+    "protocol.target_ex_per_dim": (int, float),
+    "protocol.eval_seeds": list,
+    "provenance.model_revision": str,
+    "provenance.script": str,
+    "provenance.timestamp": str,
+    "flagging_6a": dict,
+    "control_sensitivity": dict,
+}
+
+
+def _get_nested(d: dict, dotpath: str) -> Any:
+    """Get a value from a nested dict using dot notation."""
+    parts = dotpath.split(".")
+    current = d
+    for part in parts:
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def validate_results_json(data: dict, filename: str, strict: bool = False) -> list[str]:
+    """Validate a results JSON against the paper schema.
+
+    Returns list of warning strings. If strict=True, also checks recommended fields.
+    """
+    warnings = []
+    for field, expected_type in REQUIRED_FIELDS.items():
+        val = _get_nested(data, field)
+        if val is None:
+            warnings.append(f"{filename}: missing required field '{field}'")
+        elif not isinstance(val, expected_type):
+            warnings.append(
+                f"{filename}: field '{field}' has type {type(val).__name__}, expected {expected_type}"
+            )
+
+    for canonical, aliases in REQUIRED_ALIASES.items():
+        found = any(_get_nested(data, a) is not None for a in aliases)
+        if not found:
+            warnings.append(
+                f"{filename}: missing required field '{canonical}' (checked: {', '.join(aliases)})"
+            )
+
+    if strict:
+        for field, _expected_type in RECOMMENDED_FIELDS.items():
+            val = _get_nested(data, field)
+            if val is None:
+                warnings.append(f"{filename}: missing recommended field '{field}'")
+
+    # Value range checks
+    pc_mean = _get_nested(data, "partial_corr.mean")
+    if isinstance(pc_mean, (int, float)) and abs(pc_mean) > 1.0:
+        warnings.append(f"{filename}: partial_corr.mean={pc_mean} outside [-1, 1]")
+
+    per_seed = _get_nested(data, "partial_corr.per_seed")
+    if isinstance(per_seed, list) and len(per_seed) < 3:
+        warnings.append(f"{filename}: partial_corr.per_seed has {len(per_seed)} seeds (minimum 3)")
+
+    peak_frac = _get_nested(data, "peak_layer_frac")
+    if isinstance(peak_frac, (int, float)) and not (0.0 <= peak_frac <= 1.0):
+        warnings.append(f"{filename}: peak_layer_frac={peak_frac} outside [0, 1]")
+
+    return warnings
+
+
 # === V1 paper scope: models included in the analysis ===
 # Update this when scope changes. All scripts import from here.
 
@@ -106,6 +194,9 @@ def _load_family(
             print(f"  WARNING: {fname} not found for {label} ({family_name})")
             continue
         d = json.loads(path.read_text())
+        schema_warnings = validate_results_json(d, path.name)
+        for w in schema_warnings:
+            print(f"  WARNING: {w}")
         pc = d.get("partial_corr", {})
         if not pc or "mean" not in pc:
             print(f"  WARNING: {path.name} has no partial_corr for {label}")
@@ -114,8 +205,6 @@ def _load_family(
         if not isinstance(mean_val, (int, float)) or abs(mean_val) > 1.0:
             print(f"  WARNING: {path.name} has invalid partial_corr.mean={mean_val} for {label}")
             continue
-        if "per_seed" not in pc:
-            print(f"  WARNING: {path.name} has no per_seed data for {label}")
         entry = {
             "family": family_name,
             "params_b": params_b,
@@ -221,3 +310,47 @@ def load_random_head_baselines() -> list[tuple[str, str, float, float]]:
         if rh is not None:
             results.append((label, m["family"], m["params_b"], float(rh)))
     return results
+
+
+def validate_all(strict: bool = False) -> int:
+    """Validate all paper-scope results JSONs. Returns count of warnings."""
+
+    all_files = (
+        [(f, "Qwen") for f, _, _ in QWEN_MODELS]
+        + [(f, "Llama") for f, _, _ in LLAMA_MODELS]
+        + [(f, "Gemma") for f, _, _ in GEMMA_MODELS]
+        + [(f, "Mistral") for f, _, _ in MISTRAL_MODELS]
+        + [(f, "Phi") for f, _, _ in PHI_MODELS]
+    )
+    total_warnings = 0
+    for fname, family in all_files:
+        path = RESULTS_DIR / fname
+        fallback = QWEN_FALLBACKS.get(fname)
+        if not path.exists() and fallback:
+            path = RESULTS_DIR / fallback
+        if not path.exists():
+            print(f"  MISSING: {fname} ({family})")
+            total_warnings += 1
+            continue
+        d = json.loads(path.read_text())
+        warnings = validate_results_json(d, path.name, strict=strict)
+        if warnings:
+            for w in warnings:
+                print(f"  {w}")
+            total_warnings += len(warnings)
+        else:
+            print(f"  OK: {path.name}")
+    return total_warnings
+
+
+if __name__ == "__main__":
+    import sys
+
+    strict = "--strict" in sys.argv
+    print(f"Validating paper-scope results JSONs {'(strict)' if strict else ''}...\n")
+    n = validate_all(strict=strict)
+    if n:
+        print(f"\n{n} warning(s)")
+        sys.exit(1)
+    else:
+        print("\nAll files valid")

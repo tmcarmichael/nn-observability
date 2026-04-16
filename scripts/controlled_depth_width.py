@@ -1,32 +1,32 @@
-"""Controlled training experiment: same data, different architecture, measure observability.
+"""Controlled training: depth vs width at matched parameters.
 
-Trains two parameter-matched models from scratch on identical OpenWebText data:
-  - Config A (Qwen-style): MHA (all heads are query heads)
-  - Config B (Llama-style): GQA (fewer KV heads, larger MLP to match params)
+Trains two parameter-matched models from scratch on identical OpenWebText data
+with different depth-width ratios:
+  - Config A (shallow-wide): fewer layers, larger hidden dim
+  - Config B (deep-narrow): more layers, smaller hidden dim
 
-Everything else is identical: layers, hidden dim, normalization, activation
-function, tokenizer, data, optimizer, schedule, seeds.
+Same tokenizer, optimizer, schedule, seed. Only depth-width ratio varies.
 
-Context: pre-trained Llama 1B (16L, 2048d) has observability (+0.286),
-Llama 3B (28L, 3072d) does not (+0.091), but every family trains on
-different data. This script removes the confound by training MHA and GQA
-on identical data at matched parameter count.
+Context: Llama 1B (16L, 2048d) has observability (+0.286), Llama 3B
+(28L, 3072d) does not (+0.091). Both use GQA; the transition changes
+depth, width, and their ratio simultaneously. This experiment isolates
+depth-width ratio by holding attention mechanism, parameter count, and
+training data constant. Complements controlled_training.py (MHA vs GQA).
 
 Three scales available:
   --scale 150m   Pilot (~150M params, 1B tokens, ~12h on H200)
-  --scale 1b     Matches Llama 1B dimensions (16L, 2048d, ~1.2B params, 5B tokens)
-  --scale 3b     Matches Llama 3B dimensions (28L, 3072d, ~3B params, 10B tokens)
+  --scale 1b     ~1.2B params, 5B tokens
+  --scale 3b     ~3B params, 10B tokens
 
 Multi-seed for publication:
-  --seeds 3      Train 3 models per config (6 total), proper train/val/test probe splits
+  --seeds 3      Train 3 models per config (6 total)
 
-GPU: H200 (144GB). Single-GPU, no distributed training.
+GPU: H200 (144GB). Single-GPU.
 
 Usage:
   pip install transformers datasets scipy scikit-learn accelerate
-  python controlled_training.py --scale 150m              # pilot
-  python controlled_training.py --scale 1b --seeds 3      # publication-grade
-  python controlled_training.py --scale 3b --seeds 1      # 3B pilot
+  python controlled_depth_width.py --scale 150m
+  python controlled_depth_width.py --scale 1b --seeds 3
 """
 
 import gc
@@ -55,7 +55,7 @@ def elapsed_str():
 
 
 # ===========================================================================
-# Probe functions (from run_model.py)
+# Probe functions
 # ===========================================================================
 
 
@@ -96,44 +96,41 @@ def train_probe(acts, losses, max_softmax, activation_norm, seed=42, epochs=20, 
 
 
 # ===========================================================================
-# Scale presets: parameter-matched MHA vs GQA at three scales
+# Scale presets: parameter-matched shallow-wide vs deep-narrow
 # ===========================================================================
 #
-# All configs use: RMSNorm, SwiGLU, rotary embeddings, GPT-2 tokenizer.
-# GQA intermediate_size is increased to compensate for fewer KV parameters,
-# keeping total param count within 0.5% of the MHA variant.
+# Both configs use MHA (same KV heads as query heads) to isolate depth-width
+# from the attention mechanism variable tested in controlled_training.py.
+# Intermediate sizes adjusted so total params match within 0.5%.
 #
-# Parameter matching (SwiGLU has 3 weight matrices per MLP layer):
-#   MHA attn per layer: 4 * hidden^2
-#   GQA attn per layer: hidden*(hidden + 2*kv_heads*head_dim + hidden)
-#   MLP per layer: 3 * hidden * intermediate
-#   Embedding: vocab * hidden (tied)
+# The shallow-wide config mirrors the Llama 1B ratio (depth/width ≈ 8);
+# the deep-narrow config mirrors the Llama 3B ratio (depth/width ≈ 9).
 
 import argparse
 
-parser = argparse.ArgumentParser(description="Controlled MHA vs GQA training")
+parser = argparse.ArgumentParser(description="Controlled depth-width training")
 parser.add_argument("--scale", choices=["150m", "1b", "3b"], default="150m", help="Model scale preset")
 parser.add_argument("--seeds", type=int, default=1, help="Training seeds per config (1=pilot, 3=publication)")
 args = parser.parse_args()
 
 SCALE_PRESETS = {
     "150m": {
-        "mha": {
-            "name": "MHA-150M (Qwen-style)",
-            "num_hidden_layers": 16,
-            "hidden_size": 768,
-            "intermediate_size": 2048,
-            "num_attention_heads": 12,
-            "num_key_value_heads": 12,
+        "shallow_wide": {
+            "name": "Shallow-wide-150M (8L, 1024d)",
+            "num_hidden_layers": 8,
+            "hidden_size": 1024,
+            "intermediate_size": 2816,
+            "num_attention_heads": 16,
+            "num_key_value_heads": 16,
             "max_position_embeddings": 1024,
         },
-        "gqa": {
-            "name": "GQA-150M (Llama-style)",
-            "num_hidden_layers": 16,
-            "hidden_size": 768,
-            "intermediate_size": 2389,  # matches 151.9M total
-            "num_attention_heads": 12,
-            "num_key_value_heads": 4,
+        "deep_narrow": {
+            "name": "Deep-narrow-150M (24L, 576d)",
+            "num_hidden_layers": 24,
+            "hidden_size": 576,
+            "intermediate_size": 2252,  # matches 154.2M total
+            "num_attention_heads": 9,
+            "num_key_value_heads": 9,
             "max_position_embeddings": 1024,
         },
         "train": {
@@ -146,74 +143,72 @@ SCALE_PRESETS = {
         },
     },
     "1b": {
-        # Matches Llama 3.2 1B dimensions: 16 layers, 2048 hidden
-        # MHA: ~1.20B params, GQA: ~1.20B params (intermediate adjusted)
-        "mha": {
-            "name": "MHA-1B (16L, 2048d, full attention)",
-            "num_hidden_layers": 16,
-            "hidden_size": 2048,
-            "intermediate_size": 8448,  # ~1.20B total
-            "num_attention_heads": 32,
-            "num_key_value_heads": 32,
+        # Shallow-wide: Llama 1B proportions (16L, ratio ~8)
+        # Deep-narrow: Llama 3B proportions (28L, ratio ~9), scaled to 1B params
+        "shallow_wide": {
+            "name": "Shallow-wide-1B (12L, 2560d)",
+            "num_hidden_layers": 12,
+            "hidden_size": 2560,
+            "intermediate_size": 6912,  # ~1.20B total
+            "num_attention_heads": 20,
+            "num_key_value_heads": 20,
             "max_position_embeddings": 2048,
         },
-        "gqa": {
-            "name": "GQA-1B (16L, 2048d, 8 KV heads)",
-            "num_hidden_layers": 16,
-            "hidden_size": 2048,
-            "intermediate_size": 9472,  # larger MLP compensates, ~1.20B total
-            "num_attention_heads": 32,
-            "num_key_value_heads": 8,
+        "deep_narrow": {
+            "name": "Deep-narrow-1B (28L, 1536d)",
+            "num_hidden_layers": 28,
+            "hidden_size": 1536,
+            "intermediate_size": 4608,  # ~1.20B total
+            "num_attention_heads": 12,
+            "num_key_value_heads": 12,
             "max_position_embeddings": 2048,
         },
         "train": {
-            "total_tokens": 5_000_000_000,  # 5B tokens (~5x Chinchilla-minimal)
+            "total_tokens": 5_000_000_000,
             "batch_size": 16,
             "seq_length": 1024,
             "lr": 2e-4,
             "warmup_steps": 1000,
-            "grad_accum": 8,  # effective batch 128 seqs
+            "grad_accum": 8,
         },
     },
     "3b": {
-        # Matches Llama 3.2 3B dimensions: 28 layers, 3072 hidden
-        # MHA: ~3.0B params, GQA: ~3.0B params
-        "mha": {
-            "name": "MHA-3B (28L, 3072d, full attention)",
-            "num_hidden_layers": 28,
-            "hidden_size": 3072,
-            "intermediate_size": 6912,  # ~3.0B total
-            "num_attention_heads": 24,
-            "num_key_value_heads": 24,
+        # Shallow-wide: 16L, 3584d (Llama 1B depth, Qwen 7B width-range)
+        # Deep-narrow: 36L, 2304d (deeper than Llama 3B, narrower)
+        "shallow_wide": {
+            "name": "Shallow-wide-3B (16L, 3584d)",
+            "num_hidden_layers": 16,
+            "hidden_size": 3584,
+            "intermediate_size": 9216,  # ~3.0B total
+            "num_attention_heads": 28,
+            "num_key_value_heads": 28,
             "max_position_embeddings": 2048,
         },
-        "gqa": {
-            "name": "GQA-3B (28L, 3072d, 8 KV heads)",
-            "num_hidden_layers": 28,
-            "hidden_size": 3072,
-            "intermediate_size": 8320,  # larger MLP compensates, ~3.0B total
-            "num_attention_heads": 24,
-            "num_key_value_heads": 8,
+        "deep_narrow": {
+            "name": "Deep-narrow-3B (36L, 2048d)",
+            "num_hidden_layers": 36,
+            "hidden_size": 2048,
+            "intermediate_size": 5632,  # ~3.0B total
+            "num_attention_heads": 16,
+            "num_key_value_heads": 16,
             "max_position_embeddings": 2048,
         },
         "train": {
-            "total_tokens": 10_000_000_000,  # 10B tokens
+            "total_tokens": 10_000_000_000,
             "batch_size": 8,
             "seq_length": 1024,
             "lr": 1.5e-4,
             "warmup_steps": 2000,
-            "grad_accum": 16,  # effective batch 128 seqs
+            "grad_accum": 16,
         },
     },
 }
 
 preset = SCALE_PRESETS[args.scale]
-MODEL_CONFIGS = {"mha": preset["mha"], "gqa": preset["gqa"]}
+MODEL_CONFIGS = {"shallow_wide": preset["shallow_wide"], "deep_narrow": preset["deep_narrow"]}
 
-# Training seeds: seed 42 is the default, multi-seed uses 42, 137, 7
 TRAINING_SEEDS = [42, 137, 7][: args.seeds]
 
-# Training config (identical for both architectures)
 TRAIN_CONFIG = {
     "total_tokens": preset["train"]["total_tokens"],
     "batch_size": preset["train"]["batch_size"],
@@ -222,12 +217,11 @@ TRAIN_CONFIG = {
     "warmup_steps": preset["train"]["warmup_steps"],
     "weight_decay": 0.1,
     "grad_accum": preset["train"]["grad_accum"],
-    "seed": 42,  # overridden per training seed
+    "seed": 42,
     "eval_every": 500,
     "checkpoint_every": 2000,
 }
 
-# Probe eval config
 PROBE_SEEDS = list(range(43, 50))
 TARGET_EX_PER_DIM = 350
 
@@ -252,7 +246,6 @@ def load_openwebtext(tokenizer, seq_length, max_tokens):
         if total >= max_tokens + 100000:
             break
 
-    # Chunk into sequences
     n_seqs = total // seq_length
     all_ids = all_ids[: n_seqs * seq_length]
     data = torch.tensor(all_ids, dtype=torch.long).view(n_seqs, seq_length)
@@ -272,7 +265,6 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
     print(f"Training {config['name']} [{elapsed_str()}]")
     print(f"{'=' * 60}")
 
-    # Create model from config
     model_config = LlamaConfig(
         vocab_size=tokenizer.vocab_size,
         hidden_size=config["hidden_size"],
@@ -291,7 +283,6 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"  {n_params:.1f}M parameters")
 
-    # Optimizer
     opt = torch.optim.AdamW(
         model.parameters(),
         lr=TRAIN_CONFIG["lr"],
@@ -299,7 +290,6 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
         betas=(0.9, 0.95),
     )
 
-    # LR schedule: linear warmup + cosine decay
     total_steps = len(train_data) // (TRAIN_CONFIG["batch_size"] * TRAIN_CONFIG["grad_accum"])
     warmup = TRAIN_CONFIG["warmup_steps"]
 
@@ -311,7 +301,6 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_schedule)
 
-    # Training
     model.train()
     step = 0
     best_val_loss = float("inf")
@@ -319,6 +308,8 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
     checkpoint_dir = Path(f"/workspace/checkpoint_{config_name}")
     checkpoint_dir.mkdir(exist_ok=True)
 
+    # Re-seed so both models see data in the same order
+    torch.manual_seed(TRAIN_CONFIG["seed"])
     indices = torch.randperm(len(train_data))
     pos = 0
 
@@ -330,6 +321,7 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
 
         for _ in range(TRAIN_CONFIG["grad_accum"]):
             if pos + TRAIN_CONFIG["batch_size"] > len(indices):
+                torch.manual_seed(TRAIN_CONFIG["seed"] + step)
                 indices = torch.randperm(len(train_data))
                 pos = 0
 
@@ -337,9 +329,7 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
             pos += TRAIN_CONFIG["batch_size"]
 
             input_ids = train_data[batch_idx].to(DEVICE)
-            labels = input_ids.clone()
-
-            outputs = model(input_ids=input_ids, labels=labels)
+            outputs = model(input_ids=input_ids, labels=input_ids)
             loss = outputs.loss / TRAIN_CONFIG["grad_accum"]
             loss.backward()
             accum_loss += loss.item()
@@ -374,7 +364,6 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
             torch.save(model.state_dict(), ckpt_path)
             print(f"    [checkpoint] {ckpt_path}")
 
-    # Save final
     final_path = checkpoint_dir / "final.pt"
     torch.save(model.state_dict(), final_path)
     print(
@@ -398,7 +387,6 @@ def evaluate_observability(model, tokenizer, config_name, config):
     n_layers = config["num_hidden_layers"]
     max_tokens = TARGET_EX_PER_DIM * hidden_dim
 
-    # Load WikiText eval data
     print("  Loading WikiText...")
     ds = load_dataset("wikitext", "wikitext-103-raw-v1", split="test")
     docs = []
@@ -413,14 +401,13 @@ def evaluate_observability(model, tokenizer, config_name, config):
         elif text.strip():
             current.append(text)
 
-    # Collect activations at each layer (sweep)
     model.eval()
     layer_profile = {}
 
     for layer_idx in range(n_layers):
         captured = {}
 
-        def make_hook(store=captured):  # noqa: B023
+        def make_hook(store=captured):
             def hook_fn(module, input, output):
                 h = output[0] if isinstance(output, tuple) else output
                 if isinstance(h, tuple):
@@ -466,16 +453,15 @@ def evaluate_observability(model, tokenizer, config_name, config):
             continue
 
         acts = torch.cat(all_acts)[:max_tokens]
-        losses = torch.cat(all_losses).numpy()[:max_tokens]
-        sm = torch.cat(all_sm).numpy()[:max_tokens]
-        norms = torch.cat(all_norms).numpy()[:max_tokens]
+        losses_np = torch.cat(all_losses).numpy()[:max_tokens]
+        sm_np = torch.cat(all_sm).numpy()[:max_tokens]
+        norms_np = torch.cat(all_norms).numpy()[:max_tokens]
 
-        # Train probe with layer selection seed
-        head = train_probe(acts, losses, sm, norms, seed=42)
+        head = train_probe(acts, losses_np, sm_np, norms_np, seed=42)
         head.eval()
         with torch.inference_mode():
             scores = head(acts).squeeze(-1).numpy()
-        rho, _ = partial_spearman(scores, losses, [sm, norms])
+        rho, _ = partial_spearman(scores, losses_np, [sm_np, norms_np])
         layer_profile[layer_idx] = float(rho)
         print(f"    L{layer_idx}: pcorr={rho:+.4f}")
 
@@ -486,20 +472,18 @@ def evaluate_observability(model, tokenizer, config_name, config):
         print("  ERROR: no layers evaluated")
         return {}
 
-    # Multi-seed eval at peak layer
     peak_layer = max(layer_profile, key=layer_profile.get)
     print(f"\n  Peak: L{peak_layer} ({layer_profile[peak_layer]:+.4f})")
     print("  Multi-seed eval...")
 
-    # Re-collect at peak
     captured = {}
 
-    def make_hook():
+    def make_hook(store=captured):
         def hook_fn(module, input, output):
             h = output[0] if isinstance(output, tuple) else output
             if isinstance(h, tuple):
                 h = h[0]
-            captured[0] = h
+            store[0] = h
 
         return hook_fn
 
@@ -547,7 +531,6 @@ def evaluate_observability(model, tokenizer, config_name, config):
         seed_rhos.append(float(rho))
         seed_scores_list.append(scores)
 
-    # Seed agreement
     pw = [
         float(spearmanr(seed_scores_list[i], seed_scores_list[j])[0])
         for i in range(len(PROBE_SEEDS))
@@ -573,7 +556,6 @@ def evaluate_observability(model, tokenizer, config_name, config):
 
     print(f"  pcorr: {result['partial_corr']['mean']:+.4f} +/- {result['partial_corr']['std']:.4f}")
     print(f"  sagree: {result['seed_agreement']['mean']:.4f}")
-    print(f"  peak: L{peak_layer} ({result['peak_layer_frac'] * 100:.0f}%)")
 
     return result
 
@@ -582,7 +564,7 @@ def evaluate_observability(model, tokenizer, config_name, config):
 # Main
 # ===========================================================================
 
-print(f"=== Controlled training: MHA vs GQA @ {args.scale} [{elapsed_str()}] ===")
+print(f"=== Controlled depth-width experiment @ {args.scale} [{elapsed_str()}] ===")
 print(f"Device: {DEVICE}")
 print(f"Scale: {args.scale}, Training seeds: {TRAINING_SEEDS}")
 
@@ -603,7 +585,6 @@ train_data = all_data[n_val:]
 print(f"  Train: {len(train_data)} seqs, Val: {len(val_data)} seqs")
 del all_data
 
-# Train all configs x seeds
 all_results = {}
 
 for config_name, config in MODEL_CONFIGS.items():
@@ -619,7 +600,6 @@ for config_name, config in MODEL_CONFIGS.items():
         model, model_config, best_val_loss, train_losses = train_model(
             run_name, config, train_data, val_data, tokenizer
         )
-
         obs_result = evaluate_observability(model, tokenizer, run_name, config)
         obs_result["best_val_loss"] = best_val_loss
         obs_result["final_train_loss"] = float(np.mean(train_losses[-100:]))
@@ -651,24 +631,23 @@ for _config_name, seed_results in all_results.items():
     if len(pcorrs) > 1:
         print(f"  Mean across training seeds: {mean_pcorr:+.4f} +/- {np.std(pcorrs):.4f}")
 
-mha_pcorrs = [r["partial_corr"]["mean"] for r in all_results["mha"]]
-gqa_pcorrs = [r["partial_corr"]["mean"] for r in all_results["gqa"]]
-mha_mean = float(np.mean(mha_pcorrs))
-gqa_mean = float(np.mean(gqa_pcorrs))
-delta = mha_mean - gqa_mean
+sw_pcorrs = [r["partial_corr"]["mean"] for r in all_results["shallow_wide"]]
+dn_pcorrs = [r["partial_corr"]["mean"] for r in all_results["deep_narrow"]]
+sw_mean = float(np.mean(sw_pcorrs))
+dn_mean = float(np.mean(dn_pcorrs))
+delta = sw_mean - dn_mean
 
-print(f"\n  MHA mean pcorr: {mha_mean:+.4f}")
-print(f"  GQA mean pcorr: {gqa_mean:+.4f}")
-print(f"  Delta (MHA - GQA): {delta:+.4f}")
+print(f"\n  Shallow-wide mean pcorr: {sw_mean:+.4f}")
+print(f"  Deep-narrow mean pcorr: {dn_mean:+.4f}")
+print(f"  Delta: {delta:+.4f}")
 
 print(f"  Divergent (|delta| > 0.05): {abs(delta) > 0.05}")
 
-# Save
 output = {
-    "experiment": "controlled_training_mha_vs_gqa",
+    "experiment": "controlled_depth_width",
     "scale": args.scale,
-    "description": "Same data, different architecture (MHA vs GQA), measure observability",
-    "variable_tested": "attention mechanism (MHA vs GQA), all else held constant",
+    "description": "Same data, different depth-width ratio, measure observability",
+    "variable_tested": "depth-width ratio, all else held constant (both MHA)",
     "tokenizer": "openai-community/gpt2",
     "train_tokens": total_tokens,
     "training_seeds": TRAINING_SEEDS,
@@ -676,15 +655,15 @@ output = {
     "model_configs": MODEL_CONFIGS,
     "results": {k: v for k, v in all_results.items()},
     "comparison": {
-        "mha_mean_pcorr": mha_mean,
-        "gqa_mean_pcorr": gqa_mean,
+        "shallow_wide_mean_pcorr": sw_mean,
+        "deep_narrow_mean_pcorr": dn_mean,
         "delta": delta,
         "n_training_seeds": len(TRAINING_SEEDS),
         "divergent": abs(delta) > 0.05,
     },
 }
 
-out_path = Path(f"/workspace/controlled_training_{args.scale}_results.json")
+out_path = Path(f"/workspace/controlled_depth_width_{args.scale}_results.json")
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 

@@ -4,11 +4,14 @@ Produces the three data-dependent tables that change when new model
 families are added. Outputs go to the paper repo tables/ directory.
 
 Usage: cd nn-observability && uv run python analysis/generate_tables.py
+       cd nn-observability && uv run python analysis/generate_tables.py --check
    or: cd nn-observability && just tables
 """
 
 from __future__ import annotations
 
+import argparse
+import difflib
 import json
 import sys
 from pathlib import Path
@@ -69,9 +72,11 @@ def _load_gpt2_full() -> dict:
 def _load_model_json(label: str, all_models: dict) -> dict | None:
     """Load the full JSON for a non-GPT-2 model."""
     info = all_models.get(label)
-    if info is None:
-        return None
-    fname = info.get("source_file")
+    fname = None
+    if info is not None:
+        fname = info.get("source_file")
+    if fname is None:
+        fname = TABLE_EXTRA_SOURCES.get(label)
     if fname is None:
         return None
     path = RESULTS_DIR / fname
@@ -86,14 +91,27 @@ def _load_model_json(label: str, all_models: dict) -> dict | None:
 CROSS_FAMILY_ROWS = [
     {"label": "Qwen-0.5B", "display": r"\qwen{} 0.5B", "family": "Qwen", "params": "0.5B"},
     {"label": "Gemma-1B", "display": "Gemma~3 1B", "family": "Gemma", "params": "1B"},
+    {"label": "Llama-1B", "display": r"\llama{} 3.2 1B", "family": "Llama", "params": "1.2B"},
     {"label": "Qwen-1.5B", "display": r"\qwen{} 1.5B", "family": "Qwen", "params": "1.5B"},
     {"label": "GPT2-1.5B", "display": r"\gpt{} XL", "family": "GPT-2", "params": "1.5B"},
     {"label": "Qwen-3B", "display": r"\qwen{} 3B", "family": "Qwen", "params": "3B"},
     {"label": "Llama-3B", "display": r"\llama{} 3.2 3B", "family": "Llama", "params": "3B"},
+    {"label": "Phi-3-Mini", "display": "Phi-3 Mini", "family": "Phi", "params": "3.8B"},
+    {"label": "Gemma-4B", "display": "Gemma~3 4B", "family": "Gemma", "params": "4.3B"},
     {"label": "Mistral-7B", "display": "Mistral 7B", "family": "Mistral", "params": "7B"},
     {"label": "Qwen-7B", "display": r"\qwen{} 7B", "family": "Qwen", "params": "7B"},
+    {"label": "Llama-8B", "display": r"\llama{} 3.1 8B", "family": "Llama", "params": "8B"},
     {"label": "Qwen-14B", "display": r"\qwen{} 14B", "family": "Qwen", "params": "14B"},
 ]
+
+# Models in the table but not in load_results.py's statistical scope.
+# These need direct JSON paths for loading.
+TABLE_EXTRA_SOURCES = {
+    "Llama-1B": "llama1b_results.json",
+    "Llama-8B": "llama8b_results.json",
+    "Gemma-4B": "gemma4b_results.json",
+    "Phi-3-Mini": "phi3_mini_results.json",
+}
 
 GPT2_ID_MAP = {
     "GPT2-124M": "gpt2",
@@ -140,6 +158,10 @@ def generate_cross_family_scaling() -> str:
     for cfg in CROSS_FAMILY_ROWS:
         label = cfg["label"]
         info = all_models.get(label)
+        if info is None and label in TABLE_EXTRA_SOURCES:
+            raw = _load_model_json(label, all_models)
+            if raw is not None:
+                info = {"partial_corr": raw.get("partial_corr", {})}
         if info is None:
             print(f"  WARNING: {label} not found, skipping row")
             continue
@@ -157,7 +179,7 @@ def generate_cross_family_scaling() -> str:
             rh = None
 
         row = (
-            f"{cfg['display']:<23} & {cfg['family']:<7} & {cfg['params']:<4} "
+            f"{cfg['display']:<23} & {cfg['family']:<7} & {cfg['params']:<5} "
             f"& {_fmt_peak_layer(full['peak_layer'], full['peak_layer_frac']):<13} "
             f"& {_fmt_pcorr(pcorr)} & {_fmt_std(std)} "
             f"& {_fmt_oc(full['oc'])} & {_fmt_sagree(full['sagree'])} "
@@ -170,11 +192,10 @@ def generate_cross_family_scaling() -> str:
     return (
         r"""\begin{table}[t]
 \centering
-\caption{Scaling under identical evaluation protocol with token budgets
-scaled by hidden dimension. \qwen{} preserves observability from 0.5B to
-14B (28$\times$ parameter range). Gemma~3 1B shows strong signal with an
-unusually high random baseline. \llama{} 3.2 3B shows weak signal at
-matched scale and methodology.}
+\caption{Observability across six architecture families under identical
+evaluation protocol. Token budgets scaled by hidden dimension (350 ex/dim,
+600 for \qwen{} 0.5B). \llama{} 1B matches high-observability families;
+3B and 8B drop to near the detection floor.}
 \label{tab:cross_family_scaling}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccccccc}
@@ -185,8 +206,9 @@ Model & Family & Params & Peak layer & $\pcorr$\textsuperscript{a} & $\pm$ std &
         + body
         + r"""
 \bottomrule
-\multicolumn{9}{l}{\textsuperscript{a}\footnotesize Validation split (held-out seeds, $n = 6$--$7$). A separate test split ($n = 3$) confirms all values} \\
-\multicolumn{9}{l}{\footnotesize within 5\% on average, with cross-family rankings preserved (\cref{sec:appendix_methodology}).} \\
+\multicolumn{9}{l}{\textsuperscript{a}\footnotesize Validation split (held-out seeds, $n = 6$--$7$). Test split confirms within 5\% (\cref{sec:appendix_methodology}).} \\
+\multicolumn{9}{l}{\footnotesize Gemma 1B random head $+0.213$ reflects representation geometry (absent at 4B). Llama 8B OC from 2/3 seeds.} \\
+\multicolumn{9}{l}{\footnotesize \llama{} 3B/8B peak at L0/L1: no layer exceeds $+0.12$; reported peak is argmax of a flat profile.} \\
 \end{tabular}%
 }
 \end{table}
@@ -234,7 +256,7 @@ def generate_gpt2_scaling() -> str:
 \caption{\gpt{} scaling curve. Partial correlation is stable across
 12$\times$ scale. The output-independent component ($\ocresid$) grows
 monotonically; the fraction of signal not captured by the output layer
-rises from 34\% at 124M to 60\% at 1.5B.}
+rises from \gptSdiscard\% at 124M to \gptXLdiscard\% at 1.5B.}
 \label{tab:gpt2_scaling}
 \begin{tabular}{lccccccc}
 \toprule
@@ -264,7 +286,7 @@ FLAGGING_SOURCES = {
     "GPT2-124M": ("transformer_observe.json", "6a"),
     "Qwen-7B": ("qwen7b_v3_results.json", "flagging_6a"),
     "Qwen-14B": ("qwen14b_v3_results.json", "flagging_6a"),
-    "Llama-3B": ("llama3b_v2_results.json", "flagging_6a"),
+    "Llama-3B": ("llama3b_v3_results.json", "flagging_6a"),
     "Mistral-7B": ("mistral7b_results.json", "flagging_6a"),
 }
 
@@ -331,9 +353,9 @@ def generate_flagging_cross_scale() -> str:
         r"""\begin{table}[t]
 \centering
 \caption{Exclusive error catches (observer finds, confidence misses) as a
-percentage of all errors, across five architecture families at four flag
+percentage of all errors, across four architecture families at four flag
 rates. The catch rate increases with $\pcorr$ at low flag rates but
-converges to 12--15\% at 20\%, indicating a ceiling set by the error
+converges to \catchsaturation\% at 20\%, indicating a ceiling set by the error
 structure rather than by observability.}
 \label{tab:flagging_cross_scale}
 \begin{tabular}{llccccc}
@@ -355,6 +377,10 @@ Model & Family & $\pcorr$ & 5\% & 10\% & 20\% & 30\% \\
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true", help="Check tables match generated output (no write)")
+    args = parser.parse_args()
+
     if not PAPER_TABLES.exists():
         print(f"ERROR: paper tables directory not found: {PAPER_TABLES}")
         sys.exit(1)
@@ -365,12 +391,39 @@ def main():
         ("flagging_cross_scale.tex", generate_flagging_cross_scale),
     ]
 
+    mismatches = 0
     for filename, gen_fn in generators:
         try:
             content = gen_fn()
             path = PAPER_TABLES / filename
-            path.write_text(content)
-            print(f"  wrote {filename}")
+
+            if args.check:
+                if not path.exists():
+                    print(f"  FAIL: {filename} does not exist")
+                    mismatches += 1
+                    continue
+                existing = path.read_text()
+                if existing == content:
+                    print(f"  OK: {filename}")
+                else:
+                    diff = list(
+                        difflib.unified_diff(
+                            existing.splitlines(),
+                            content.splitlines(),
+                            fromfile=f"committed/{filename}",
+                            tofile=f"generated/{filename}",
+                            lineterm="",
+                        )
+                    )
+                    for line in diff[:30]:
+                        print(line)
+                    if len(diff) > 30:
+                        print(f"  ... ({len(diff) - 30} more lines)")
+                    print(f"  FAIL: {filename} does not match generated output")
+                    mismatches += 1
+            else:
+                path.write_text(content)
+                print(f"  wrote {filename}")
         except Exception as e:
             print(f"  {filename} FAILED: {e}")
             import traceback
@@ -378,7 +431,15 @@ def main():
             traceback.print_exc()
             sys.exit(1)
 
-    print(f"Generated {len(generators)} tables -> {PAPER_TABLES}")
+    if args.check:
+        if mismatches:
+            print(f"\nFAIL: {mismatches} table(s) do not match generated output")
+            print("  Run 'just tables' to regenerate")
+            sys.exit(1)
+        else:
+            print(f"\nOK: all {len(generators)} tables match generated output")
+    else:
+        print(f"Generated {len(generators)} tables -> {PAPER_TABLES}")
 
 
 if __name__ == "__main__":

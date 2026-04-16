@@ -1,6 +1,6 @@
 [project]
 name = "nn-observability"
-version = "2.3.0"
+version = "2.4.0"
 description = "Architecture predicts linear readability of decision quality in transformer activations. Cross-family evaluation with confidence controls across six model families."
 readme = "README.md"
 license = {text = "MIT"}

@@ -349,6 +349,9 @@ if tokenizer.pad_token is None:
 model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **load_kwargs).to(DEVICE)
 model.eval()
 
+# Capture model revision for provenance
+_model_revision = getattr(model.config, "_commit_hash", None) or "unknown"
+
 # Some models (e.g., Gemma 3) nest config under text_config
 _cfg = getattr(model.config, "text_config", model.config)
 N_LAYERS = _cfg.num_hidden_layers
@@ -727,11 +730,21 @@ print(
 
 # --- Save ---
 print(f"\n=== Saving [{elapsed_str()}] ===")
+import datetime as _dt
+
 output = {
     "model": MODEL_ID,
     "n_params_b": round(n_params, 2),
     "n_layers": N_LAYERS,
     "hidden_dim": HIDDEN_DIM,
+    "provenance": {
+        "model_revision": _model_revision,
+        "script": "scripts/run_model.py",
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
+        "device": str(DEVICE),
+        "torch_version": torch.__version__,
+        "output_file": args.output,
+    },
     "protocol": {
         "layer_select_seed": LAYER_SELECT_SEED,
         "eval_seeds": EVAL_SEEDS,

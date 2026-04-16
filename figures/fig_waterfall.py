@@ -42,10 +42,31 @@ def main():
     fig, ax = plt.subplots(figsize=(5.0, 3.0))
 
     # Neutral tones: raw is lighter gray, controlled bars are steel blue.
-    # Color encodes family identity (Figures 1, 3); here it's decorative.
+    # Nonlinear MLP gets a hatch to signal it's an independent comparison.
     colors = ["#B0B0B0"] + ["#5A7D9A"] * (len(cumulative) - 1) + ["#5A7D9A"]
 
     bars = ax.bar(positions, values, color=colors, width=0.6, zorder=3)
+
+    # Hatch the nonlinear MLP bar to distinguish from cumulative
+    bars[-1].set_hatch("//")
+    bars[-1].set_edgecolor("#3A5D7A")
+
+    # Error bar on the standard control from 20-seed hardening
+    hard = d.get("hardening", {})
+    hard_std = hard.get("std_partial_corr")
+    if hard_std:
+        std_idx = 2  # "+Norm" is the standard control
+        ax.errorbar(
+            positions[std_idx],
+            values[std_idx],
+            yerr=hard_std,
+            fmt="none",
+            ecolor="black",
+            elinewidth=0.8,
+            capsize=3,
+            capthick=0.7,
+            zorder=4,
+        )
 
     # Annotate each bar
     for bar, val in zip(bars, values):

@@ -15,3 +15,5 @@ Read-only consumers of `results/*.json`. These ran the GPU experiments and saved
 | `qwen05b_auxiliary_loss` | Qwen 0.5B | Auxiliary observability loss sweep |
 | `llama3b_comprehensive_v2` | Llama 3.2 3B | Cross-family divergence validation, 7-seed |
 | `cross_domain_qwen` | Qwen 1.5B | WikiText to C4/code transfer |
+
+Models added after the notebook workflow (Llama 1B, Llama 8B, Llama 1B Instruct, Mistral 7B, Phi-3 Mini, Gemma 4B) were run via `scripts/run_model.py` or archived per-model scripts in `docs/internal/notes/archive/scripts/`.

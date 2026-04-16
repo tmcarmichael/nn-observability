@@ -23,14 +23,15 @@ RESULTS_DIR = REPO_ROOT / "results"
 # Add analysis/ to import path so scripts can use load_results
 sys.path.insert(0, str(REPO_ROOT / "analysis"))
 
-# -- Colorblind-safe palette (Okabe-Ito derived) --
+# -- Colorblind-safe palette (true Okabe-Ito) --
+# Source: https://jfly.uni-koeln.de/color/
 PALETTE = {
-    "GPT-2": "#4878A8",
-    "Qwen": "#E07B39",
-    "Llama": "#C44E52",
-    "Gemma": "#2CA02C",
-    "Mistral": "#9467BD",
-    "Phi": "#8C564B",
+    "GPT-2": "#0072B2",  # blue
+    "Qwen": "#E69F00",  # orange
+    "Llama": "#D55E00",  # vermillion
+    "Gemma": "#009E73",  # bluish green
+    "Mistral": "#CC79A7",  # reddish purple
+    "Phi": "#56B4E9",  # sky blue
 }
 
 # Markers per family
@@ -42,6 +43,13 @@ MARKERS = {
     "Mistral": "P",
     "Phi": "X",
 }
+
+
+# Legend order: descending by mean pcorr (reader learns hierarchy from Figure 1)
+LEGEND_ORDER = ["Gemma", "Mistral", "Phi", "GPT-2", "Qwen", "Llama"]
+
+# Consistent y-axis range for all pcorr plots
+PCORR_YLIM = (-0.02, 0.45)
 
 
 def apply_style():

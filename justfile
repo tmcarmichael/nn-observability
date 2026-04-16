@@ -139,6 +139,14 @@ smoke-gpu:
 test:
     uv run pytest tests/ -v
 
+# Validate paper-scope results JSONs against schema
+validate-results:
+    uv run python analysis/load_results.py
+
+# Validate paper-scope results JSONs (strict: includes provenance)
+validate-results-strict:
+    uv run python analysis/load_results.py --strict
+
 # Reproduce published results (Phases 1-9)
 reproduce device=default_device:
     just train mnist 3 50 {{device}}

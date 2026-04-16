@@ -155,7 +155,7 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000,
         # Hidden state at target layer (layer+1 because index 0 is embedding)
         h = outputs.hidden_states[layer + 1][0, :-1, :].cpu()
         # Per-position loss
-        shift_logits = outputs.logits[0, :-1, :]
+        shift_logits = outputs.logits[0, :-1, :].float()
         shift_labels = input_ids[0, 1:]
         losses = F.cross_entropy(shift_logits, shift_labels, reduction="none").cpu()
         # Confidence
@@ -530,7 +530,7 @@ def _eval_ablated_transformer(model, tokenizer, block, ablate_indices, docs, dev
             if input_ids.size(1) < 2:
                 continue
             outputs = model(input_ids)
-            loss = F.cross_entropy(outputs.logits[0, :-1, :], input_ids[0, 1:])
+            loss = F.cross_entropy(outputs.logits[0, :-1, :].float(), input_ids[0, 1:])
             losses.append(loss.item())
     handle.remove()
     return float(np.mean(losses))
@@ -631,7 +631,9 @@ def _eval_direction_intervention(
                 continue
             outputs = model(input_ids)
             losses = (
-                F.cross_entropy(outputs.logits[0, :-1, :], input_ids[0, 1:], reduction="none").cpu().numpy()
+                F.cross_entropy(outputs.logits[0, :-1, :].float(), input_ids[0, 1:], reduction="none")
+                .cpu()
+                .numpy()
             )
             all_losses.append(losses)
             total += len(losses)
@@ -700,7 +702,7 @@ def run_5d(model, tokenizer, device, train_docs, test_docs, max_tokens_train, ma
             if input_ids.size(1) < 2:
                 continue
             outputs = model(input_ids)
-            loss = F.cross_entropy(outputs.logits[0, :-1, :], input_ids[0, 1:])
+            loss = F.cross_entropy(outputs.logits[0, :-1, :].float(), input_ids[0, 1:])
             baseline_losses.append(loss.item())
     baseline_loss = np.mean(baseline_losses)
     print(f"    baseline loss: {baseline_loss:.4f}")
@@ -1773,7 +1775,9 @@ def _patch_one_component(model, observer, pairs, peak_layer, layer, comp):
         base_h = base_out.hidden_states[peak_layer + 1][0, :-1, :].cpu().float()
         base_obs = observer(base_h).squeeze(-1).detach().numpy()
         base_loss = (
-            F.cross_entropy(base_out.logits[0, :-1, :], input_ids[0, 1:], reduction="none").cpu().numpy()
+            F.cross_entropy(base_out.logits[0, :-1, :].float(), input_ids[0, 1:], reduction="none")
+            .cpu()
+            .numpy()
         )
 
         # Capture clean component output
@@ -1804,7 +1808,9 @@ def _patch_one_component(model, observer, pairs, peak_layer, layer, comp):
         patch_h = patch_out.hidden_states[peak_layer + 1][0, :-1, :].cpu().float()
         patch_obs = observer(patch_h).squeeze(-1).detach().numpy()
         patch_loss = (
-            F.cross_entropy(patch_out.logits[0, :-1, :], input_ids[0, 1:], reduction="none").cpu().numpy()
+            F.cross_entropy(patch_out.logits[0, :-1, :].float(), input_ids[0, 1:], reduction="none")
+            .cpu()
+            .numpy()
         )
 
         valid = low_pos[low_pos < len(base_obs)]
@@ -1860,7 +1866,11 @@ def run_matched_pair_patching(
 
         h = outputs.hidden_states[peak_layer + 1][0, :-1, :].cpu().float()
         scores = observer(h).squeeze(-1).detach().numpy()
-        losses = F.cross_entropy(outputs.logits[0, :-1, :], input_ids[0, 1:], reduction="none").cpu().numpy()
+        losses = (
+            F.cross_entropy(outputs.logits[0, :-1, :].float(), input_ids[0, 1:], reduction="none")
+            .cpu()
+            .numpy()
+        )
 
         doc_data.append({"input_ids": input_ids, "scores": scores, "losses": losses, "n_pos": len(scores)})
 
@@ -2389,9 +2399,11 @@ def _collect_full_baseline(model, tokenizer, observer, peak_layer, docs, device,
             h = outputs.hidden_states[peak_layer + 1][0, :-1, :].cpu().float()
             scores = observer(h).squeeze(-1).detach().numpy()
             losses = (
-                F.cross_entropy(outputs.logits[0, :-1, :], input_ids[0, 1:], reduction="none").cpu().numpy()
+                F.cross_entropy(outputs.logits[0, :-1, :].float(), input_ids[0, 1:], reduction="none")
+                .cpu()
+                .numpy()
             )
-            sm = F.softmax(outputs.logits[0, :-1, :], dim=-1).max(dim=-1).values.cpu().numpy()
+            sm = F.softmax(outputs.logits[0, :-1, :].float(), dim=-1).max(dim=-1).values.cpu().numpy()
             all_obs.append(scores)
             all_loss.append(losses)
             all_sm.append(sm)

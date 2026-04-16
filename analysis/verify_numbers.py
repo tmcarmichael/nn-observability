@@ -15,9 +15,15 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "results"
 PAPER_DIR = REPO_ROOT.parent / "nn-observability-paper"
+
+sys.path.insert(0, str(REPO_ROOT / "analysis"))
+from load_results import load_model_means
+from permutation_test import family_f_stat
 
 
 @dataclass
@@ -87,7 +93,7 @@ def build_checks() -> list[Check]:
     q3 = _load_json("qwen3b_v3_results.json")
     q15 = _load_json("qwen1_5b_v3_results.json")
     q05 = _load_json("qwen05b_v3_results.json")
-    llama = _load_json("llama3b_v2_results.json")
+    llama = _load_json("llama3b_v3_results.json")
     gemma = _load_json("gemma3_1b_results.json")
 
     # GPT-2 124M core
@@ -174,10 +180,158 @@ def build_checks() -> list[Check]:
         Check("Llama 3B OC", "tables/cross_family_scaling.tex", llama["output_controlled"]["mean"], 0.0005)
     )
 
-    # Statistical tests (hardcoded expected values; re-run analysis scripts if these change)
-    checks.append(Check("Permutation F", "sections/architecture.tex", 13.57, 0.005))
-    checks.append(Check("Permutation p", "sections/architecture.tex", 0.014, 0.0005))
-    checks.append(Check("Variance between families %", "sections/architecture.tex", 87.8, 0.5))
+    # Downstream tasks (inline table in architecture.tex)
+    rag = _load_json("rag_hallucination_results.json")
+    rag_summary = rag.get("summary", {})
+    checks.append(
+        Check("SQuAD accuracy", "sections/architecture.tex", round(rag_summary["accuracy"] * 100), 1)
+    )
+    checks.append(
+        Check("SQuAD @10%", "sections/architecture.tex", rag["flag_rates"]["0.1"]["pct_of_errors"], 0.1)
+    )
+    checks.append(
+        Check("SQuAD @20%", "sections/architecture.tex", rag["flag_rates"]["0.2"]["pct_of_errors"], 0.1)
+    )
+
+    medqa = _load_json("medqa_selective_results.json")
+    checks.append(Check("MedQA accuracy", "sections/architecture.tex", round(medqa["accuracy"] * 100), 1))
+    checks.append(
+        Check("MedQA @10%", "sections/architecture.tex", medqa["flag_rates"]["0.1"]["pct_of_errors"], 0.1)
+    )
+    checks.append(
+        Check("MedQA @20%", "sections/architecture.tex", medqa["flag_rates"]["0.2"]["pct_of_errors"], 0.1)
+    )
+
+    tqa = _load_json("truthfulqa_hallucination_results.json")
+    checks.append(Check("TruthfulQA accuracy", "sections/architecture.tex", round(tqa["accuracy"] * 100), 1))
+    tqa_catches = tqa.get("standard_catches", {})
+    checks.append(
+        Check("TruthfulQA @10%", "sections/architecture.tex", tqa_catches["0.1"]["pct_of_errors"], 0.1)
+    )
+    checks.append(
+        Check("TruthfulQA @20%", "sections/architecture.tex", tqa_catches["0.2"]["pct_of_errors"], 0.1)
+    )
+
+    # Statistical tests (computed from data, not hardcoded)
+    model_means = load_model_means()
+    families_pm = [m[0] for m in model_means]
+    log_params_pm = np.array([m[1] for m in model_means])
+    pcorrs_pm = np.array([m[2] for m in model_means])
+    observed_f = family_f_stat(families_pm, log_params_pm, pcorrs_pm)
+    rng = np.random.RandomState(42)
+    null_fs = np.array(
+        [family_f_stat(list(rng.permutation(families_pm)), log_params_pm, pcorrs_pm) for _ in range(50000)]
+    )
+    p_value = float((null_fs >= observed_f).mean())
+    checks.append(Check("Permutation F", "sections/architecture.tex", round(observed_f, 2), 0.05))
+    checks.append(Check("Permutation p", "sections/architecture.tex", round(p_value, 3), 0.001))
+
+    # Variance decomposition (eta-squared on model means, percentage form)
+    unique_fam = list(set(families_pm))
+    X = np.column_stack([log_params_pm, np.ones(len(log_params_pm))])
+    resid_pm = pcorrs_pm - X @ np.linalg.lstsq(X, pcorrs_pm, rcond=None)[0]
+    ss_between = sum(
+        np.array([f == fam for f in families_pm]).sum()
+        * (resid_pm[np.array([f == fam for f in families_pm])].mean() - resid_pm.mean()) ** 2
+        for fam in unique_fam
+    )
+    ss_total = ((resid_pm - resid_pm.mean()) ** 2).sum()
+    eta_pct = ss_between / ss_total * 100 if ss_total > 0 else 0
+    checks.append(Check("Variance between families %", "sections/architecture.tex", round(eta_pct, 1), 0.5))
+
+    # Extended cross-family table (models not in stat scope)
+    llama1b = _load_json("llama1b_results.json")
+    llama8b = _load_json("llama8b_results.json")
+    gemma4b = _load_json("gemma4b_results.json")
+    phi3 = _load_json("phi3_mini_results.json")
+    mistral = _load_json("mistral7b_results.json")
+    checks.append(
+        Check("Llama 1B pcorr", "tables/cross_family_scaling.tex", llama1b["partial_corr"]["mean"], 0.0005)
+    )
+    checks.append(
+        Check("Llama 8B pcorr", "tables/cross_family_scaling.tex", llama8b["partial_corr"]["mean"], 0.0005)
+    )
+    checks.append(
+        Check("Llama 8B OC", "tables/cross_family_scaling.tex", llama8b["output_controlled"]["mean"], 0.001)
+    )
+    checks.append(
+        Check("Gemma 4B pcorr", "tables/cross_family_scaling.tex", gemma4b["partial_corr"]["mean"], 0.0005)
+    )
+    checks.append(
+        Check("Phi-3 pcorr", "tables/cross_family_scaling.tex", phi3["partial_corr"]["mean"], 0.0005)
+    )
+    checks.append(
+        Check("Mistral 7B pcorr", "tables/cross_family_scaling.tex", mistral["partial_corr"]["mean"], 0.0005)
+    )
+
+    # Llama 1B instruct
+    llama1bi = _load_json("llama1b_instruct_results.json")
+    checks.append(
+        Check(
+            "Llama 1B Instruct pcorr", "sections/architecture.tex", llama1bi["partial_corr"]["mean"], 0.0005
+        )
+    )
+
+    # Per-seed ranges (architecture.tex)
+    l3_seeds = llama["partial_corr"]["per_seed"]
+    q3_seeds = q3["partial_corr"]["per_seed"]
+    checks.append(Check("Llama 3B seed min", "sections/architecture.tex", round(min(l3_seeds), 3), 0.001))
+    checks.append(Check("Llama 3B seed max", "sections/architecture.tex", round(max(l3_seeds), 3), 0.001))
+    checks.append(Check("Qwen 3B seed min", "sections/architecture.tex", round(min(q3_seeds), 3), 0.001))
+    checks.append(Check("Qwen 3B seed max", "sections/architecture.tex", round(max(q3_seeds), 3), 0.001))
+
+    # Shuffle test
+    shuffle = _load_json("shuffle_test_gpt2.json")
+    checks.append(Check("Shuffle mean", "sections/signal.tex", round(shuffle["shuffle_mean"], 3), 0.002))
+    checks.append(Check("Shuffle std", "sections/signal.tex", round(shuffle["shuffle_std"], 3), 0.002))
+    checks.append(Check("Shuffle real pcorr", "sections/signal.tex", round(shuffle["real_pcorr"], 3), 0.002))
+
+    # Width sweep (signal.tex)
+    roc = _load_json("roc_width_sweep_results.json")
+    for w in ["64", "512"]:
+        val = roc["results"][f"width_{w}"]["mean"]
+        checks.append(Check(f"Width sweep {w}", "sections/signal.tex", round(val, 3), 0.002))
+
+    # TruthfulQA AUC among confident-wrong
+    tqa_auc = tqa.get("confident_hallucination_catches", {}).get("auc_among_confident")
+    if tqa_auc is not None:
+        checks.append(Check("TruthfulQA conf AUC", "sections/architecture.tex", tqa_auc, 0.001))
+
+    # Cross-domain transfer
+    gpt2_cd = to.get("cross_domain", {}).get("domains", {})
+    if "code" in gpt2_cd:
+        cd_val = gpt2_cd["code"].get("pcorr", gpt2_cd["code"].get("mean"))
+        if cd_val is not None:
+            checks.append(
+                Check("GPT-2 CodeSearchNet", "appendix/appendix_cross_domain.tex", round(cd_val, 3), 0.002)
+            )
+
+    # Hardening seed agreement
+    checks.append(
+        Check(
+            "Hardening sagree",
+            "appendix/appendix_methodology.tex",
+            to["hardening"]["mean_seed_agreement"],
+            0.001,
+        )
+    )
+
+    # GPT-2 flagging (computed from per_seed data)
+    gpt2_6a = to.get("6a", {})
+    if "per_seed" in gpt2_6a:
+        n_tok = gpt2_6a.get("n_test_tokens", gpt2_6a.get("n_tokens", 0))
+        total = n_tok * 0.5
+        for rate in ["0.1", "0.2"]:
+            obs = float(np.mean([s["exclusive"][rate]["observer_only"] for s in gpt2_6a["per_seed"]]))
+            pct = round(obs / total * 100, 1)
+            checks.append(Check(f"GPT-2 flagging @{rate}", "tables/flagging_cross_scale.tex", pct, 0.2))
+
+    # Qwen 0.5B instruct delta
+    qi05 = _load_json("qwen05b_instruct_v3_results.json")
+    delta_05 = qi05["partial_corr"]["mean"] - q05["partial_corr"]["mean"]
+    checks.append(
+        Check("Qwen 0.5B instruct delta", "tables/instruct_comparison.tex", round(delta_05, 3), 0.002)
+    )
 
     return checks
 

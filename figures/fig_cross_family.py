@@ -2,8 +2,6 @@
 
 One point per model, colored by family. Shows Qwen flat at ~+0.25,
 GPT-2 flat at ~+0.29, Gemma high, Llama cliff from 1B to 3B/8B.
-Preliminary points (3-seed, lower ex/dim) use open markers.
-Black error bars drawn in front of markers for visibility.
 
 Usage: cd nn-observability && uv run python figures/fig_cross_family.py
 """
@@ -12,68 +10,17 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-from style import MARKERS, PALETTE, RESULTS_DIR, apply_style, save_fig
+from style import LEGEND_ORDER, MARKERS, PALETTE, PCORR_YLIM, RESULTS_DIR, apply_style, save_fig
 from load_results import load_all_models
 
 OUTPUT_NAME = "cross_family_scaling.pdf"
 
-# Points not in load_results scope but in the figure.
-# Llama 1B: full protocol but excluded from family-level stats
-# (different architecture from 3B, inflates within-family variance).
-# Llama 8B: excluded from family-level stats (see load_results.py).
-EXTRA_POINTS = []
-
-# Llama 1B: load from committed full-protocol JSON if available
-_llama1b_path = RESULTS_DIR / "llama1b_results.json"
-if _llama1b_path.exists():
-    _d = json.loads(_llama1b_path.read_text())
-    EXTRA_POINTS.append(
-        {
-            "label": "Llama-1B",
-            "family": "Llama",
-            "params_b": _d["n_params_b"],
-            "pcorr_mean": _d["partial_corr"]["mean"],
-            "pcorr_std": _d["partial_corr"].get("std", 0),
-            "preliminary": False,
-        }
-    )
-else:
-    EXTRA_POINTS.append(
-        {
-            "label": "Llama-1B",
-            "family": "Llama",
-            "params_b": 1.236,
-            "pcorr_mean": 0.250,
-            "pcorr_std": 0.002,
-            "preliminary": True,
-        }
-    )
-
-# Llama 8B: load from committed JSON if available
-_llama8b_path = RESULTS_DIR / "llama8b_results.json"
-if _llama8b_path.exists():
-    _d = json.loads(_llama8b_path.read_text())
-    EXTRA_POINTS.append(
-        {
-            "label": "Llama-8B",
-            "family": "Llama",
-            "params_b": _d["n_params_b"],
-            "pcorr_mean": _d["partial_corr"]["mean"],
-            "pcorr_std": _d["partial_corr"].get("std", 0),
-            "preliminary": False,
-        }
-    )
-else:
-    EXTRA_POINTS.append(
-        {
-            "label": "Llama-8B",
-            "family": "Llama",
-            "params_b": 8.0,
-            "pcorr_mean": 0.088,
-            "pcorr_std": 0.004,
-            "preliminary": True,
-        }
-    )
+# Points not in load_results stat scope but in the figure.
+EXTRA_SOURCES = {
+    "Llama-1B": "llama1b_results.json",
+    "Llama-8B": "llama8b_results.json",
+    "Gemma-4B": "gemma4b_results.json",
+}
 
 
 def main():
@@ -94,42 +41,43 @@ def main():
                 "y": m["partial_corr"]["mean"],
                 "yerr": yerr,
                 "family": family,
-                "preliminary": False,
             }
         )
 
-    for p in EXTRA_POINTS:
+    for label, fname in EXTRA_SOURCES.items():
+        path = RESULTS_DIR / fname
+        if not path.exists():
+            continue
+        d = json.loads(path.read_text())
+        pc = d["partial_corr"]
+        family = label.split("-")[0]
         points.append(
             {
-                "x": p["params_b"],
-                "y": p["pcorr_mean"],
-                "yerr": p["pcorr_std"],
-                "family": p["family"],
-                "preliminary": p["preliminary"],
+                "x": d["n_params_b"],
+                "y": pc["mean"],
+                "yerr": pc.get("std", np.std(pc.get("per_seed", [0]))),
+                "family": family,
             }
         )
 
-    # Pass 1: colored markers
+    # Plot in legend order so legend matches visual hierarchy
     plotted_families = set()
-    for p in points:
-        fam = p["family"]
-        legend_label = fam if fam not in plotted_families else None
-        mkw = {}
-        if p["preliminary"]:
-            mkw = {"markerfacecolor": "white", "markeredgewidth": 1.0}
-        ax.plot(
-            p["x"],
-            p["y"],
-            MARKERS[fam],
-            color=PALETTE[fam],
-            markersize=5,
-            zorder=3,
-            label=legend_label,
-            **mkw,
-        )
-        plotted_families.add(fam)
+    for fam in LEGEND_ORDER:
+        fam_points = [p for p in points if p["family"] == fam]
+        for p in fam_points:
+            legend_label = fam if fam not in plotted_families else None
+            ax.plot(
+                p["x"],
+                p["y"],
+                MARKERS[fam],
+                color=PALETTE[fam],
+                markersize=5,
+                zorder=3,
+                label=legend_label,
+            )
+            plotted_families.add(fam)
 
-    # Pass 2: black error bars in front
+    # Black error bars in front
     for p in points:
         if p["yerr"] > 0:
             ax.errorbar(
@@ -146,8 +94,8 @@ def main():
 
     ax.set_xscale("log")
     ax.set_xlabel("Parameters (B)")
-    ax.set_ylabel(r"$\rho_{\mathrm{partial}}$ (confidence-controlled)", fontsize=8)
-    ax.set_ylim(-0.02, 0.45)
+    ax.set_ylabel(r"$\rho_{\mathrm{partial}}$ (confidence-controlled)")
+    ax.set_ylim(*PCORR_YLIM)
     ax.axhline(0, color="gray", linewidth=0.5, linestyle="-", alpha=0.3)
 
     # Noise floor band

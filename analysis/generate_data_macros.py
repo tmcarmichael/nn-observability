@@ -14,13 +14,16 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+import statsmodels.formula.api as smf
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "results"
 PAPER_DIR = REPO_ROOT.parent / "nn-observability-paper"
 
 sys.path.insert(0, str(REPO_ROOT / "analysis"))
-from load_results import load_all_models
+from load_results import load_all_models, load_model_means, load_per_seed
+from permutation_test import family_f_stat
 
 
 def _load_json(filename: str) -> dict:
@@ -63,8 +66,13 @@ def generate_macros() -> str:
     q3 = _load_json("qwen3b_v3_results.json")
     q7 = _load_json("qwen7b_v3_results.json")
     q14 = _load_json("qwen14b_v3_results.json")
-    llama = _load_json("llama3b_v2_results.json")
-    gemma = _load_json("gemma3_1b_results.json")
+    llama3b = _load_json("llama3b_v3_results.json")
+    llama1b = _load_json("llama1b_results.json")
+    llama1bi = _load_json("llama1b_instruct_results.json")
+    llama8b = _load_json("llama8b_results.json")
+    gemma1b = _load_json("gemma3_1b_results.json")
+    gemma4b = _load_json("gemma4b_results.json")
+    phi3 = _load_json("phi3_mini_results.json")
 
     # Instruct files
     qi05 = _load_json("qwen05b_instruct_v3_results.json")
@@ -183,11 +191,18 @@ def generate_macros() -> str:
     # ── Cross-family ──
 
     section("Cross-family (Llama, Gemma, Mistral)")
-    macro("llamapcorr", _fmt(llama["partial_corr"]["mean"]))
-    macro("llamaoc", _fmt(llama["output_controlled"]["mean"]))
-    macro("gemmapcorr", _fmt(gemma["partial_corr"]["mean"]))
-    macro("gemmaoc", _fmt(gemma["output_controlled"]["mean"]))
-    macro("gemmarandom", _fmt(gemma["baselines"]["random_head"]))
+    macro("llamapcorr", _fmt(llama3b["partial_corr"]["mean"]), "Llama 3B")
+    macro("llamaoc", _fmt(llama3b["output_controlled"]["mean"]))
+    macro("llamaOnepcorr", _fmt(llama1b["partial_corr"]["mean"]), "Llama 1B")
+    macro("llamaOneoc", _fmt(llama1b["output_controlled"]["mean"]))
+    macro("llamaOneipcorr", _fmt(llama1bi["partial_corr"]["mean"]), "Llama 1B Instruct")
+    macro("llamaEightpcorr", _fmt(llama8b["partial_corr"]["mean"]), "Llama 8B")
+    macro("llamaEightoc", _fmt(llama8b["output_controlled"]["mean"]))
+    macro("gemmapcorr", _fmt(gemma1b["partial_corr"]["mean"]), "Gemma 1B")
+    macro("gemmaoc", _fmt(gemma1b["output_controlled"]["mean"]))
+    macro("gemmarandom", _fmt(gemma1b["baselines"]["random_head"]))
+    macro("gemmaFourpcorr", _fmt(gemma4b["partial_corr"]["mean"]), "Gemma 4B")
+    macro("phipcorr", _fmt(phi3["partial_corr"]["mean"]), "Phi-3 Mini")
 
     if mistral is not None:
         macro("mistralpcorr", _fmt(mistral["partial_corr"]["mean"]))
@@ -197,45 +212,113 @@ def generate_macros() -> str:
 
     section("Cross-family gap (matched 3B scale)")
     qwen3b_pc = q3["partial_corr"]["mean"]
-    llama3b_pc = llama["partial_corr"]["mean"]
+    llama3b_pc = llama3b["partial_corr"]["mean"]
     gap = qwen3b_pc / llama3b_pc
     macro("crossfamilygap", f"{gap:.1f}", "Qwen 3B / Llama 3B ratio")
 
-    # ── Statistical tests ──
-    # These are hardcoded from analysis script output.
-    # Re-run analysis/run_all.py if model scope changes.
+    # ── Statistical tests (computed from data) ──
 
-    section("Statistical tests (from analysis scripts)")
+    section("Statistical tests (computed from data)")
     all_models = load_all_models()
     n_models = len(all_models)
     n_families = len(set(m["family"] for m in all_models.values()))
     macro("nmodels", str(n_models), "models in analysis scope")
     macro("nfamilies", str(n_families), "families in analysis scope")
 
-    # Permutation test
-    macro("permF", "13.57", "re-run permutation_test.py if scope changes")
-    macro("permp", "0.014", "re-run permutation_test.py if scope changes")
+    # Permutation test (Monte Carlo, 50k samples)
+    model_means = load_model_means()
+    families_pm = [m[0] for m in model_means]
+    log_params_pm = np.array([m[1] for m in model_means])
+    pcorrs_pm = np.array([m[2] for m in model_means])
+    observed_f = family_f_stat(families_pm, log_params_pm, pcorrs_pm)
+    rng = np.random.RandomState(42)
+    null_fs = np.array(
+        [family_f_stat(list(rng.permutation(families_pm)), log_params_pm, pcorrs_pm) for _ in range(50000)]
+    )
+    p_value = float((null_fs >= observed_f).mean())
+    macro("permF", f"{observed_f:.2f}", f"Monte Carlo 50k, {n_models} models, {n_families} families")
+    macro("permp", f"{p_value:.3f}", "")
 
-    # Variance decomposition
-    macro("varfamily", "87.8", "re-run meta_regression.py if scope changes")
-    macro("varmodel", "6.0", "")
-    macro("varseed", "6.3", "")
+    # Eta-squared
+    unique_fam = list(set(families_pm))
+    resid_pm = (
+        pcorrs_pm
+        - np.column_stack([log_params_pm, np.ones(len(log_params_pm))])
+        @ np.linalg.lstsq(
+            np.column_stack([log_params_pm, np.ones(len(log_params_pm))]), pcorrs_pm, rcond=None
+        )[0]
+    )
+    ss_between = sum(
+        (np.array([f == fam for f in families_pm]).sum())
+        * (resid_pm[np.array([f == fam for f in families_pm])].mean() - resid_pm.mean()) ** 2
+        for fam in unique_fam
+    )
+    ss_total = ((resid_pm - resid_pm.mean()) ** 2).sum()
+    eta_sq = ss_between / ss_total if ss_total > 0 else 0
+    macro("etasq", f"{eta_sq:.2f}", "eta-squared from permutation test")
 
-    # Mixed effects coefficients
-    macro("llamacoef", "-0.196", "")
-    macro("llamaz", "-6.42", "")
-    macro("gemmacoef", "+0.102", "")
-    macro("gemmaz", "3.68", "")
-    macro("scalecoef", "-0.001", "")
-    macro("scalez", "-0.06", "")
-    macro("scalep", "0.950", "")
+    # Variance decomposition (three-level, descriptive)
+    seed_rows = load_per_seed()
+    df = pd.DataFrame(seed_rows, columns=["family", "model", "params_b", "seed_idx", "partial_corr"])
+    grand_mean = df["partial_corr"].mean()
+    total_var = df["partial_corr"].var(ddof=0)
+
+    family_means_df = df.groupby("family")["partial_corr"].mean()
+    family_ns = df.groupby("family").size()
+    var_between_family = sum(n * (m - grand_mean) ** 2 for m, n in zip(family_means_df, family_ns)) / len(df)
+
+    model_means_df = df.groupby("model")["partial_corr"].mean()
+    var_between_model = 0.0
+    for model_name, model_mean in model_means_df.items():
+        fam = df[df["model"] == model_name]["family"].iloc[0]
+        fam_mean = family_means_df[fam]
+        n = (df["model"] == model_name).sum()
+        var_between_model += n * (model_mean - fam_mean) ** 2
+    var_between_model /= len(df)
+
+    var_within = 0.0
+    for model_name in df["model"].unique():
+        sub = df[df["model"] == model_name]
+        var_within += ((sub["partial_corr"] - sub["partial_corr"].mean()) ** 2).sum()
+    var_within /= len(df)
+
+    pct_fam = var_between_family / total_var * 100
+    pct_model = var_between_model / total_var * 100
+    pct_seed = var_within / total_var * 100
+
+    macro("varfamily", _pct(pct_fam), "between families")
+    macro("varmodel", _pct(pct_model), "between models within family")
+    macro("varseed", _pct(pct_seed), "within model across seeds")
+
+    # Mixed-effects model
+    df["log_params"] = np.log10(df["params_b"])
+    md = smf.mixedlm("partial_corr ~ log_params + C(family)", df, groups=df["model"])
+    mdf = md.fit(reml=True)
+    # Extract Llama coefficient (reference family varies; find it)
+    llama_key = [k for k in mdf.params.index if "Llama" in k]
+    gemma_key = [k for k in mdf.params.index if "Gemma" in k]
+    macro("llamacoef", _fmt(mdf.params[llama_key[0]]) if llama_key else "---", "")
+    macro("llamaz", f"{mdf.tvalues[llama_key[0]]:.2f}" if llama_key else "---", "")
+    macro("gemmacoef", _fmt(mdf.params[gemma_key[0]]) if gemma_key else "---", "")
+    macro("gemmaz", f"{mdf.tvalues[gemma_key[0]]:.2f}" if gemma_key else "---", "")
+    macro("scalecoef", _fmt(mdf.params["log_params"]), "")
+    macro("scalez", f"{mdf.tvalues['log_params']:.2f}", "")
+    macro("scalep", f"{mdf.pvalues['log_params']:.3f}", "")
 
     # ── Catch rates ──
 
     section("Exclusive catch rates")
-    macro("catchfloor", "7", "Llama at 10% flag rate, rounded")
+    macro("catchfloor", "8", "Llama at 10% flag rate, rounded")
     macro("catchceiling", "11", "Mistral at 10% flag rate, rounded")
-    macro("catchsaturation", "12--15", "range at 20% flag rate")
+    macro("catchsaturation", "11--15", "range at 20% flag rate")
+
+    # ── Downstream task metrics ──
+
+    section("Downstream task metrics")
+    tqa = _load_json("truthfulqa_hallucination_results.json")
+    tqa_auc = tqa.get("confident_hallucination_catches", {}).get("auc_among_confident")
+    if tqa_auc is not None:
+        macro("tqaconfAUC", f"{tqa_auc:.3f}", "TruthfulQA AUC among confident-wrong")
 
     # ── SAE comparison ──
 
@@ -247,27 +330,67 @@ def generate_macros() -> str:
     # ── Bootstrap ──
 
     section("Document-level bootstrap (Qwen 7B)")
-    macro("bootmean", _fmt(0.238), "30-resample mean")
-    macro("bootlo", _fmt(0.215), "95% CI lower")
-    macro("boothi", _fmt(0.270), "95% CI upper")
+    boot_path = REPO_ROOT / "analysis" / "split_bootstrap_Qwen2.5-7B.json"
+    boot = json.loads(boot_path.read_text())
+    macro("bootmean", _fmt(round(boot["mean"], 3)), f"{boot['n_boot']}-resample mean")
+    macro("bootlo", _fmt(round(boot["ci_95"][0], 3)), "95% CI lower")
+    macro("boothi", _fmt(round(boot["ci_95"][1], 3)), "95% CI upper")
 
     # ── Token budget ──
 
     section("Token budget (Qwen 14B v1-v3 progression)")
-    macro("budgetvone", _fmt(0.194), "68 ex/dim")
-    macro("budgetvtwo", _fmt(0.212), "250 ex/dim")
-    macro("budgetvthree", _fmt(0.214), "350 ex/dim")
+    q14_vh = q14.get("version_history", {})
+    macro("budgetvone", _fmt(q14_vh["v1"]["partial_corr"]), "68 ex/dim")
+    macro("budgetvtwo", _fmt(q14_vh["v2"]["partial_corr"]), "250 ex/dim")
+    macro("budgetvthree", _fmt(q14["partial_corr"]["mean"]), "350 ex/dim")
 
     lines.append("")
     return "\n".join(lines) + "\n"
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--check", action="store_true", help="Check if data_macros.sty matches generated output (no write)"
+    )
+    args = parser.parse_args()
+
     content = generate_macros()
     out = PAPER_DIR / "data_macros.sty"
-    out.write_text(content)
     n_macros = content.count("\\newcommand")
-    print(f"Generated {n_macros} macros -> {out}")
+
+    if args.check:
+        if not out.exists():
+            print(f"FAIL: {out} does not exist")
+            sys.exit(1)
+        existing = out.read_text()
+        if existing == content:
+            print(f"OK: {out} matches generated output ({n_macros} macros)")
+        else:
+            # Show which macros differ
+            import difflib
+
+            diff = list(
+                difflib.unified_diff(
+                    existing.splitlines(),
+                    content.splitlines(),
+                    fromfile="committed",
+                    tofile="generated",
+                    lineterm="",
+                )
+            )
+            for line in diff[:40]:
+                print(line)
+            if len(diff) > 40:
+                print(f"  ... ({len(diff) - 40} more lines)")
+            print(f"\nFAIL: {out} does not match generated output")
+            print("  Run 'just data-macros' to regenerate")
+            sys.exit(1)
+    else:
+        out.write_text(content)
+        print(f"Generated {n_macros} macros -> {out}")
 
 
 if __name__ == "__main__":

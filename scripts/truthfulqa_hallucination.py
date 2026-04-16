@@ -1,6 +1,6 @@
 """TruthfulQA hallucination detection: does the observer catch confident wrong answers?
 
-Model: Qwen/Qwen2.5-7B-Instruct | GPU: H100/H200 | ~1 hour
+Model: Qwen/Qwen2.5-7B-Instruct | GPU required
 Protocol: train WikiText probe (standard), generate TruthfulQA answers,
   analyze the confident-but-wrong quadrant where confidence monitoring fails.
 

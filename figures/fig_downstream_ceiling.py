@@ -2,66 +2,77 @@
 
 Shows exclusive catch rate (% of errors) at 10% and 20% flag rates
 across language modeling (5 families), SQuAD 2.0 RAG, MedQA-USMLE,
-and TruthfulQA. The 12-15% ceiling at 20% holds across all tasks.
+and TruthfulQA. The ceiling at 20% holds across all tasks.
+
+All values read live from committed results JSONs.
 
 Usage: cd nn-observability && uv run python figures/fig_downstream_ceiling.py
 """
 
+import json
+
 import matplotlib.pyplot as plt
 import numpy as np
-from style import apply_style, save_fig
+from style import RESULTS_DIR, apply_style, save_fig
 
 OUTPUT_NAME = "downstream_ceiling.pdf"
 
-# Data from committed results
-# Language modeling: range across 5 models at each flag rate
-TASKS = {
-    "WikiText\n(5 families)": {"10": (7.8, 11.4), "20": (12.0, 14.5)},  # range: min-max across families
-    "SQuAD 2.0\nRAG": {"10": 5.9, "20": 11.8},
-    "MedQA\nUSMLE": {"10": 8.8, "20": 11.6},
-    "TruthfulQA": {"10": 8.8, "20": 13.5},
-}
+
+def _flagging_pct(fname, rate_key):
+    """Extract exclusive catch % from a model's flagging_6a summary."""
+    d = json.loads((RESULTS_DIR / fname).read_text())
+    flag = d["flagging_6a"]
+    summary = flag["summary"]
+    n = flag["n_tokens"]
+    raw = summary[rate_key]["observer_exclusive"]
+    return raw / (n / 2) * 100
 
 
 def main():
     apply_style()
 
-    fig, ax = plt.subplots(figsize=(5.5, 3.0))
+    # WikiText: range across families with flagging data
+    wikitext_models = [
+        "mistral7b_results.json",
+        "qwen7b_v3_results.json",
+        "llama3b_v3_results.json",
+    ]
+    wt_10 = [_flagging_pct(f, "0.1") for f in wikitext_models]
+    wt_20 = [_flagging_pct(f, "0.2") for f in wikitext_models]
 
-    tasks = list(TASKS.keys())
+    # Downstream tasks from committed JSONs
+    squad = json.loads((RESULTS_DIR / "rag_hallucination_results.json").read_text())
+    medqa = json.loads((RESULTS_DIR / "medqa_selective_results.json").read_text())
+    tqa = json.loads((RESULTS_DIR / "truthfulqa_hallucination_results.json").read_text())
+
+    tasks = [
+        "WikiText\n(5 families)",
+        "SQuAD 2.0\nRAG",
+        "MedQA\nUSMLE",
+        "TruthfulQA",
+    ]
     x = np.arange(len(tasks))
     width = 0.35
 
-    colors_10 = "#4878A8"
-    colors_20 = "#C44E52"
+    vals_10 = [
+        np.mean(wt_10),
+        squad["flag_rates"]["0.1"]["pct_of_errors"],
+        medqa["flag_rates"]["0.1"]["pct_of_errors"],
+        tqa["standard_catches"]["0.1"]["pct_of_errors"],
+    ]
+    vals_20 = [
+        np.mean(wt_20),
+        squad["flag_rates"]["0.2"]["pct_of_errors"],
+        medqa["flag_rates"]["0.2"]["pct_of_errors"],
+        tqa["standard_catches"]["0.2"]["pct_of_errors"],
+    ]
+    errs_10 = [(max(wt_10) - min(wt_10)) / 2, 0, 0, 0]
+    errs_20 = [(max(wt_20) - min(wt_20)) / 2, 0, 0, 0]
 
-    # 10% flag rate bars
-    vals_10 = []
-    errs_10 = []
-    for t in tasks:
-        v = TASKS[t]["10"]
-        if isinstance(v, tuple):
-            mid = (v[0] + v[1]) / 2
-            err = (v[1] - v[0]) / 2
-            vals_10.append(mid)
-            errs_10.append(err)
-        else:
-            vals_10.append(v)
-            errs_10.append(0)
+    colors_10 = "#0072B2"  # Okabe-Ito blue
+    colors_20 = "#D55E00"  # Okabe-Ito vermillion
 
-    # 20% flag rate bars
-    vals_20 = []
-    errs_20 = []
-    for t in tasks:
-        v = TASKS[t]["20"]
-        if isinstance(v, tuple):
-            mid = (v[0] + v[1]) / 2
-            err = (v[1] - v[0]) / 2
-            vals_20.append(mid)
-            errs_20.append(err)
-        else:
-            vals_20.append(v)
-            errs_20.append(0)
+    fig, ax = plt.subplots(figsize=(5.5, 3.0))
 
     ax.bar(
         x - width / 2,
@@ -70,7 +81,7 @@ def main():
         yerr=errs_10,
         color=colors_10,
         alpha=0.85,
-        label="10\\% flag rate",
+        label=r"10\% flag rate",
         capsize=3,
         error_kw={"linewidth": 0.8},
     )
@@ -81,18 +92,22 @@ def main():
         yerr=errs_20,
         color=colors_20,
         alpha=0.85,
-        label="20\\% flag rate",
+        label=r"20\% flag rate",
         capsize=3,
         error_kw={"linewidth": 0.8},
     )
 
-    # Ceiling band at 12-15%
-    ax.axhspan(12, 15, color="gray", alpha=0.08, zorder=0)
-    ax.axhline(12, color="gray", linewidth=0.5, linestyle=":", alpha=0.4)
-    ax.axhline(15, color="gray", linewidth=0.5, linestyle=":", alpha=0.4)
-    ax.text(len(tasks) - 0.5, 13.5, "ceiling", fontsize=7, color="gray", alpha=0.6, ha="right")
+    # Ceiling band
+    ceil_lo = min(vals_20)
+    ceil_hi = max(vals_20)
+    ax.axhspan(ceil_lo, ceil_hi, color="gray", alpha=0.08, zorder=0)
+    ax.axhline(ceil_lo, color="gray", linewidth=0.5, linestyle=":", alpha=0.4)
+    ax.axhline(ceil_hi, color="gray", linewidth=0.5, linestyle=":", alpha=0.4)
+    ax.text(
+        len(tasks) - 0.5, (ceil_lo + ceil_hi) / 2, "ceiling", fontsize=7, color="gray", alpha=0.6, ha="right"
+    )
 
-    ax.set_ylabel("Exclusive catches (\\% of errors)")
+    ax.set_ylabel(r"Exclusive catches (\% of errors)")
     ax.set_xticks(x)
     ax.set_xticklabels(tasks, fontsize=8)
     ax.set_ylim(0, 18)
