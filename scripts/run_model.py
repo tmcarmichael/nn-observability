@@ -1,16 +1,8 @@
 """Run the full observability protocol on any HuggingFace causal LM.
 
-Single file, no local imports.
-
-Examples:
-  python run_model.py --model Qwen/Qwen2.5-7B --output qwen7b_v3_results.json
-  python run_model.py --model mistralai/Mistral-7B-v0.3 --output mistral7b_results.json
-  python run_model.py --model microsoft/Phi-3-mini-4k-instruct --output phi3_mini_results.json
-  python run_model.py --model meta-llama/Llama-3.2-3B --output llama3b_results.json --ex-dim 200
-  python run_model.py --model meta-llama/Llama-3.1-8B --output llama8b_results.json --trust-remote-code
-
-Protocol: layer selected on val with seed 42, evaluated on val with seeds 43-49 (7 default, configurable via --seeds).
-Full battery: baselines, output-controlled, cross-domain C4 (skippable via --skip-c4), control sensitivity, flagging.
+Self-contained entry point that executes layer selection on the validation
+split at seed 42, then the full probe battery (baselines, output-controlled,
+cross-domain C4, control sensitivity, flagging) across the remaining seeds.
 """
 
 import argparse
@@ -105,6 +97,8 @@ def _get_layer_list(model):
             return lm.layers  # Gemma 3 (multimodal wrapper)
         if hasattr(lm, "model") and hasattr(lm.model, "layers"):
             return lm.model.layers
+    if hasattr(model, "gpt_neox") and hasattr(model.gpt_neox, "layers"):
+        return model.gpt_neox.layers  # Pythia, GPT-NeoX
     if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
         return model.transformer.h  # GPT-2
     raise ValueError(f"Unsupported architecture: {type(model).__name__}. Could not find layer list.")
@@ -141,7 +135,7 @@ def collect_multi_layer_fast(model, batches, layers, max_tokens, device, sm_chun
         B, S = input_ids.shape
 
         with torch.inference_mode():
-            outputs = model(input_ids, attention_mask=attn_mask)
+            outputs = model(input_ids, attention_mask=attn_mask, use_cache=False)
 
         shift_mask = attn_mask[:, 1:].bool()
         shift_logits = outputs.logits[:, :-1, :].contiguous()
@@ -441,13 +435,24 @@ save_checkpoint(
 )
 
 # --- Phase 2: Collect at candidates + output ---
+# Chunk candidates by LAYERS_PER_PASS so peak GPU memory is bounded by chunk
+# size, not candidate count. Bit-identical to one-shot collection since the
+# forward pass is deterministic under eval + inference_mode.
 print(f"\n=== Phase 2: Collecting candidates + output [{elapsed_str()}] ===")
-tr_multi = collect_multi_layer_fast(model, train_batches, candidates, MAX_TRAIN, DEVICE)
-va_multi = collect_multi_layer_fast(model, val_batches, candidates, MAX_TRAIN, DEVICE)
-train_cache = {l: tr_multi[l] for l in candidates}
-val_cache = {l: va_multi[l] for l in candidates}
-del tr_multi, va_multi
-gc.collect()
+train_cache = {}
+val_cache = {}
+for i in range(0, len(candidates), LAYERS_PER_PASS):
+    cand_chunk = candidates[i : i + LAYERS_PER_PASS]
+    print(f"  Candidates L{cand_chunk[0]}-L{cand_chunk[-1]}...")
+    tr_multi = collect_multi_layer_fast(model, train_batches, cand_chunk, MAX_TRAIN, DEVICE)
+    va_multi = collect_multi_layer_fast(model, val_batches, cand_chunk, MAX_TRAIN, DEVICE)
+    for layer in cand_chunk:
+        train_cache[layer] = tr_multi[layer]
+        val_cache[layer] = va_multi[layer]
+    del tr_multi, va_multi
+    gc.collect()
+    if DEVICE == "cuda":
+        torch.cuda.empty_cache()
 
 print(f"  Collecting output layer L{output_layer}...")
 wiki_train_output = collect_single_layer_fast(model, train_batches, output_layer, MAX_TRAIN, DEVICE)
@@ -480,6 +485,16 @@ FINAL = max(layer_eval, key=lambda l: layer_eval[l]["mean"])
 ev = layer_eval[FINAL]
 wiki_train_peak = train_cache[FINAL]
 wiki_val_peak = val_cache[FINAL]
+
+# Free non-peak candidate activations: only FINAL is needed from here on.
+# Each dropped candidate saves ~(MAX_TRAIN * HIDDEN_DIM * 4) bytes of CPU RAM
+# per split, which matters on large-hidden models (e.g. Pythia 12B).
+for _l in list(train_cache.keys()):
+    if _l != FINAL:
+        del train_cache[_l]
+        del val_cache[_l]
+gc.collect()
+
 print(f"FINAL: L{FINAL} = {ev['mean']:+.4f} +/- {ev['std']:.4f}")
 save_checkpoint(
     "3_multiseed",

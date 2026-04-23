@@ -1,7 +1,4 @@
-"""Run all CPU-based analysis scripts and print a combined summary.
-
-Usage: cd nn-observability && uv run python analysis/run_all.py
-"""
+"""Run all CPU-based analysis scripts and print a combined summary."""
 
 import subprocess
 import sys
@@ -16,6 +13,7 @@ SCRIPTS = [
     "loocv_scaling.py",
     "funnel_plot.py",
     "exclusive_catch_rates.py",
+    "held_out_split.py",
 ]
 
 analysis_dir = Path(__file__).resolve().parent

@@ -16,7 +16,7 @@ from observe import (
     correlation_suite,
     partial_spearman,
 )
-from transformer_observe import _deep_merge, bootstrap_ci
+from utils import _deep_merge, bootstrap_ci
 
 # ---------------------------------------------------------------------------
 # bootstrap_ci

@@ -1,11 +1,13 @@
 # Analysis scripts
 
+_Updated 2026-04-22 for repo v3.0.0._
+
 CPU-only statistical analysis. All scripts read from `results/` and import model scope from `load_results.py`.
 
 ## Running
 
 ```bash
-uv run python analysis/run_all.py          # all 8 analysis scripts
+uv run python analysis/run_all.py          # all analysis scripts
 uv run python analysis/load_results.py     # validate results JSON schema
 uv run python analysis/load_results.py --strict  # also check provenance fields
 ```
@@ -24,17 +26,7 @@ uv run python analysis/load_results.py --strict  # also check provenance fields
 | `funnel_plot.py` | Publication bias diagnostic | Funnel plot data |
 | `pearson_vs_spearman.py` | Pearson vs Spearman correlation comparison | Correlation table |
 | `loocv_scaling.py` | Leave-one-out cross-validation for scaling | Prediction errors |
-
-## Paper pipeline
-
-| Script | Purpose | Output |
-|---|---|---|
-| `generate_data_macros.py` | Compute all paper macros from results JSONs | `data_macros.sty` (96 macros) |
-| `generate_tables.py` | Generate data-dependent LaTeX tables | 3 `.tex` files in paper repo |
-| `verify_numbers.py` | Validate inline numbers in `.tex` against JSONs | 26 checks, exit 1 on failure |
-| `lint_hardcoded.py` | Detect hardcoded values that should be macros | Flagged lines |
-
-Both generators have `--check` mode (content diff, exit 1 on mismatch). The paper repo's `just check` runs both content checks as part of its validation pipeline.
+| `held_out_split.py` | Cross-validated partial-Spearman from per-token dumps | In-sample vs held-out delta per model |
 
 ## Adding a new model
 
@@ -47,16 +39,11 @@ Both generators have `--check` mode (content diff, exit 1 on mismatch). The pape
    ```bash
    just validate-results
    ```
-   The schema checks for required fields: `model`, `partial_corr.mean`, `partial_corr.per_seed` (minimum 3 seeds), `output_controlled.mean`, `peak_layer_final` (or `peak_layer`), `peak_layer_frac`, `seed_agreement`, `baselines`. Run with `--strict` to also check provenance fields.
+   The schema checks for required fields: `model`, `partial_corr.mean`, `partial_corr.per_seed` (minimum 3 seeds; v3 protocol uses 7), `output_controlled.mean`, `peak_layer_final` (or `peak_layer`), `peak_layer_frac`, `seed_agreement`, `baselines`. Run with `--strict` to also check provenance fields.
 
 3. Add to analysis scope in `load_results.py`:
    - Add an entry to the appropriate family list (e.g., `QWEN_MODELS`) or create a new family list
    - The entry is a tuple: `("filename.json", params_in_billions, "Display-Label")`
-
-4. Regenerate paper content:
-   ```bash
-   cd ../nn-observability-paper && just regenerate && just check
-   ```
 
 ## Required JSON schema
 

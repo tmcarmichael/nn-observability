@@ -207,5 +207,10 @@
       "random_head": 0.2191
     },
     "note": "Sanity check at 350 ex/dim confirms 150 ex/dim results are not inflated. Random head baseline is real representation geometry, not probe overfitting."
+  },
+  "provenance": {
+    "model_revision": "fcf18a2a",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-12T21:39:33-05:00"
   }
 }

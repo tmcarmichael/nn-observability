@@ -2,23 +2,22 @@
 Train identical networks with local (Forward-Forward) and global (Backpropagation)
 objectives, then compare their representation structure.
 
-Phase 0.5: Fairness ablation pack. Four model variants isolate confounders:
+Four model variants isolate confounders:
   FF         - Forward-Forward (local training + label overlay + per-layer norm)
   BP         - Standard backpropagation (baseline)
   BP+norm    - BP with per-layer L2 normalization (isolates normalization effect)
   BP+overlay - BP trained on label-overlaid input (isolates label injection effect)
 
-Methodological fixes:
-  - Probes train on training-set activations, evaluate on test-set activations
-  - Reports per-layer, final-layer, and best-layer metrics (not just averages)
-  - Normalization matched between FF and BP+norm
-  - Label overlay scheme tested independently via BP+overlay
+Probes train on training-set activations, evaluate on test-set activations.
+Per-layer, final-layer, and best-layer metrics are all reported.
+Normalization is matched between FF and BP+norm.
+The label overlay scheme is tested independently via BP+overlay.
 
 Usage:
     uv run train.py                          # MNIST, 50 epochs, 3 seeds
     uv run train.py --dataset cifar10        # harder benchmark
-    uv run train.py --seeds 1               # quick single-seed run
-    uv run train.py --variants ff bp         # original comparison only
+    uv run train.py --seeds 1                # quick single-seed run
+    uv run train.py --variants ff bp         # FF vs BP only
 """
 
 import argparse
@@ -181,12 +180,7 @@ def get_data(name, batch_size, device="cpu"):
 
 
 def linear_probe(train_acts, train_labels, test_acts, test_labels):
-    """Train probe on training activations, evaluate on test activations.
-
-    Previous version used 80/20 split on test-set activations only, which
-    contaminates the probe fit with test data. This version uses a proper
-    train/test separation.
-    """
+    """Train probe on training activations, evaluate on test activations."""
     X_tr, y_tr = train_acts.cpu().numpy(), train_labels.cpu().numpy()
     X_te, y_te = test_acts.cpu().numpy(), test_labels.cpu().numpy()
     clf = LogisticRegression(max_iter=2000, solver="lbfgs", random_state=0)

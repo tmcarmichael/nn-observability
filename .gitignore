@@ -6,8 +6,36 @@ build/
 dist/
 
 # Virtual environments
-.venv
+.venv/
 venv/
+
+# Python version pin (pyproject.toml is the source of truth)
+.python-version
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment and secrets
+.env
+.env.*
+.envrc
+.direnv/
+.secrets/
+credentials.json
+*.pem
+*.key
+
+# Editor backups
+*.swp
+*.swo
+*~
+.*.un~
 
 # System
 .DS_Store
@@ -23,9 +51,18 @@ src/data/
 *.safetensors
 checkpoints/
 
+# ML framework logs
+wandb/
+lightning_logs/
+tb_logs/
+tensorboard/
+runs/
+mlruns/
+
 # Results data (JSON is small, committed; large arrays are not)
 results/**/*.npy
 results/**/*.pkl
+results/internal/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -41,7 +78,7 @@ CLAUDE.md
 
 # Generated charts and analysis output
 *.png
-!assets/*.png
+!assets/share/*.png
 analysis/*.pdf
 
 # Internal review

@@ -1,15 +1,8 @@
-"""RAG hallucination detection: does the observer flag hallucinations confidence misses?
+"""RAG hallucination detection: does the observer flag errors confidence misses?
 
-Model: Qwen/Qwen2.5-7B-Instruct | GPU: H100/H200 | Peak layer from v3 results
-Protocol: train WikiText probe (standard), generate RAG answers on Natural Questions,
-  compare observer vs confidence at catching wrong answers.
-
-The hypothesis: a WikiText-trained probe that reads decision-quality signal
-transfers to flagging hallucinations in retrieval-augmented generation. If the
-observer catches hallucinations that confidence misses, the monitoring value
-extends beyond next-token prediction to a deployment-relevant failure mode.
-
-Usage: pip install transformers datasets scipy scikit-learn && python rag_hallucination.py
+Trains a WikiText probe, generates answers on SQuAD 2.0 passages, and
+compares observer and confidence at flagging wrong answers. Tests whether
+the probe transfers to a retrieval-augmented generation failure mode.
 """
 
 import gc
@@ -210,49 +203,32 @@ def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3):
 
 
 def load_nq(max_questions=1000):
-    """Load Natural Questions with short answers and context."""
+    """Load SQuAD 2.0 answerable questions (paper baseline uses SQuAD, function name kept for caller compat)."""
     from datasets import load_dataset
 
-    ds = load_dataset(
-        "google-research-datasets/natural_questions", "default", split="validation", streaming=True
-    )
+    ds = load_dataset("rajpurkar/squad_v2", split="validation")
     questions = []
     for row in ds:
         if len(questions) >= max_questions:
             break
-        q_text = row["question"]["text"]
-        # Get document text (simplified: use first token span)
-        doc_tokens = row["document"]["tokens"]["token"]
-        doc_html = row["document"]["tokens"]["is_html"]
-        # Extract plain text tokens (skip HTML)
-        plain = [t for t, h in zip(doc_tokens, doc_html) if not h]
-        context = " ".join(plain[:500])  # first 500 tokens as context
-
-        # Get short answers
-        annotations = row["annotations"]
-        short_answers = []
-        for ann in annotations["short_answers"]:
-            for sa in ann:
-                if sa["start_token"] >= 0:
-                    answer = " ".join(doc_tokens[sa["start_token"] : sa["end_token"]])
-                    answer = re.sub(r"<[^>]+>", "", answer).strip()
-                    if answer:
-                        short_answers.append(answer)
-
-        if not short_answers or not context.strip():
+        answers = row["answers"]["text"]
+        if not answers:
+            continue  # skip SQuAD 2.0 unanswerable cases; baseline used answerable-only
+        context = row["context"]
+        if not context.strip():
             continue
-        # Deduplicate answers
         seen = set()
         unique = []
-        for a in short_answers:
+        for a in answers:
             norm = a.strip().lower()
-            if norm not in seen:
+            if norm and norm not in seen:
                 seen.add(norm)
                 unique.append(a.strip())
+        if not unique:
+            continue
+        questions.append({"question": row["question"], "context": context, "answers": unique})
 
-        questions.append({"question": q_text, "context": context, "answers": unique})
-
-    print(f"  Loaded {len(questions)} NQ questions with short answers")
+    print(f"  Loaded {len(questions)} SQuAD 2.0 answerable questions")
     return questions
 
 
@@ -272,26 +248,6 @@ def normalize_answer(s):
 def exact_match(prediction, references):
     norm_pred = normalize_answer(prediction)
     return any(normalize_answer(ref) == norm_pred for ref in references)
-
-
-def f1_score(prediction, references):
-    """Token-level F1 between prediction and best-matching reference."""
-    pred_tokens = normalize_answer(prediction).split()
-    if not pred_tokens:
-        return 0.0
-    best = 0.0
-    for ref in references:
-        ref_tokens = normalize_answer(ref).split()
-        if not ref_tokens:
-            continue
-        common = set(pred_tokens) & set(ref_tokens)
-        if not common:
-            continue
-        p = len(common) / len(pred_tokens)
-        r = len(common) / len(ref_tokens)
-        f1 = 2 * p * r / (p + r)
-        best = max(best, f1)
-    return best
 
 
 # ---------------------------------------------------------------------------
@@ -373,24 +329,50 @@ def greedy_decode_with_scores(model, tokenizer, observer_head, peak_layer, promp
 # Main
 # ---------------------------------------------------------------------------
 
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
-PEAK_LAYER = 14  # Qwen 7B instruct peak from v3 results
-TARGET_EX_PER_DIM = 350
-MAX_QUESTIONS = 1000
-SEEDS = [42, 43, 44]
+import argparse
+import datetime as _dt
+
+parser = argparse.ArgumentParser(description="RAG hallucination detection with observer probe.")
+parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="HuggingFace model ID")
+parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
+parser.add_argument("--max-questions", type=int, default=1000, help="RAG questions to evaluate")
+parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
+parser.add_argument("--output", default=None, help="Output JSON path (default: auto from model slug)")
+parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
+parser.add_argument("--attn-impl", default="sdpa", choices=["sdpa", "eager", "flash_attention_2"])
+parser.add_argument(
+    "--trust-remote-code",
+    action="store_true",
+    help="Pass trust_remote_code=True to from_pretrained (native HF impls preferred otherwise)",
+)
+args = parser.parse_args()
+
+MODEL_ID = args.model
+PEAK_LAYER = args.peak_layer
+TARGET_EX_PER_DIM = args.ex_dim
+MAX_QUESTIONS = args.max_questions
+SEEDS = [int(s) for s in args.seeds.split(",")]
+DTYPE = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+MODEL_SLUG = re.sub(r"[^A-Za-z0-9]+", "_", MODEL_ID.split("/")[-1]).strip("_").lower()
 
 print(f"=== RAG hallucination detection [{elapsed_str()}] ===")
-print(f"Model: {MODEL_ID}, peak layer: {PEAK_LAYER}")
+print(f"Model: {MODEL_ID} (slug={MODEL_SLUG}), peak layer: {PEAK_LAYER}, dtype: {args.dtype}")
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=args.trust_remote_code)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID, trust_remote_code=True, dtype=torch.bfloat16, attn_implementation="sdpa"
+    MODEL_ID,
+    trust_remote_code=args.trust_remote_code,
+    dtype=DTYPE,
+    attn_implementation=args.attn_impl,
 ).to(DEVICE)
 model.eval()
+
+_model_revision = getattr(model.config, "_commit_hash", None) or "unknown"
 
 HIDDEN_DIM = model.config.hidden_size
 MAX_TRAIN = TARGET_EX_PER_DIM * HIDDEN_DIM
@@ -435,15 +417,13 @@ for qi, q in enumerate(questions):
 
     answer_text = gen["answer_text"]  # same greedy decode across seeds
     is_correct = exact_match(answer_text, q["answers"])
-    f1 = f1_score(answer_text, q["answers"])
 
     all_results.append(
         {
             "question": q["question"],
             "answer": answer_text,
-            "gold": q["answers"][:3],
+            "gold": list(q["answers"]),
             "correct": is_correct,
-            "f1": f1,
             "mean_observer": float(np.mean(seed_obs)),
             "mean_confidence": float(np.mean(seed_conf)),
         }
@@ -464,12 +444,13 @@ if DEVICE == "cuda":
 print(f"\n=== Analysis [{elapsed_str()}] ===")
 n = len(all_results)
 correct = np.array([r["correct"] for r in all_results])
+em_correct = np.array([r["em_correct"] for r in all_results])
 obs = np.array([r["mean_observer"] for r in all_results])
 conf = np.array([r["mean_confidence"] for r in all_results])
 
-accuracy = float(correct.mean())
+accuracy = float(correct.mean())  # exact_match
 n_errors = int((~correct).sum())
-print(f"  Accuracy: {accuracy:.3f} ({n_errors} errors out of {n})")
+print(f"  Accuracy (exact_match): {accuracy:.3f} ({n_errors} errors out of {n})")
 
 # Exclusive catches at various flag rates
 print("\n  Exclusive catches (observer flags error, confidence doesn't):")
@@ -503,14 +484,29 @@ print(f"\n=== Saving [{elapsed_str()}] ===")
 output = {
     "model": MODEL_ID,
     "task": "rag_hallucination",
-    "dataset": "natural_questions",
+    "dataset": "rajpurkar/squad_v2",
     "peak_layer": PEAK_LAYER,
+    "provenance": {
+        "model_revision": _model_revision,
+        "script": "scripts/rag_hallucination.py",
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
+        "device": str(DEVICE),
+        "dtype": args.dtype,
+        "attn_impl": args.attn_impl,
+        "torch_version": torch.__version__,
+        "args": vars(args),
+    },
+    "protocol": {
+        "target_ex_per_dim": TARGET_EX_PER_DIM,
+        "probe_seeds": SEEDS,
+    },
     "n_questions": n,
     "n_errors": n_errors,
     "accuracy": accuracy,
     "probe_seeds": SEEDS,
     "flag_rates": catch_results,
-    "per_question": all_results[:50],  # save first 50 for inspection
+    "grading": "exact_match",
+    "per_question": all_results,  # full 1000 with predictions and exact-match labels
     "summary": {
         "accuracy": accuracy,
         "n_questions": n,
@@ -519,9 +515,13 @@ output = {
     },
 }
 
-out_path = Path("/workspace/rag_hallucination_results.json")
-if not out_path.parent.exists():
-    out_path = Path("results/rag_hallucination_results.json")
+if args.output:
+    out_path = Path(args.output)
+else:
+    filename = f"rag_hallucination_{MODEL_SLUG}_results.json"
+    out_path = Path("/workspace") / filename
+    if not out_path.parent.exists():
+        out_path = Path("results") / filename
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 

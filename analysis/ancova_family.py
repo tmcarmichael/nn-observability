@@ -2,20 +2,13 @@
 
 Supplementary analysis. The meta-regression (meta_regression.py) is the
 primary test because it handles the nested data structure correctly.
-This ANCOVA is provided as an accessible version for readers unfamiliar
-with mixed-effects models.
-
-Caveat: per-seed observations within a model share the same training
-data, model, and layer. Seeds only randomize probe init. The ANCOVA
-treats them as independent, which is anticonservative.
-
-Usage: cd nn-observability && uv run python analysis/ancova_family.py
 """
 
 import sys
 
 import numpy as np
-from load_results import load_all_models, load_per_seed
+
+from analysis.load_results import load_all_models, load_per_seed
 
 
 def run_ancova():

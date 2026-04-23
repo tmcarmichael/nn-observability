@@ -1,17 +1,9 @@
-"""Mechanistic analysis: Mistral 7B.
+"""Mechanistic analysis: Mistral 7B via mean-ablation patching.
 
-Runs mean-ablation patching on Mistral 7B to compare its mechanistic
-landscape against Llama 1B/3B. Mistral uses GQA (8 KV heads, 32 attn
-heads) like Llama 3B but retains strong observability (+0.313 vs +0.091).
-
-The question: does Mistral's L1 MLP amplify signal like Llama 1B, or
-does the suppression pattern appear and something else compensates?
-
-Peak layer: L22 (69% depth, from mistral7b_results.json).
-
-GPU: H100/H200. Time: ~2-3 hours.
-
-Usage: pip install transformers datasets scipy scikit-learn && python mechanistic_mistral.py
+Compares Mistral 7B's component-level signal path against the Llama 1B/3B
+mechanistic runs. Mistral uses GQA like Llama 3B but retains high
+observability, so this isolates whether the 3B suppression pattern is
+GQA-driven or family-specific.
 """
 
 import gc

@@ -1,7 +1,7 @@
 """Schema validation for primary results JSONs.
 
 Catches missing fields, wrong types, and structural changes before
-they propagate to the paper pipeline. Parametrized over every primary
+they propagate to downstream consumers. Parametrized over every primary
 result file so a new model with a missing field fails immediately.
 
 Run: uv run pytest tests/test_results_schema.py -v
@@ -14,15 +14,37 @@ import pytest
 
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
-# Primary result files: v3 base, v3 instruct, and cross-family models.
-# These are the files load_results.py reads for the paper.
-PRIMARY_FILES = sorted(
-    list(RESULTS_DIR.glob("qwen*v3*.json"))
-    + list(RESULTS_DIR.glob("qwen*instruct_v3*.json"))
-    + list(RESULTS_DIR.glob("gemma*.json"))
-    + list(RESULTS_DIR.glob("llama*v2*.json"))
-    + list(RESULTS_DIR.glob("mistral*.json"))
-)
+_PRIMARY_NAMES = [
+    "qwen05b_v3_results.json",
+    "qwen05b_instruct_v3_results.json",
+    "qwen1_5b_v3_results.json",
+    "qwen1_5b_instruct_v3_results.json",
+    "qwen3b_v3_results.json",
+    "qwen3b_instruct_v3_results.json",
+    "qwen7b_v3_results.json",
+    "qwen7b_instruct_v3_results.json",
+    "qwen14b_v3_results.json",
+    "qwen14b_instruct_results.json",
+    "gemma3_1b_results.json",
+    "gemma4b_v3_results.json",
+    "llama1b_results.json",
+    "llama1b_instruct_results.json",
+    "llama3b_v3_results.json",
+    "llama8b_v3_results.json",
+    "mistral7b_results.json",
+    "mistral7b_instruct_v3_results.json",
+    "phi3_mini_results.json",
+    "pythia_70m_results.json",
+    "pythia_160m_results.json",
+    "pythia_410m_results.json",
+    "pythia1b_results.json",
+    "pythia1_4b_results.json",
+    "pythia_1.4b_deduped_results.json",
+    "pythia_2.8b_results.json",
+    "pythia_6.9b_results.json",
+    "pythia_12b_results.json",
+]
+PRIMARY_FILES = sorted(p for p in (RESULTS_DIR / n for n in _PRIMARY_NAMES) if p.exists())
 
 
 def _load(path: Path) -> dict:

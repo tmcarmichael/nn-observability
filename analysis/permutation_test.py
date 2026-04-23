@@ -2,8 +2,6 @@
 
 Uses model means (one per model) to avoid pseudoreplication. Exact
 enumeration when unique permutations < 100,000, Monte Carlo otherwise.
-
-Usage: cd nn-observability && uv run python analysis/permutation_test.py
 """
 
 import sys
@@ -11,7 +9,8 @@ from itertools import permutations
 from math import factorial
 
 import numpy as np
-from load_results import load_all_models, load_model_means
+
+from analysis.load_results import load_all_models, load_model_means
 
 
 def family_f_stat(families, log_params, pcorrs):

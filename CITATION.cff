@@ -1,16 +1,16 @@
 cff-version: 1.2.0
-title: "Architecture Predicts Linear Readability of Decision Quality in Transformers"
+title: "Architecture Determines Observability in Transformers"
 message: "If you use this work, please cite it using the metadata from this file."
 type: software
 authors:
   - family-names: Carmichael
     given-names: Thomas
-version: "2.4.0"
-date-released: "2026-04-15"
+version: "3.0.0"
+date-released: "2026-04-19"
 license: MIT
 doi: "10.5281/zenodo.19435674"
 repository-code: "https://github.com/tmcarmichael/nn-observability"
-abstract: "Half to two-thirds of the signal in standard activation probes is output confidence in disguise, and what remains varies by architecture family, not model scale. A linear probe on frozen activations, evaluated by partial Spearman correlation after controlling for max softmax probability and activation norm, recovers a stable signal across five Qwen 2.5 scales (0.5B-14B) and six architecture families (GPT-2, Qwen, Gemma, Llama, Mistral, Phi). A nonlinear MLP is statistically equivalent to the linear probe on eight models tested. Llama 3.2 3B produces a 2.9x gap with Qwen at matched scale (permutation test p = 0.006). The Llama 1B model (+0.286) matches high-observability families while 3B and 8B show weak signal. The observer catches 8-11% of errors confidence misses at 10% flag rate, converging to 11-15% at 20% across all tested families. The probe transfers zero-shot to retrieval-augmented QA and medical licensing questions at the same ceiling."
+abstract: "Architecture configuration determines whether decision quality is linearly readable from mid-layer activations. Under Pythia's controlled training, three independent runs at (24 layers, 16 heads) collapse to pcorr approx 0.10: 410M at +0.105, 1.4B at +0.106, and 1.4B-deduped at +0.100. The three replicate within +/- 0.007 despite varying 3.5x in parameters, 2x in hidden dimension, 2x in head dimension, and across two independent training corpora. Six other Pythia configurations, spanning depths 6 to 36 and head counts 8 to 40, produce pcorr between +0.21 and +0.38. Across 13 models in 6 families, family membership explains 92% of the cross-model variance (p = 0.006); log parameter count has no effect. Llama shows the same within-family discontinuity under a different training recipe: 1B at +0.286, 3B at +0.091, 8B at +0.093. The finding survives a stronger bar than standard probing applies: raw Spearman correlations between probe scores and per-token loss run from +0.50 to +0.60, but 49-64% is redundant with output confidence, absorbed by partial-correlation controls across 12 of 13 models (Gemma 3 1B is the thirteenth and shows anomalous representation geometry). What survives is stable across 20 seeds (+0.282 +/- 0.001) and a 512-unit MLP on the last-layer representation cannot recover it. At 10% flag rate, a WikiText-trained probe applied zero-shot catches 8-11% of errors that confidence monitoring marks as correct, on language modeling, retrieval-augmented QA, medical licensing questions, and factual QA. At 20%, all four converge to the 11-15% exclusive-catch band. Standard output monitoring marks these answers as correct. The observer does not."
 keywords:
   - neural network observability
   - transformer interpretability

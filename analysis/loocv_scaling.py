@@ -1,12 +1,11 @@
 """Leave-one-model-out cross-validation of the Qwen scaling curve.
 
 Tests whether any single Qwen model drives the scaling relationship.
-
-Usage: cd nn-observability && uv run python analysis/loocv_scaling.py
 """
 
 import numpy as np
-from load_results import load_all_models
+
+from analysis.load_results import load_all_models
 
 
 def load_qwen_models():

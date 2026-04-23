@@ -1,0 +1,50 @@
+{
+  "model": "EleutherAI/pythia-1.4b",
+  "provenance": {
+    "model_revision": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+    "script": "scripts/pythia_1.4b_shuffle.py",
+    "timestamp": "2026-04-19T15:17:06.647209+00:00",
+    "device": "cuda",
+    "torch_version": "2.8.0+cu128",
+    "output_file": "pythia_1.4b_shuffle_results.json",
+    "note": "Shuffle test on Pythia 1.4B peak layer. N permutations of the binary target; probes trained on permuted targets and evaluated against real val target. Confirms the (24L, 16H) collapse is a real signal drop, not a probe-failure artifact."
+  },
+  "protocol": {
+    "layer": 17,
+    "n_permutations": 10,
+    "probe_seeds": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52
+    ],
+    "target_ex_per_dim": 350,
+    "batch_size": 48,
+    "max_train_tokens": 716800
+  },
+  "real_rho_reference": 0.10619,
+  "real_rho_sanity_check": 0.10459513851454055,
+  "shuffle": {
+    "per_permutation": [
+      0.05098956814998967,
+      0.022883314386918447,
+      0.02479520416690722,
+      -0.04669853365741936,
+      -0.027825440100117622,
+      -0.05906902599627898,
+      -0.0004949548374255599,
+      -0.015882451081986743,
+      0.032419787198138775,
+      -0.003703083741466561
+    ],
+    "mean": -0.002258561551274071,
+    "std": 0.03383605169463751
+  },
+  "ratio_real_over_shuffle": -47.01665090335813
+}

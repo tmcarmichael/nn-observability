@@ -1,6 +1,8 @@
 # Notebooks
 
-Read-only consumers of `results/*.json`. These ran the GPU experiments and saved results; they do not need to be re-executed. The committed JSONs are the source of truth.
+_Updated 2026-04-22 for repo v3.0.0._
+
+These notebooks ran the GPU experiments and wrote the committed JSONs in `results/`. To reproduce the results, read the JSONs directly; re-execution is not required. The committed JSONs are the source of truth.
 
 | Notebook | Model | What it does |
 |---|---|---|
@@ -15,5 +17,7 @@ Read-only consumers of `results/*.json`. These ran the GPU experiments and saved
 | `qwen05b_auxiliary_loss` | Qwen 0.5B | Auxiliary observability loss sweep |
 | `llama3b_comprehensive_v2` | Llama 3.2 3B | Cross-family divergence validation, 7-seed |
 | `cross_domain_qwen` | Qwen 1.5B | WikiText to C4/code transfer |
+| `colab_nonlinear_probe_llama3b` | Llama 3.2 3B | Linear vs MLP probe comparison, held-out HP selection |
+| `colab_nonlinear_probe_pythia_1_4b` | Pythia 1.4B | Linear vs MLP probe at the (24L, 16H) collapse configuration |
 
-Models added after the notebook workflow (Llama 1B, Llama 8B, Llama 1B Instruct, Mistral 7B, Phi-3 Mini, Gemma 4B) were run via `scripts/run_model.py` or archived per-model scripts in `docs/internal/notes/archive/scripts/`.
+Models added after the notebook workflow (Llama 1B, Llama 8B, Llama 1B Instruct, Mistral 7B, Phi-3 Mini, Gemma 4B, and the Pythia suite) were run via `scripts/run_model.py`.

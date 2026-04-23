@@ -1,15 +1,9 @@
-"""r_OC width sweep: test whether a higher-capacity output predictor absorbs the signal.
+"""r_OC width sweep: does a wider output predictor absorb the mid-layer signal?
 
-Model: Qwen/Qwen2.5-7B | 3 eval seeds | 350 ex/dim
-Widths: 64 (baseline), 128, 256, 512
-Protocol: train MLP predictor on output-layer activations -> loss, then measure
-  residual partial correlation of mid-layer observer after controlling for
-  the output predictor's predictions.
-
-If r_OC stays positive at 512 units, the bottleneck limitation is dead.
-If r_OC collapses, the signal is output-recoverable with enough capacity.
-
-Usage: pip install transformers datasets scipy && python scripts/roc_width_sweep.py
+Trains output-layer MLP predictors of the target at several widths, then
+measures the mid-layer observer's residual partial correlation after
+controlling for each predictor. Tests whether the confidence-independent
+signal is recoverable from the final layer given enough capacity.
 """
 
 import shutil
@@ -373,7 +367,10 @@ output = {
     "widths": WIDTHS,
     "results": results,
 }
-out_path = Path("/workspace/roc_width_sweep_results.json")
+_out_dir = (
+    Path("/workspace") if Path("/workspace").exists() else Path(__file__).resolve().parent.parent / "results"
+)
+out_path = _out_dir / "roc_width_sweep_results.json"
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 print(f"\nSaved {out_path}")

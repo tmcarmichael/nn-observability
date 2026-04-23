@@ -1,16 +1,15 @@
 """Selectivity analysis: random head baselines and control gap.
 
-Reports two selectivity measures:
-1. Random head baseline: near zero means signal requires learning.
-2. Control gap: what fraction of raw correlation is confidence.
-
-Usage: cd nn-observability && uv run python analysis/selectivity.py
+Reports the random-head baseline (near zero means signal requires
+learning) and the control gap (what fraction of raw correlation is
+confidence).
 """
 
 from collections import defaultdict
 
 import numpy as np
-from load_results import load_all_models, load_control_sensitivity, load_random_head_baselines
+
+from analysis.load_results import load_all_models, load_control_sensitivity, load_random_head_baselines
 
 
 def analyze_selectivity():

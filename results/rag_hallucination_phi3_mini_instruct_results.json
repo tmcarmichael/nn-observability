@@ -1,0 +1,656 @@
+{
+  "model": "microsoft/Phi-3-mini-4k-instruct",
+  "task": "rag_hallucination",
+  "dataset": "rajpurkar/squad_v2",
+  "peak_layer": 17,
+  "provenance": {
+    "model_revision": "f39ac1d28e925b323eae81227eaba4464caced4e",
+    "script": "scripts/rag_hallucination.py",
+    "timestamp": "2026-04-21T23:42:17.506302+00:00",
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "attn_impl": "eager",
+    "torch_version": "2.8.0+cu128",
+    "args": {
+      "model": "microsoft/Phi-3-mini-4k-instruct",
+      "peak_layer": 17,
+      "ex_dim": 350,
+      "max_questions": 1000,
+      "seeds": "42,43,44",
+      "output": "/workspace/rag_hallucination_phi3_mini_instruct_results.json",
+      "dtype": "bfloat16",
+      "attn_impl": "eager",
+      "trust_remote_code": false
+    }
+  },
+  "protocol": {
+    "target_ex_per_dim": 350,
+    "probe_seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "n_questions": 1000,
+  "n_errors": 363,
+  "accuracy": 0.637,
+  "probe_seeds": [
+    42,
+    43,
+    44
+  ],
+  "flag_rates": {
+    "0.05": {
+      "observer_exclusive": 12,
+      "confidence_exclusive": 37,
+      "both": 7,
+      "pct_of_errors": 3.3
+    },
+    "0.1": {
+      "observer_exclusive": 21,
+      "confidence_exclusive": 62,
+      "both": 21,
+      "pct_of_errors": 5.8
+    },
+    "0.2": {
+      "observer_exclusive": 24,
+      "confidence_exclusive": 86,
+      "both": 62,
+      "pct_of_errors": 6.6
+    },
+    "0.3": {
+      "observer_exclusive": 16,
+      "confidence_exclusive": 86,
+      "both": 119,
+      "pct_of_errors": 4.4
+    }
+  },
+  "per_question": [
+    {
+      "question": "In what country is Normandy located?",
+      "answer": "France",
+      "gold": [
+        "France"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -0.5401289910078049,
+      "mean_confidence": 0.9361979166666666
+    },
+    {
+      "question": "When were the Normans in Normandy?",
+      "answer": "10th-11th centuries",
+      "gold": [
+        "10th and 11th centuries",
+        "in the 10th and 11th centuries"
+      ],
+      "correct": false,
+      "f1": 0.3333333333333333,
+      "mean_observer": -1.4923016800347602,
+      "mean_confidence": 0.9705255681818182
+    },
+    {
+      "question": "From which countries did the Norse originate?",
+      "answer": "Denmark, Iceland, Norway",
+      "gold": [
+        "Denmark, Iceland and Norway"
+      ],
+      "correct": false,
+      "f1": 0.8571428571428571,
+      "mean_observer": -2.9082713246345526,
+      "mean_confidence": 0.9859375
+    },
+    {
+      "question": "Who was the Norse leader?",
+      "answer": "Rollo",
+      "gold": [
+        "Rollo"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.0732259273839493,
+      "mean_confidence": 0.9755859375
+    },
+    {
+      "question": "What century did the Normans first gain their separate identity?",
+      "answer": "10th century",
+      "gold": [
+        "10th century",
+        "the first half of the 10th century",
+        "10th"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.0206425521700153,
+      "mean_confidence": 0.9296875
+    },
+    {
+      "question": "Who was the duke in the battle of Hastings?",
+      "answer": "William the Conqueror",
+      "gold": [
+        "William the Conqueror"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.210840791463852,
+      "mean_confidence": 0.9581473214285715
+    },
+    {
+      "question": "Who ruled the duchy of Normandy",
+      "answer": "Richard I of Normandy",
+      "gold": [
+        "Richard I"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -1.6618830597116832,
+      "mean_confidence": 0.96484375
+    },
+    {
+      "question": "What religion were the Normans",
+      "answer": "Catholic orthodoxy",
+      "gold": [
+        "Catholic",
+        "Catholic orthodoxy"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.5751698495716682,
+      "mean_confidence": 0.86328125
+    },
+    {
+      "question": "What is the original meaning of the word Norman?",
+      "answer": "Viking",
+      "gold": [
+        "Viking",
+        "Norseman, Viking"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -0.829449839113901,
+      "mean_confidence": 0.7607421875
+    },
+    {
+      "question": "When was the Latin version of the word Norman first recorded?",
+      "answer": "9th century",
+      "gold": [
+        "9th century"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.5806371920431654,
+      "mean_confidence": 0.9798177083333334
+    },
+    {
+      "question": "When was the Duchy of Normandy founded?",
+      "answer": "911",
+      "gold": [
+        "911"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.8270476038257282,
+      "mean_confidence": 0.970703125
+    },
+    {
+      "question": "Who did Rollo sign the treaty of Saint-Clair-sur-Epte with?",
+      "answer": "King Charles III",
+      "gold": [
+        "King Charles III"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.312710583706697,
+      "mean_confidence": 0.8859375000000002
+    },
+    {
+      "question": "What river originally bounded the Duchy",
+      "answer": "River Epte",
+      "gold": [
+        "Seine",
+        "Epte"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -1.154471140106519,
+      "mean_confidence": 0.8601562499999998
+    },
+    {
+      "question": "Who upon arriving gave the original viking settlers a common identity?",
+      "answer": "Rollo",
+      "gold": [
+        "Rollo"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.0702188462018967,
+      "mean_confidence": 0.87109375
+    },
+    {
+      "question": "What was the Norman religion?",
+      "answer": "Christianity",
+      "gold": [
+        "Catholicism"
+      ],
+      "correct": false,
+      "f1": 0.0,
+      "mean_observer": -0.7543123507639393,
+      "mean_confidence": 0.830078125
+    },
+    {
+      "question": "What part of France were the Normans located?",
+      "answer": "North of France",
+      "gold": [
+        "north",
+        "the north"
+      ],
+      "correct": false,
+      "f1": 0.5,
+      "mean_observer": -1.2353236474717655,
+      "mean_confidence": 0.8421875
+    },
+    {
+      "question": "What was one of the Norman's major exports?",
+      "answer": "Fighting horsemen",
+      "gold": [
+        "fighting horsemen"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.3857850135924916,
+      "mean_confidence": 0.8971354166666666
+    },
+    {
+      "question": "Who was the Normans' main enemy in Italy, the Byzantine Empire and Armenia?",
+      "answer": "Seljuk Turks",
+      "gold": [
+        "Seljuk Turks",
+        "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
+        "the Seljuk Turks"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.1104765207994554,
+      "mean_confidence": 0.9369419642857143
+    },
+    {
+      "question": "When did Herve serve as a Byzantine general?",
+      "answer": "1050s",
+      "gold": [
+        "1050s",
+        "in the 1050s"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.4485947626332443,
+      "mean_confidence": 0.97998046875
+    },
+    {
+      "question": "When did Robert Crispin go up against the Turks?",
+      "answer": "1060s",
+      "gold": [
+        "1060s",
+        "In the 1060s"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.231097935330278,
+      "mean_confidence": 0.9794921875
+    },
+    {
+      "question": "Who ruined Roussel de Bailleul's plans for an independent state?",
+      "answer": "Alexius Komnenos",
+      "gold": [
+        "Alexius Komnenos"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.4596343977110724,
+      "mean_confidence": 0.9637276785714285
+    },
+    {
+      "question": "What was the name of the Norman castle?",
+      "answer": "Afranji Castle",
+      "gold": [
+        "Afranji"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -1.412798755698734,
+      "mean_confidence": 0.927734375
+    },
+    {
+      "question": "Who was the leader when the Franks entered the Euphrates valley?",
+      "answer": "Raimbaud",
+      "gold": [
+        "Oursel"
+      ],
+      "correct": false,
+      "f1": 0.0,
+      "mean_observer": -2.6190433009631104,
+      "mean_confidence": 0.9212239583333334
+    },
+    {
+      "question": "Who did the Normans team up with in Anatolia?",
+      "answer": "Turkish forces",
+      "gold": [
+        "Turkish forces"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -0.20942578326988345,
+      "mean_confidence": 0.892578125
+    },
+    {
+      "question": "What were the origins of the Raouliii family?",
+      "answer": "Italo-Norman",
+      "gold": [
+        "Norman mercenary",
+        "an Italo-Norman named Raoul",
+        "descended from an Italo-Norman named Raoul"
+      ],
+      "correct": false,
+      "f1": 0.5,
+      "mean_observer": -2.543271948272983,
+      "mean_confidence": 0.93359375
+    },
+    {
+      "question": "What was the name of the count of Apulia ",
+      "answer": "Count of Apulia",
+      "gold": [
+        "Robert Guiscard"
+      ],
+      "correct": false,
+      "f1": 0.0,
+      "mean_observer": -2.1894710014263787,
+      "mean_confidence": 0.859375
+    },
+    {
+      "question": "When did Dyrrachium  fall to the Normans?",
+      "answer": "February 1082",
+      "gold": [
+        "1082",
+        "February 1082"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.5839864811860025,
+      "mean_confidence": 0.98583984375
+    },
+    {
+      "question": "How many men were in Robert's army?",
+      "answer": "30,000 men",
+      "gold": [
+        "30,000"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -4.569207989424467,
+      "mean_confidence": 0.969140625
+    },
+    {
+      "question": "Where did the Normans and Byzantines sign the peace treaty?",
+      "answer": "Deabolis",
+      "gold": [
+        "Deabolis"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.9178847973079733,
+      "mean_confidence": 0.9015625000000002
+    },
+    {
+      "question": "Who was Robert's son?",
+      "answer": "Bohemond",
+      "gold": [
+        "Bohemond"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.8818129142125448,
+      "mean_confidence": 0.9773437499999998
+    },
+    {
+      "question": "What river was Petrela located by?",
+      "answer": "River Deabolis",
+      "gold": [
+        "Deabolis",
+        "the river Deabolis"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.9725676614584196,
+      "mean_confidence": 0.9088541666666666
+    },
+    {
+      "question": "When did the Normans attack Dyrrachium?",
+      "answer": "1185",
+      "gold": [
+        "1185",
+        "in 1185"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.042837558935086,
+      "mean_confidence": 0.9670758928571429
+    },
+    {
+      "question": "What was the naval base called?",
+      "answer": "Dyrrachium",
+      "gold": [
+        "Dyrrachium"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.5668517247670226,
+      "mean_confidence": 0.9850260416666666
+    },
+    {
+      "question": "Where was Dyrrachium located?",
+      "answer": "Adriatic Sea",
+      "gold": [
+        "the Adriatic",
+        "Adriatic"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -1.2101514304677645,
+      "mean_confidence": 0.76328125
+    },
+    {
+      "question": "Who did Emma Marry?",
+      "answer": "Duke Richard II of Normandy",
+      "gold": [
+        "King Ethelred II",
+        "Ethelred II"
+      ],
+      "correct": false,
+      "f1": 0.28571428571428575,
+      "mean_observer": -1.736503143562004,
+      "mean_confidence": 0.86328125
+    },
+    {
+      "question": "Who was Emma's brother?",
+      "answer": "Duke Richard II",
+      "gold": [
+        "Duke Richard II"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.255954649982353,
+      "mean_confidence": 0.9187499999999998
+    },
+    {
+      "question": "To where did Ethelred flee?",
+      "answer": "Normandy",
+      "gold": [
+        "Normandy"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.412122324341908,
+      "mean_confidence": 0.962890625
+    },
+    {
+      "question": "Who kicked Ethelred out?",
+      "answer": "Sweyn Forkbeard",
+      "gold": [
+        "Sweyn Forkbeard"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -3.0274293349572905,
+      "mean_confidence": 0.9943576388888888
+    },
+    {
+      "question": "Who was Edward the Confessor's half-brother?",
+      "answer": "Harthacnut",
+      "gold": [
+        "Harthacnut"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.7044474708123336,
+      "mean_confidence": 0.9765625
+    },
+    {
+      "question": "When did Edward return?",
+      "answer": "1041",
+      "gold": [
+        "1041",
+        "in 1041"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.0141217651821317,
+      "mean_confidence": 0.9799107142857143
+    },
+    {
+      "question": "Who did Edward make archbishop of Canterbury?",
+      "answer": "Robert of Jumi\u00e8ges",
+      "gold": [
+        "Robert of Jumi\u00e8ges"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.6977929533459246,
+      "mean_confidence": 0.97998046875
+    },
+    {
+      "question": "Where did Harold II die?",
+      "answer": "Battle of Hastings",
+      "gold": [
+        "Battle of Hastings",
+        "the Battle of Hastings",
+        "at the Battle of Hastings"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.4317838152249656,
+      "mean_confidence": 0.98046875
+    },
+    {
+      "question": "Who killed Harold II? ",
+      "answer": "Duke William II",
+      "gold": [
+        "William II",
+        "Duke William II"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.4427163779735566,
+      "mean_confidence": 0.9070312499999998
+    },
+    {
+      "question": "When was the Battle of Hastings?",
+      "answer": "1066",
+      "gold": [
+        "1066",
+        "In 1066"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.8936440790338178,
+      "mean_confidence": 0.9637276785714285
+    },
+    {
+      "question": "Who was the ruling class ahead of the Normans?",
+      "answer": "Anglo-Saxons",
+      "gold": [
+        "Anglo-Saxons",
+        "the Anglo-Saxons"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -2.420852425508201,
+      "mean_confidence": 0.98681640625
+    },
+    {
+      "question": "What was the Anglo-Norman language's final form?",
+      "answer": "Middle English",
+      "gold": [
+        "Modern English"
+      ],
+      "correct": false,
+      "f1": 0.5,
+      "mean_observer": -0.6477505266666412,
+      "mean_confidence": 0.8310546875
+    },
+    {
+      "question": "In what year did the Norman's invade at Bannow Bay?",
+      "answer": "1169",
+      "gold": [
+        "1169"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.8321908982027146,
+      "mean_confidence": 0.9849330357142857
+    },
+    {
+      "question": "What country did the Normans invade in 1169?",
+      "answer": "Ireland",
+      "gold": [
+        "Ireland"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -0.4799577924940321,
+      "mean_confidence": 0.9140625
+    },
+    {
+      "question": "What culture did the Normans combine with in Ireland?",
+      "answer": "Irish culture",
+      "gold": [
+        "Irish"
+      ],
+      "correct": false,
+      "f1": 0.6666666666666666,
+      "mean_observer": -0.35767686293305206,
+      "mean_confidence": 0.91015625
+    },
+    {
+      "question": "Who was Margaret's brother?",
+      "answer": "Edgar Atheling",
+      "gold": [
+        "Edgar",
+        "Edgar Atheling"
+      ],
+      "correct": true,
+      "f1": 1.0,
+      "mean_observer": -1.9889306409491434,
+      "mean_confidence": 0.9609375
+    }
+  ],
+  "summary": {
+    "accuracy": 0.637,
+    "n_questions": 1000,
+    "n_errors": 363,
+    "exclusive_at_10pct": {
+      "observer_exclusive": 21,
+      "confidence_exclusive": 62,
+      "both": 21,
+      "pct_of_errors": 5.8
+    }
+  }
+}

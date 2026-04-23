@@ -291,5 +291,10 @@
     "target_ex_per_dim": 350,
     "batch_size": 8,
     "note": "protocol backfilled from script source"
+  },
+  "provenance": {
+    "model_revision": "97e1e763",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-08T17:36:27-05:00"
   }
 }

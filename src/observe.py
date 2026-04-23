@@ -1,5 +1,5 @@
 """
-Phase 2: Shared-weight faithfulness testing.
+Shared-weight faithfulness testing.
 
 Train a BP model, then test whether FF-style goodness on its activations
 faithfully tracks BP decision-making. Pure observer mode: frozen BP model,
@@ -217,7 +217,7 @@ def collect_activations(model, loader, device):
 
 
 # ---------------------------------------------------------------------------
-# Observer head (Phase 4)
+# Observer head
 # ---------------------------------------------------------------------------
 
 
@@ -477,13 +477,6 @@ def correlation_suite(data: ObserverData):
         if name in obs:
             r_part, p_part = partial_spearman(obs[name], losses, controls)
             results["partial_vs_loss"][name] = {"rho": r_part, "p": p_part}
-
-    # Keep backward compat key
-    if "ff_goodness" in results["partial_vs_loss"]:
-        results["partial_ff_goodness_vs_loss"] = {
-            **results["partial_vs_loss"]["ff_goodness"],
-            "controlling_for": ["logit_margin", "activation_norm"],
-        }
 
     return results
 
@@ -759,7 +752,7 @@ def run_once(args, seed):
         data["per_layer_acts"], data["predictions"], prototypes
     )
 
-    # Observer head (Phase 4): trained to predict loss residuals on frozen BP
+    # Observer head: trained to predict loss residuals on frozen BP
     if args.mode == "observer_head":
         print("  Training observer head...")
         head = ObserverHead(args.hidden, hidden_dim=64)
@@ -882,7 +875,6 @@ def print_summary(all_runs, args):
             f"p={np.nanmean(ps):.4f}"
         )
 
-    # Backward compat: use ff_goodness for stop/go gate
     partials = [r["correlation"]["partial_vs_loss"].get("ff_goodness", {}).get("rho", -1) for r in all_runs]
 
     # Intervention summary: compare all strategies at last layer, 90% ablation
@@ -942,7 +934,7 @@ def main():
         )
 
     sizes = [{"mnist": 784, "cifar10": 3072}[a.dataset]] + [a.hidden] * a.layers
-    print(f"Phase 2: Observer faithfulness ({a.mode})")
+    print(f"Observer faithfulness ({a.mode})")
     print(f"Dataset: {a.dataset}  Arch: {' -> '.join(map(str, sizes))}")
     print(f"Epochs: {a.epochs}  Seeds: {a.seeds}  Device: {a.device}\n")
 

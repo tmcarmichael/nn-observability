@@ -4,7 +4,22 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
+        files: '^(src|scripts|figures|analysis|tests)/.*\.py$'
       - id: ruff-format
+        files: '^(src|scripts|figures|analysis|tests)/.*\.py$'
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+        exclude_types: [jupyter, json, binary, image]
+      - id: trailing-whitespace
+        exclude_types: [jupyter, binary, image]
 
   - repo: local
     hooks:
@@ -19,6 +34,13 @@ repos:
               exit 1
             fi
           '
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: check-readme-freshness
+        name: non-root READMEs reference current pyproject.toml version
+        entry: just check-readme-freshness
         language: system
         pass_filenames: false
         stages: [pre-push]

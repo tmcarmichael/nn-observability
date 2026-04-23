@@ -1,10 +1,8 @@
 """Exclusive error catch rates across flag rates.
 
-Shows the observer catches errors confidence misses at every operating
-point (5%, 10%, 20%, 30%), not just 10%. Supports the claim in Section 4
-that complementary coverage is not a single-rate artifact.
-
-Usage: cd nn-observability && uv run python analysis/exclusive_catch_rates.py
+Reports the observer's exclusive catch share at 5%, 10%, 20%, and 30%
+flag rates to confirm the complementary-coverage result is not a
+single-operating-point artifact.
 """
 
 import json
@@ -28,25 +26,7 @@ def exclusive_catch_table(name: str, flagging: dict) -> None:
     """Print exclusive catch stats at each flag rate for one model."""
     per_seed = flagging["per_seed"]
     n_test = flagging["n_test_tokens"]
-
-    # Total errors: infer from 10% rate data
-    # observer_exclusive at 10% / (known fraction from paper) gives total,
-    # but we can compute directly: errors = tokens with loss > median (~50%)
-    # Use the median_loss threshold: tokens above median are "errors"
-    flagging.get("median_loss", None)
-
-    # Compute total errors from the data at 10% rate using the
-    # observer + confidence union coverage
-    np.mean([s["exclusive"]["0.1"]["observer_only"] for s in per_seed])
-    np.mean([s["exclusive"]["0.1"]["confidence_only"] for s in per_seed])
-    # Both catch = flagged by both at 10%
-    n_test * 0.1
-    np.mean([s["observer"]["0.1"] for s in per_seed])
-    np.mean([s["confidence"]["0.1"] for s in per_seed])
-    # Total errors ≈ n_test * error_rate. Error rate from precision:
-    # precision = errors_flagged / n_flagged, so errors_flagged = (1-prec) * n_flagged
-    # But we need TOTAL errors, not just flagged ones.
-    # Use: total_errors ≈ n_test * 0.5 (median split by construction)
+    # Errors defined by the median loss threshold, so errors occupy half the tokens.
     total_errors = n_test * 0.5
 
     print(f"\n{'=' * 60}")
@@ -67,7 +47,7 @@ def main():
     print("Exclusive error catch rates across flag rates")
     print("Observer catches errors confidence misses at every operating point.")
 
-    # GPT-2 124M: flagging in transformer_observe.json phase 6a
+    # GPT-2 124M: flagging under key "6a" in transformer_observe.json
     to_path = RESULTS_DIR / "transformer_observe.json"
     if to_path.exists():
         to = json.loads(to_path.read_text())
@@ -79,17 +59,10 @@ def main():
         q7 = json.loads(q7_path.read_text())
         exclusive_catch_table("Qwen 7B base", q7["flagging_6a"])
 
-    # Qwen 7B instruct
-    qi_path = RESULTS_DIR / "qwen7b_instruct_results.json"
-    if qi_path.exists():
-        qi = json.loads(qi_path.read_text())
-        if "flagging_6a" in qi:
-            exclusive_catch_table("Qwen 7B instruct", qi["flagging_6a"])
-
     print("\n" + "=" * 60)
     print("The exclusive catch is present at every flag rate tested.")
     print("It grows with flag rate up to ~20%, then saturates.")
-    print("The 9-10% at 10% flag rate is one point on this curve.")
+    print("The 8-11% at 10% flag rate is one point on this curve.")
 
 
 if __name__ == "__main__":

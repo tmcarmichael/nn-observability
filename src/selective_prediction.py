@@ -1,5 +1,5 @@
 """
-Phase 11: Observer-guided selective prediction on TriviaQA.
+Observer-guided selective prediction on TriviaQA.
 
 Tests whether the observer signal translates to operational value on a
 downstream QA task. Generates answers via greedy decoding on Qwen 7B
@@ -16,51 +16,14 @@ from __future__ import annotations
 
 import argparse
 import gc
-import json
 import re
 import string
 import time
-from pathlib import Path
 
 import numpy as np
+from scipy.integrate import trapezoid
 
-# ---------------------------------------------------------------------------
-# Utilities (imported lazily from transformer_observe to avoid torch at import)
-# ---------------------------------------------------------------------------
-
-
-def _save_results(results, filename="selective_prediction.json"):
-    """Deep-merge results into existing JSON file and save."""
-    out = Path(__file__).resolve().parent.parent / "results"
-    out.mkdir(exist_ok=True)
-    out_file = out / filename
-    existing = {}
-    if out_file.exists():
-        with open(out_file) as f:
-            existing = json.load(f)
-    _deep_merge(existing, results)
-    with open(out_file, "w") as f:
-        json.dump(existing, f, indent=2)
-    print(f"Saved {out_file} (keys: {sorted(existing.keys())})")
-
-
-def _deep_merge(base, update):
-    for key, value in update.items():
-        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-            _deep_merge(base[key], value)
-        else:
-            base[key] = value
-    return base
-
-
-def bootstrap_ci(values, n_boot=10000, ci=0.95, seed=0):
-    rng = np.random.default_rng(seed)
-    arr = np.asarray(values, dtype=float)
-    means = np.array([rng.choice(arr, size=len(arr), replace=True).mean() for _ in range(n_boot)])
-    lo = float(np.percentile(means, 100 * (1 - ci) / 2))
-    hi = float(np.percentile(means, 100 * (1 + ci) / 2))
-    return lo, hi
-
+from utils import _save_results, bootstrap_ci
 
 # ---------------------------------------------------------------------------
 # TriviaQA data loading
@@ -253,7 +216,7 @@ def build_coverage_curves(per_question_results, coverage_levels=None):
             acc = float(correct[kept].mean()) if len(kept) > 0 else 0.0
             accuracies.append(acc)
         # AUACC: trapezoidal integration of accuracy over coverage
-        auacc = float(np.trapz(accuracies, coverage_levels))
+        auacc = float(trapezoid(accuracies, coverage_levels))
         result[name] = {"accuracy": accuracies, "auacc": auacc}
 
     # Combined: flag if either observer or confidence flags
@@ -271,7 +234,7 @@ def build_coverage_curves(per_question_results, coverage_levels=None):
         kept = [i for i in range(n) if i not in combined_flagged]
         acc = float(correct[kept].mean()) if kept else 0.0
         obs_combined.append(acc)
-    combined_auacc = float(np.trapz(obs_combined, coverage_levels))
+    combined_auacc = float(trapezoid(obs_combined, coverage_levels))
     result["combined"] = {"accuracy": obs_combined, "auacc": combined_auacc}
 
     return result
@@ -329,7 +292,8 @@ def train_observer_for_source(model, tokenizer, device, peak_layer, source, seed
     """Train an observer head from the specified source data."""
     import torch
 
-    from transformer_observe import collect_layer_data, load_wikitext, train_linear_binary
+    from probe import load_wikitext, train_linear_binary
+    from transformer_observe import collect_layer_data
 
     if source == "wikitext":
         print(f"    Training observer on WikiText-103 (seed {seed})...")
@@ -418,9 +382,9 @@ def main():
     if a.peak_layer is not None:
         peak_layer = a.peak_layer
     elif "Instruct" in a.model or "instruct" in a.model:
-        peak_layer = 14  # Qwen 7B Instruct peak from Phase 10
+        peak_layer = 14  # Qwen 7B Instruct default
     else:
-        peak_layer = 18  # Qwen 7B base peak from Phase 9
+        peak_layer = 18  # Qwen 7B base default
     print(f"  Peak layer: {peak_layer}")
 
     # Load TriviaQA

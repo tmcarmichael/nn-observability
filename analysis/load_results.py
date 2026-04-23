@@ -1,9 +1,7 @@
 """Shared data loading for all analysis scripts.
 
-Single source of truth for which result files to load and their
-metadata. Update this file when results land or scope changes.
-
-Usage: from load_results import load_all_models, load_per_seed, load_control_sensitivity
+Single source of truth for which result files to load and their metadata.
+Update this file when results land or scope changes.
 """
 
 from __future__ import annotations
@@ -17,9 +15,9 @@ import numpy as np
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
 
-# ── Schema for paper-scope results JSONs ──────────────────────────────
+# ── Schema for results JSONs ──────────────────────────────────────────
 
-# Required fields and their types for any results file used in the paper.
+# Required fields and their types for any results file in the configured scope.
 # Checked on load; violations are printed as warnings (not exceptions)
 # so partially complete files can still be used during development.
 
@@ -61,7 +59,7 @@ def _get_nested(d: dict, dotpath: str) -> Any:
 
 
 def validate_results_json(data: dict, filename: str, strict: bool = False) -> list[str]:
-    """Validate a results JSON against the paper schema.
+    """Validate a results JSON against the schema.
 
     Returns list of warning strings. If strict=True, also checks recommended fields.
     """
@@ -94,8 +92,11 @@ def validate_results_json(data: dict, filename: str, strict: bool = False) -> li
         warnings.append(f"{filename}: partial_corr.mean={pc_mean} outside [-1, 1]")
 
     per_seed = _get_nested(data, "partial_corr.per_seed")
+    declared_n_seeds = _get_nested(data, "partial_corr.n_seeds")
     if isinstance(per_seed, list) and len(per_seed) < 3:
-        warnings.append(f"{filename}: partial_corr.per_seed has {len(per_seed)} seeds (minimum 3)")
+        # Empty per_seed with n_seeds>=3: mean and std measured.
+        if not (len(per_seed) == 0 and isinstance(declared_n_seeds, int) and declared_n_seeds >= 3):
+            warnings.append(f"{filename}: partial_corr.per_seed has {len(per_seed)} seeds (minimum 3)")
 
     peak_frac = _get_nested(data, "peak_layer_frac")
     if isinstance(peak_frac, (int, float)) and not (0.0 <= peak_frac <= 1.0):
@@ -103,9 +104,6 @@ def validate_results_json(data: dict, filename: str, strict: bool = False) -> li
 
     return warnings
 
-
-# === V1 paper scope: models included in the analysis ===
-# Update this when scope changes. All scripts import from here.
 
 GPT2_MODELS = [
     ("gpt2", 0.124, "GPT2-124M"),
@@ -115,16 +113,13 @@ GPT2_MODELS = [
 ]
 
 QWEN_MODELS = [
-    # v3 results at 600 ex/dim (0.5B needs higher ex/dim)
     ("qwen05b_v3_results.json", 0.5, "Qwen-0.5B"),
     ("qwen1_5b_v3_results.json", 1.5, "Qwen-1.5B"),
     ("qwen3b_v3_results.json", 3.0, "Qwen-3B"),
     ("qwen7b_v3_results.json", 7.6, "Qwen-7B"),
     ("qwen14b_v3_results.json", 14.0, "Qwen-14B"),
-    # 32B excluded from v1 (reconstructed data, incomplete battery)
 ]
 
-# Fallbacks: if the primary file doesn't exist, try these
 QWEN_FALLBACKS = {
     "qwen05b_v3_results.json": "qwen05b_v2_results.json",
     "qwen1_5b_v3_results.json": "qwen1_5b_v2_results.json",
@@ -134,10 +129,6 @@ QWEN_FALLBACKS = {
 
 LLAMA_MODELS = [
     ("llama3b_v3_results.json", 3.0, "Llama-3B"),
-    # Llama 1B (+0.286) excluded from family-level analysis because its
-    # architecture (16L, 2048d) differs from 3B (28L, 3072d). Including it
-    # inflates within-family variance and obscures the between-family effect.
-    # Reported separately as within-family evidence in the architecture section.
 ]
 
 GEMMA_MODELS = [
@@ -152,9 +143,21 @@ PHI_MODELS = [
     ("phi3_mini_results.json", 3.82, "Phi-3-Mini"),
 ]
 
+PYTHIA_MODELS = [
+    ("pythia_70m_results.json", 0.07, "Pythia-70M"),
+    ("pythia_160m_results.json", 0.16, "Pythia-160M"),
+    ("pythia_410m_results.json", 0.41, "Pythia-410M"),
+    ("pythia1b_results.json", 1.0, "Pythia-1B"),
+    ("pythia1_4b_results.json", 1.4, "Pythia-1.4B"),
+    ("pythia_1.4b_deduped_results.json", 1.4, "Pythia-1.4B-deduped"),
+    ("pythia_2.8b_results.json", 2.8, "Pythia-2.8B"),
+    ("pythia_6.9b_results.json", 6.9, "Pythia-6.9B"),
+    ("pythia_12b_results.json", 12.0, "Pythia-12B"),
+]
+
 
 def _load_gpt2() -> dict[str, dict[str, Any]]:
-    """Load GPT-2 models from transformer_observe.json phase 8."""
+    """Load GPT-2 scaling results from transformer_observe.json (key "8")."""
     path = RESULTS_DIR / "transformer_observe.json"
     if not path.exists():
         return {}
@@ -210,7 +213,7 @@ def _load_family(
             "params_b": params_b,
             "label": label,
             "partial_corr": pc,
-            "baselines": d.get("baselines", {}),
+            "baselines": d.get("baselines") or {},
             "control_sensitivity": d.get("control_sensitivity", {}),
             "source_file": path.name,
         }
@@ -230,6 +233,7 @@ def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
     models.update(_load_family(GEMMA_MODELS, "Gemma"))
     models.update(_load_family(MISTRAL_MODELS, "Mistral"))
     models.update(_load_family(PHI_MODELS, "Phi"))
+    models.update(_load_family(PYTHIA_MODELS, "Pythia"))
 
     if verbose:
         # Report what loaded and what's missing
@@ -240,6 +244,7 @@ def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
             + [(l, "Gemma") for _, _, l in GEMMA_MODELS]
             + [(l, "Mistral") for _, _, l in MISTRAL_MODELS]
             + [(l, "Phi") for _, _, l in PHI_MODELS]
+            + [(l, "Pythia") for _, _, l in PYTHIA_MODELS]
         )
         loaded = set(models.keys())
         missing = [(l, f) for l, f in expected if l not in loaded]
@@ -313,7 +318,7 @@ def load_random_head_baselines() -> list[tuple[str, str, float, float]]:
 
 
 def validate_all(strict: bool = False) -> int:
-    """Validate all paper-scope results JSONs. Returns count of warnings."""
+    """Validate all configured results JSONs. Returns count of warnings."""
 
     all_files = (
         [(f, "Qwen") for f, _, _ in QWEN_MODELS]
@@ -321,6 +326,7 @@ def validate_all(strict: bool = False) -> int:
         + [(f, "Gemma") for f, _, _ in GEMMA_MODELS]
         + [(f, "Mistral") for f, _, _ in MISTRAL_MODELS]
         + [(f, "Phi") for f, _, _ in PHI_MODELS]
+        + [(f, "Pythia") for f, _, _ in PYTHIA_MODELS]
     )
     total_warnings = 0
     for fname, family in all_files:
@@ -347,7 +353,7 @@ if __name__ == "__main__":
     import sys
 
     strict = "--strict" in sys.argv
-    print(f"Validating paper-scope results JSONs {'(strict)' if strict else ''}...\n")
+    print(f"Validating results JSONs {'(strict)' if strict else ''}...\n")
     n = validate_all(strict=strict)
     if n:
         print(f"\n{n} warning(s)")

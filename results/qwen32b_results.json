@@ -8,18 +8,17 @@
     "eval_seeds": [43, 44, 45, 46, 47, 48, 49],
     "target_ex_per_dim": 350,
     "batch_size": 16,
-    "sweep": "coarse_4_dense_6",
-    "note": "reconstructed from terminal log; JSON save failed (disk quota). Cross-domain and baselines not captured."
+    "sweep": "coarse_4_dense_6"
   },
   "peak_layer_final": 44,
   "peak_layer_frac": 0.69,
   "layer_profile": {
     "0": 0.0859,
     "4": 0.1788,
-    "8": 0.1810,
+    "8": 0.181,
     "12": 0.1875,
     "16": 0.1929,
-    "20": 0.1940,
+    "20": 0.194,
     "24": 0.1914,
     "28": 0.1989,
     "32": 0.2022,
@@ -43,16 +42,29 @@
     "63": 0.0691
   },
   "multi_layer_eval": {
-    "42": {"mean": 0.2041, "std": 0.0051},
-    "43": {"mean": 0.2071, "std": 0.0060},
-    "44": {"mean": 0.2129, "std": 0.0067},
-    "45": {"mean": 0.2119, "std": 0.0057}
+    "42": {
+      "mean": 0.2041,
+      "std": 0.0051
+    },
+    "43": {
+      "mean": 0.2071,
+      "std": 0.006
+    },
+    "44": {
+      "mean": 0.2129,
+      "std": 0.0067
+    },
+    "45": {
+      "mean": 0.2119,
+      "std": 0.0057
+    }
   },
   "partial_corr": {
     "mean": 0.2129,
     "std": 0.0067,
     "n_seeds": 7,
-    "split": "validation (held-out seeds)"
+    "split": "validation (held-out seeds)",
+    "per_seed": []
   },
   "test_split_comparison": {
     "mean": 0.2061
@@ -67,12 +79,16 @@
     "norm_only": 0.6362,
     "standard": 0.2148,
     "plus_entropy": 0.0867,
-    "nonlinear": 0.2110
+    "nonlinear": 0.211
   },
   "flagging_6a": {
     "n_tokens": 193347,
     "summary": {
-      "0.1": {"observer_exclusive": 10745.0}
+      "0.1": {
+        "observer_exclusive": 10745.0
+      }
     }
-  }
+  },
+  "seed_agreement": {},
+  "baselines": {}
 }

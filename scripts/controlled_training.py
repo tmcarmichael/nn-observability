@@ -1,32 +1,8 @@
-"""Controlled training experiment: same data, different architecture, measure observability.
+"""Controlled training: MHA vs GQA at matched parameters and identical data.
 
-Trains two parameter-matched models from scratch on identical OpenWebText data:
-  - Config A (Qwen-style): MHA (all heads are query heads)
-  - Config B (Llama-style): GQA (fewer KV heads, larger MLP to match params)
-
-Everything else is identical: layers, hidden dim, normalization, activation
-function, tokenizer, data, optimizer, schedule, seeds.
-
-Context: pre-trained Llama 1B (16L, 2048d) has observability (+0.286),
-Llama 3B (28L, 3072d) does not (+0.091), but every family trains on
-different data. This script removes the confound by training MHA and GQA
-on identical data at matched parameter count.
-
-Three scales available:
-  --scale 150m   Pilot (~150M params, 1B tokens, ~12h on H200)
-  --scale 1b     Matches Llama 1B dimensions (16L, 2048d, ~1.2B params, 5B tokens)
-  --scale 3b     Matches Llama 3B dimensions (28L, 3072d, ~3B params, 10B tokens)
-
-Multi-seed for publication:
-  --seeds 3      Train 3 models per config (6 total), proper train/val/test probe splits
-
-GPU: H200 (144GB). Single-GPU, no distributed training.
-
-Usage:
-  pip install transformers datasets scipy scikit-learn accelerate
-  python controlled_training.py --scale 150m              # pilot
-  python controlled_training.py --scale 1b --seeds 3      # publication-grade
-  python controlled_training.py --scale 3b --seeds 1      # 3B pilot
+Trains two parameter-matched models from scratch on identical data, varying
+only the attention mechanism (MHA vs GQA). Isolates attention topology from
+data and parameter-count confounds when comparing cross-family observability.
 """
 
 import gc
@@ -47,6 +23,10 @@ if shutil.which("nvidia-smi"):
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 RUN_START = time.time()
+
+OUT_DIR = (
+    Path("/workspace") if Path("/workspace").exists() else Path(__file__).resolve().parent.parent / "results"
+)
 
 
 def elapsed_str():
@@ -316,7 +296,7 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
     step = 0
     best_val_loss = float("inf")
     train_losses = []
-    checkpoint_dir = Path(f"/workspace/checkpoint_{config_name}")
+    checkpoint_dir = OUT_DIR / f"checkpoint_{config_name}"
     checkpoint_dir.mkdir(exist_ok=True)
 
     indices = torch.randperm(len(train_data))
@@ -684,7 +664,7 @@ output = {
     },
 }
 
-out_path = Path(f"/workspace/controlled_training_{args.scale}_results.json")
+out_path = OUT_DIR / f"controlled_training_{args.scale}_results.json"
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 

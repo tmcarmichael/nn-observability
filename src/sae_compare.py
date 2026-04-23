@@ -1,5 +1,5 @@
 """
-Phase 7: SAE comparison.
+SAE comparison.
 
 Does an SAE feature space recover the same decision-quality signal as the
 direct linear observer? Apples-to-apples: same model, same hookpoint, same
@@ -9,7 +9,7 @@ Experiments:
   7a: SAE-code linear binary vs raw-residual linear binary
   7b: Three-channel causal decomposition via directional ablation
   7c: Rank overlap between SAE probe and linear observer
-  7d: SAE probe in the Phase 6a flagging framework
+  7d: SAE probe in the early-flagging framework
 
 Usage:
     uv run --extra transformer src/sae_compare.py
@@ -29,8 +29,9 @@ import torch
 import torch.nn.functional as F
 from scipy.stats import spearmanr
 
-from observe import compute_loss_residuals, partial_spearman
-from transformer_observe import _deep_merge, collect_layer_data, load_wikitext, train_linear_binary
+from probe import compute_loss_residuals, load_wikitext, partial_spearman, train_linear_binary
+from transformer_observe import collect_layer_data
+from utils import _deep_merge
 
 # ---------------------------------------------------------------------------
 # SAE encoding
@@ -100,7 +101,7 @@ def run_7a(sae, train_data, test_data, seeds):
     sae_results = []
 
     for seed in seeds:
-        # Raw residual linear binary (replication of Phase 5a at layer 8)
+        # Raw residual linear binary at layer 8
         raw_head = train_linear_binary(train_data, seed=seed)
         raw_head.eval()
         with torch.inference_mode():
@@ -247,7 +248,7 @@ def run_7b(model, tokenizer, sae, train_data, test_data, test_11, device, seeds,
     channel's exclusive token catches from 7d-style flagging.
 
     The 3x3 matrix of (direction removed) x (token subset affected) tests
-    whether Phase 7's correlational structure is causally real.
+    whether the SAE correlational structure is causally real.
     """
     layer = 8
     print(f"\n{'=' * 60}")
@@ -350,8 +351,6 @@ def run_7b(model, tokenizer, sae, train_data, test_data, test_11, device, seeds,
     # Need per-position losses from the model, with and without intervention
     # Use test_docs directly to get aligned per-position losses
     print("\n  Computing baseline losses...")
-    from transformer_observe import load_wikitext
-
     test_docs = load_wikitext("test", max_docs=500)
     baseline_losses = _eval_baseline(model, tokenizer, test_docs, device, max_tokens_test)
     n_eval = min(n_test, len(baseline_losses))
@@ -508,7 +507,7 @@ def run_7c(results_7a, seeds):
 
 
 def run_7d(sae, test_data, test_11, train_data, seeds):
-    """7d: SAE probe in the Phase 6a flagging framework."""
+    """7d: SAE probe in the early-flagging framework."""
     print(f"\n{'=' * 60}")
     print("  7d: SAE probe flagging vs confidence")
     print(f"{'=' * 60}")
@@ -620,7 +619,7 @@ def main():
         )
 
     seeds = list(range(42, 42 + a.seeds))
-    print("Phase 7: SAE comparison")
+    print("SAE comparison")
     print(f"Device: {a.device}  Seeds: {seeds}")
 
     # Load model
@@ -644,7 +643,7 @@ def main():
     train_docs = load_wikitext("train", max_docs=2000)
     test_docs = load_wikitext("test", max_docs=500)
 
-    # Collect activations at layer 8 (same as Phase 5)
+    # Collect activations at layer 8
     print("\nCollecting layer 8 activations...")
     train_data = collect_layer_data(model, tokenizer, train_docs, 8, a.device, a.max_tokens_train)
     test_data = collect_layer_data(model, tokenizer, test_docs, 8, a.device, a.max_tokens_test)

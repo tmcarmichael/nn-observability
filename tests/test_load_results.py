@@ -2,18 +2,12 @@
 
 Verifies that every model declared in load_results actually loads from
 the committed results JSONs. Catches filename typos, missing files,
-and schema changes before they propagate to the paper pipeline.
+and schema changes before they propagate to downstream consumers.
 
 Run: uv run pytest tests/test_load_results.py -v
 """
 
-import sys
-from pathlib import Path
-
-# analysis/ is not a package; add it to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "analysis"))
-
-from load_results import (
+from analysis.load_results import (
     load_all_models,
     load_model_means,
     load_per_seed,

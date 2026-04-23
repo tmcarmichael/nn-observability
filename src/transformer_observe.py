@@ -1,9 +1,9 @@
 """
-Phases 5, 6, 8: Transformer observer experiments.
+Transformer observer experiments.
 
-Test whether learned observer heads transfer to transformers (Phase 5),
-catch errors confidence misses (Phase 6), and persist across the GPT-2
-scaling curve (Phase 8).
+Tests whether learned observer heads transfer to transformers, catch errors
+confidence misses, and persist across the GPT-2 scaling curve and across
+architecture families.
 
 Experiments:
   5a: Direct replication at last layer (primary result)
@@ -11,7 +11,7 @@ Experiments:
   5c: Hand-designed baseline comparison
   5d: Neuron ablation intervention (null result: skip connections buffer damage)
   5e: Full-output control (layer 8 vs layer 11 predictor)
-  5f: Directional ablation (residual stream projection, addresses 5d failure)
+  5f: Directional ablation (residual stream projection)
   6a: Early flagging (observer vs confidence at 10% flag rate)
   8:  Scale characterization (GPT-2 124M through 1.5B)
 
@@ -25,61 +25,21 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import time
-from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from scipy.stats import spearmanr
 
-from observe import compute_loss_residuals, partial_spearman
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-
-def bootstrap_ci(values, n_boot=10000, ci=0.95, seed=0):
-    """Bootstrap confidence interval for the mean."""
-    rng = np.random.default_rng(seed)
-    arr = np.asarray(values, dtype=float)
-    means = np.array([rng.choice(arr, size=len(arr), replace=True).mean() for _ in range(n_boot)])
-    lo = float(np.percentile(means, 100 * (1 - ci) / 2))
-    hi = float(np.percentile(means, 100 * (1 + ci) / 2))
-    return lo, hi
-
-
-def _deep_merge(base, update):
-    """Recursively merge `update` into `base`, preserving nested keys.
-
-    Prevents partial reruns from nuking sibling results. For example,
-    rerunning a single model in Phase 8 merges into the existing
-    models dict rather than replacing the entire phase key.
-    """
-    for key, value in update.items():
-        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-            _deep_merge(base[key], value)
-        else:
-            base[key] = value
-    return base
-
-
-def _save_results(results, filename="transformer_observe.json"):
-    """Deep-merge results into existing JSON file and save."""
-    out = Path(__file__).resolve().parent.parent / "results"
-    out.mkdir(exist_ok=True)
-    out_file = out / filename
-    existing = {}
-    if out_file.exists():
-        with open(out_file) as f:
-            existing = json.load(f)
-    _deep_merge(existing, results)
-    with open(out_file, "w") as f:
-        json.dump(existing, f, indent=2)
-    print(f"Saved {out_file} (keys: {sorted(existing.keys())})")
-
+from probe import (
+    compute_hand_designed,
+    evaluate_head,
+    load_wikitext,
+    partial_spearman,
+    train_linear_binary,
+)
+from utils import _save_results, bootstrap_ci
 
 # ---------------------------------------------------------------------------
 # Architecture-agnostic helpers
@@ -104,27 +64,6 @@ def _get_layer_modules(model, layer_idx):
 # ---------------------------------------------------------------------------
 # Data collection
 # ---------------------------------------------------------------------------
-
-
-def load_wikitext(split="test", max_docs=None):
-    """Load WikiText-103 documents."""
-    from datasets import load_dataset
-
-    ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
-    docs = []
-    current = []
-    for row in ds:
-        text = row["text"]
-        if text.strip() == "" and current:
-            docs.append("\n".join(current))
-            current = []
-            if max_docs and len(docs) >= max_docs:
-                break
-        elif text.strip():
-            current.append(text)
-    if current:
-        docs.append("\n".join(current))
-    return docs
 
 
 def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000, max_length=512):
@@ -179,71 +118,6 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens=200000,
         "logit_entropy": torch.cat(all_logit_entropy).float().numpy(),
         "activation_norm": torch.cat(all_norms).float().numpy(),
     }
-
-
-# ---------------------------------------------------------------------------
-# Observer heads
-# ---------------------------------------------------------------------------
-
-
-def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3):
-    """Train linear binary observer head on loss residuals."""
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-
-    acts = train_data["activations"]
-    residuals = compute_loss_residuals(
-        train_data["losses"], train_data["max_softmax"], train_data["activation_norm"]
-    )
-    targets = torch.from_numpy((residuals > 0).astype(np.float32))
-
-    n_features = acts.size(1)
-    head = torch.nn.Linear(n_features, 1)
-    opt = torch.optim.Adam(head.parameters(), lr=lr, weight_decay=1e-4)
-    dataset = torch.utils.data.TensorDataset(acts, targets)
-    dl = torch.utils.data.DataLoader(dataset, batch_size=1024, shuffle=True)
-
-    head.train()
-    for _ep in range(epochs):
-        for bx, by in dl:
-            loss = F.binary_cross_entropy_with_logits(head(bx).squeeze(-1), by)
-            opt.zero_grad(set_to_none=True)
-            loss.backward()
-            opt.step()
-
-    return head
-
-
-def evaluate_head(head, test_data):
-    """Partial correlation of head output vs loss, controlling for confidence."""
-    head.eval()
-    with torch.inference_mode():
-        scores = head(test_data["activations"]).squeeze(-1).numpy()
-    rho, p = partial_spearman(
-        scores, test_data["losses"], [test_data["max_softmax"], test_data["activation_norm"]]
-    )
-    return scores, rho, p
-
-
-# ---------------------------------------------------------------------------
-# Hand-designed baselines (Phase 3 replication)
-# ---------------------------------------------------------------------------
-
-
-def compute_hand_designed(data):
-    """Compute Phase 3 statistics on transformer activations."""
-    acts = data["activations"]
-    return {
-        "ff_goodness": (acts**2).mean(dim=1).numpy(),
-        "active_ratio": (acts.abs() > 0.01).float().mean(dim=1).numpy(),
-        "act_entropy": _activation_entropy(acts),
-        "activation_norm": data["activation_norm"],
-    }
-
-
-def _activation_entropy(acts):
-    p = acts.abs() / (acts.abs().sum(dim=1, keepdim=True) + 1e-8)
-    return -(p * (p + 1e-8).log()).sum(dim=1).numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -1020,7 +894,7 @@ def run_5f(
 
 
 # ---------------------------------------------------------------------------
-# Phase 6a: early flagging
+# Early flagging
 # ---------------------------------------------------------------------------
 
 
@@ -1150,7 +1024,7 @@ def run_6a(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_tr
 
 
 # ---------------------------------------------------------------------------
-# Phase 8: Generalization and statistical hardening
+# Generalization and statistical hardening
 # ---------------------------------------------------------------------------
 
 
@@ -2909,7 +2783,7 @@ def load_domain(domain, split, max_docs=None):
 
 
 # ---------------------------------------------------------------------------
-# Phase 9: Scale characterization
+# Scale characterization
 # ---------------------------------------------------------------------------
 
 GPT2_MODELS = [
@@ -2978,7 +2852,7 @@ def run_scale(
     max_tokens_test,
     model_names=None,
 ):
-    """Phase 8: Scale characterization across GPT-2 family.
+    """Scale characterization across GPT-2 family.
 
     For each model: coarse layer sweep on val_docs to find peak, full battery
     at peak on held-out test_docs (partial correlation + seed agreement),
@@ -2993,7 +2867,7 @@ def run_scale(
     models_to_run = [(name, params) for name, params in GPT2_MODELS if name in model_names]
 
     print(f"\n{'=' * 60}")
-    print("  Phase 9: Scale characterization")
+    print("  Scale characterization")
     print(f"  Models: {[m[0] for m in models_to_run]}")
     print(f"  Seeds: {seeds}")
     print(f"{'=' * 60}")
@@ -3182,7 +3056,7 @@ def run_scale(
 
     # Scaling summary table
     print(f"\n{'=' * 60}")
-    print("  Phase 9: SCALING SUMMARY")
+    print("  SCALING SUMMARY")
     print(f"{'=' * 60}")
     print(
         f"  {'Model':<16} {'Params':>7} {'Peak':>6} {'Partial corr':>14} {'Output ctrl':>13} {'Seed agree':>12}"
@@ -3208,7 +3082,7 @@ def run_scale(
 
 
 # ---------------------------------------------------------------------------
-# Phase 9: Cross-family replication
+# Cross-family replication
 # ---------------------------------------------------------------------------
 
 CROSS_FAMILY_MODELS = {
@@ -3229,12 +3103,12 @@ def run_cross_family(
     max_tokens_test,
     model_id_override=None,
 ):
-    """Phase 9: Cross-family replication of the observer signal.
+    """Cross-family replication of the observer signal.
 
-    Same evaluation protocol as Phase 8 (layer sweep on val_docs, three-seed
-    battery on held-out test_docs, output-controlled residual), plus negative
-    baselines (hand-designed observers, random head). Uses AutoModel for
-    architecture-agnostic loading.
+    Same evaluation protocol as the GPT-2 scaling sweep (layer sweep on
+    val_docs, three-seed battery on held-out test_docs, output-controlled
+    residual), plus negative baselines (hand-designed observers, random head).
+    Uses AutoModel for architecture-agnostic loading.
 
     Saves to cross_family.json with deep merge (safe for partial reruns).
 
@@ -3249,11 +3123,11 @@ def run_cross_family(
         models_to_run = CROSS_FAMILY_MODELS.get(phase, [])
 
     if not models_to_run:
-        print(f"  No models configured for phase {phase}")
+        print(f"  No models configured for group {phase}")
         return {}
 
     print(f"\n{'=' * 60}")
-    print(f"  Phase {phase}: Cross-family replication")
+    print(f"  Cross-family replication ({phase})")
     print(f"  Models: {[m[0] for m in models_to_run]}")
     print(f"  Seeds: {seeds}")
     print(f"{'=' * 60}")
@@ -3302,7 +3176,7 @@ def run_cross_family(
             model, tokenizer, device, train_docs, val_docs, n_layers, adj_train, adj_val
         )
 
-        # Guard against peak at output layer (same fix as Phase 8 medium)
+        # Guard against peak at output layer
         if peak_layer >= output_layer - 1:
             max_mid = int(0.8 * n_layers)
             mid_candidates = {l: r for l, r in layer_profile.items() if l <= max_mid}
@@ -3481,7 +3355,7 @@ def run_cross_family(
 
     # Summary table
     print(f"\n{'=' * 60}")
-    print(f"  Phase {phase}: CROSS-FAMILY SUMMARY")
+    print(f"  CROSS-FAMILY SUMMARY ({phase})")
     print(f"{'=' * 60}")
     print(
         f"  {'Model':<20} {'Params':>7} {'Peak':>6} {'Partial corr':>14}"
@@ -3544,11 +3418,11 @@ def main():
         help="Best-practice mechanistic analysis (mean ablation + composition)",
     )
     P.add_argument("--cross-domain", action="store_true", help="Cross-domain transfer test")
-    P.add_argument("--scale", "--phase8", action="store_true", help="Phase 8: scaling across GPT-2 family")
+    P.add_argument("--scale", "--phase8", action="store_true", help="Scaling across GPT-2 family")
     P.add_argument("--model", default="gpt2", help="Model for single-model scaling run")
-    P.add_argument("--phase9a", action="store_true", help="Phase 9a: Llama 3.2 1B cross-family test")
-    P.add_argument("--phase9b", action="store_true", help="Phase 9b: Qwen 2.5 0.5B + 1.5B replication")
-    P.add_argument("--phase9", action="store_true", help="Phase 9: all cross-family experiments (9a + 9b)")
+    P.add_argument("--phase9a", action="store_true", help="Cross-family test: Llama 3.2 1B")
+    P.add_argument("--phase9b", action="store_true", help="Cross-family test: Qwen 2.5 0.5B and 1.5B")
+    P.add_argument("--phase9", action="store_true", help="All cross-family experiments (9a and 9b)")
     P.add_argument(
         "--mechanistic-7b",
         action="store_true",
@@ -3582,7 +3456,7 @@ def main():
     results = {}
     t0 = time.time()
 
-    # Phase 8: scaling (handles its own model loading)
+    # Scaling (handles its own model loading)
     if a.scale:
         model_names = [m[0] for m in GPT2_MODELS] if a.model == "gpt2" else [a.model]
         results["8"] = run_scale(
@@ -3601,7 +3475,7 @@ def main():
         _save_results(results)
         return
 
-    # Phase 9: cross-family replication (handles its own model loading)
+    # Cross-family replication (handles its own model loading)
     if a.phase9a or a.phase9 or a.phase9b:
         if a.phase9a or a.phase9:
             results["9a"] = run_cross_family(
@@ -3661,7 +3535,7 @@ def main():
         adj_train = max(min_ex_per_dim * hidden_dim, int(a.max_tokens_train * (768 / hidden_dim)))
         adj_test = max(min_ex_per_dim * hidden_dim // 2, int(a.max_tokens_test * (768 / hidden_dim)))
 
-        peak_layer = 18  # from Phase 9c results
+        peak_layer = 18  # Qwen 7B base default
         mech_result = run_mechanistic_general(
             model,
             tokenizer,

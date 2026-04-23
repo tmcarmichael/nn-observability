@@ -1,98 +1,131 @@
 # Results directory
 
-Every JSON file here is a committed experimental result. The analysis scripts and paper figures read from these files via `analysis/load_results.py`.
+_Updated 2026-04-22 for repo v3.0.0._
 
-## Primary results (v3 protocol, used in paper)
+Every JSON file here is a committed experimental result. Analysis scripts read from these files via `analysis/load_results.py`.
 
-| File | Model | Protocol | Paper reference |
-|---|---|---|---|
-| `transformer_observe.json` | GPT-2 124M-1.5B | Phases 5-8, 3-20 seeds | `tab:gpt2_scaling`, `fig:waterfall`, `tab:control_sensitivity`, `tab:hand_designed_baselines`, `tab:sae_comparison` |
-| `sae_compare.json` | GPT-2 124M | SAE vs raw probe, 3 seeds | `tab:sae_comparison` |
-| `qwen05b_v3_results.json` | Qwen 2.5 0.5B | 7-seed, 600 ex/dim | `tab:cross_family_scaling` |
-| `qwen05b_instruct_v3_results.json` | Qwen 2.5 0.5B Instruct | 7-seed, 600 ex/dim | `tab:instruct` |
-| `qwen1_5b_v3_results.json` | Qwen 2.5 1.5B | 7-seed, 350 ex/dim | `tab:cross_family_scaling` |
-| `qwen1_5b_instruct_v3_results.json` | Qwen 2.5 1.5B Instruct | 7-seed, 350 ex/dim | `tab:instruct` |
-| `qwen3b_v3_results.json` | Qwen 2.5 3B | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `fig:layer_profiles` |
-| `qwen3b_instruct_v3_results.json` | Qwen 2.5 3B Instruct | 7-seed, 350 ex/dim | `tab:instruct` |
-| `qwen7b_v3_results.json` | Qwen 2.5 7B | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `tab:flagging_cross_scale` |
-| `qwen7b_instruct_v3_results.json` | Qwen 2.5 7B Instruct | 7-seed, 350 ex/dim | `tab:instruct` |
-| `qwen14b_v3_results.json` | Qwen 2.5 14B | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `tab:flagging_cross_scale` |
-| `qwen14b_instruct_results.json` | Qwen 2.5 14B Instruct | 7-seed, 350 ex/dim | `tab:instruct` |
-| `gemma3_1b_results.json` | Gemma 3 1B | 7-seed, 150 ex/dim | `tab:cross_family_scaling` |
-| `gemma4b_results.json` | Gemma 3 4B | 7-seed, 350 ex/dim | `tab:cross_family_scaling` (flagging incomplete, rerun queued) |
-| `llama1b_results.json` | Llama 3.2 1B | 7-seed, 350 ex/dim | `tab:cross_family_scaling` |
-| `llama1b_instruct_results.json` | Llama 3.2 1B Instruct | 7-seed, 350 ex/dim | Architecture section (instruction tuning) |
-| `llama3b_v3_results.json` | Llama 3.2 3B | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `fig:llama_cliff`, `tab:flagging_cross_scale` |
-| `llama8b_results.json` | Llama 3.1 8B | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `fig:llama_cliff` (missing ctrl_sens/flagging/cross_domain, rerun in progress) |
-| `mistral7b_results.json` | Mistral 7B v0.3 | 7-seed, 350 ex/dim | `tab:cross_family_scaling`, `fig:cross_family`, `tab:flagging_cross_scale` |
-| `phi3_mini_results.json` | Phi-3 Mini 4K Instruct | 7-seed, 350 ex/dim | `tab:cross_family_scaling` |
-| `qwen05b_exdim_sweep.json` | Qwen 2.5 0.5B | 7-seed, 150-1000 ex/dim | `fig:exdim` |
-| `qwen7b_flagging_results.json` | Qwen 2.5 7B base+instruct | 3-seed, flagging only | `tab:flagging_cross_scale` (Qwen 7B base row) |
-| `mechanistic_7b.json` | Qwen 2.5 7B base+instruct | Mean-ablation patching | Appendix mechanistic |
-| `mechanistic_llama_comparison.json` | Llama 1B + 3B | Mean-ablation patching | Appendix mechanistic (Llama cliff localization) |
-| `selective_prediction_v2_results.json` | Qwen 2.5 7B Instruct | TriviaQA, 3 seeds | Architecture section (AUACC) |
-| `shuffle_test_gpt2.json` | GPT-2 124M | 10 permutations, shuffled labels | Method section (target validity) |
-| `roc_width_sweep_results.json` | Qwen 2.5 7B | Output predictor 64-512 units | Method section (width sweep) |
-| `model_revisions.json` | All models | HuggingFace commit hashes | Reproducibility section |
+## Cross-family scaling (v3 protocol)
 
-## Downstream task results
+| File | Model | Protocol |
+|---|---|---|
+| `transformer_observe.json` | GPT-2 124M-1.5B | 3-20 seeds, full battery |
+| `qwen05b_v3_results.json` | Qwen 2.5 0.5B | 7-seed, 600 ex/dim |
+| `qwen05b_instruct_v3_results.json` | Qwen 2.5 0.5B Instruct | 7-seed, 600 ex/dim |
+| `qwen1_5b_v3_results.json` | Qwen 2.5 1.5B | 7-seed, 350 ex/dim |
+| `qwen1_5b_instruct_v3_results.json` | Qwen 2.5 1.5B Instruct | 7-seed, 350 ex/dim |
+| `qwen3b_v3_results.json` | Qwen 2.5 3B | 7-seed, 350 ex/dim |
+| `qwen3b_instruct_v3_results.json` | Qwen 2.5 3B Instruct | 7-seed, 350 ex/dim |
+| `qwen7b_v3_results.json` | Qwen 2.5 7B | 7-seed, 350 ex/dim |
+| `qwen7b_instruct_v3_results.json` | Qwen 2.5 7B Instruct | 7-seed, 350 ex/dim |
+| `qwen14b_v3_results.json` | Qwen 2.5 14B | 7-seed, 350 ex/dim |
+| `qwen14b_instruct_results.json` | Qwen 2.5 14B Instruct | 7-seed, 350 ex/dim |
+| `gemma3_1b_results.json` | Gemma 3 1B | 7-seed, 150 ex/dim |
+| `gemma4b_v3_results.json` | Gemma 3 4B | 7-seed, 350 ex/dim |
+| `llama1b_results.json` | Llama 3.2 1B | 7-seed, 350 ex/dim |
+| `llama1b_instruct_results.json` | Llama 3.2 1B Instruct | 7-seed, 350 ex/dim |
+| `llama3b_v3_results.json` | Llama 3.2 3B | 7-seed, 350 ex/dim |
+| `llama8b_v3_results.json` | Llama 3.1 8B | 7-seed, 350 ex/dim |
+| `mistral7b_results.json` | Mistral 7B v0.3 | 7-seed, 350 ex/dim |
+| `mistral7b_instruct_v3_results.json` | Mistral 7B Instruct v0.3 | 7-seed, 350 ex/dim |
+| `phi3_mini_results.json` | Phi-3 Mini 4K Instruct | 7-seed, 350 ex/dim |
+
+## Pythia suite (within-recipe controlled)
+
+| File | Model | Notes |
+|---|---|---|
+| `pythia_70m_results.json` | Pythia 70M | Includes random-probe baseline |
+| `pythia_160m_results.json` | Pythia 160M | 7-seed |
+| `pythia_410m_results.json` | Pythia 410M | Collapse configuration (24L, 16H) |
+| `pythia1b_results.json` | Pythia 1B | 7-seed |
+| `pythia1_4b_results.json` | Pythia 1.4B | Collapse configuration (24L, 16H) |
+| `pythia_1.4b_deduped_results.json` | Pythia 1.4B deduped Pile | Collapse replication across corpora |
+| `pythia_1.4b_shuffle_results.json` | Pythia 1.4B | Shuffled-label null distribution |
+| `pythia_2.8b_results.json` | Pythia 2.8B | 7-seed |
+| `pythia_6.9b_results.json` | Pythia 6.9B | 7-seed |
+| `pythia_12b_results.json` | Pythia 12B | 7-seed |
+
+## Downstream tasks
 
 | File | Task | Model |
 |---|---|---|
-| `rag_hallucination_results.json` | SQuAD 2.0 RAG | Qwen 7B |
-| `medqa_selective_results.json` | MedQA-USMLE | Qwen 7B |
-| `truthfulqa_hallucination_results.json` | TruthfulQA | Qwen 7B |
+| `rag_hallucination_qwen7b_instruct_L17_results.json` | SQuAD 2.0 RAG | Qwen 7B Instruct |
+| `rag_hallucination_phi3_mini_instruct_results.json` | SQuAD 2.0 RAG | Phi-3 Mini Instruct |
+| `rag_hallucination_mistral7b_instruct_results.json` | SQuAD 2.0 RAG | Mistral 7B Instruct |
+| `medqa_selective_qwen7b_instruct_L17_results.json` | MedQA-USMLE | Qwen 7B Instruct (L17) |
+| `medqa_selective_qwen7b_instruct_L18_results.json` | MedQA-USMLE | Qwen 7B Instruct (L18 sensitivity) |
+| `medqa_selective_qwen7b_instruct_L19_results.json` | MedQA-USMLE | Qwen 7B Instruct (L19 sensitivity) |
+| `medqa_selective_phi3_mini_instruct_results.json` | MedQA-USMLE | Phi-3 Mini Instruct |
+| `medqa_selective_mistral7b_instruct_results.json` | MedQA-USMLE | Mistral 7B Instruct |
+| `truthfulqa_hallucination_qwen7b_instruct_L17_results.json` | TruthfulQA | Qwen 7B Instruct |
+| `truthfulqa_hallucination_phi3_mini_instruct_results.json` | TruthfulQA | Phi-3 Mini Instruct |
+| `truthfulqa_hallucination_mistral7b_instruct_results.json` | TruthfulQA | Mistral 7B Instruct |
 
-## Supplementary results (used in analysis scripts or appendix)
+## Probe-validity controls
+
+| File | Model | Test |
+|---|---|---|
+| `shuffle_test_gpt2.json` | GPT-2 124M | 10 permutations, shuffled labels |
+| `roc_width_sweep_results.json` | Qwen 2.5 7B | Output predictor 64-512 units |
+| `qwen05b_exdim_sweep.json` | Qwen 2.5 0.5B | Token budget sensitivity 150-1000 ex/dim |
+| `nonlinear_probe_gpt2.json` | GPT-2 124M | Linear vs MLP |
+| `nonlinear_probe_Qwen2.5-0.5B.json` | Qwen 2.5 0.5B | Linear vs MLP |
+| `nonlinear_probe_Qwen2.5-1.5B.json` | Qwen 2.5 1.5B | Linear vs MLP |
+| `nonlinear_probe_Qwen2.5-3B.json` | Qwen 2.5 3B | Linear vs MLP |
+| `nonlinear_probe_Qwen2.5-7B.json` | Qwen 2.5 7B | Linear vs MLP |
+| `nonlinear_probe_Qwen2.5-14B.json` | Qwen 2.5 14B | Linear vs MLP |
+| `nonlinear_probe_gemma-3-1b-pt.json` | Gemma 3 1B | Linear vs MLP |
+| `nonlinear_probe_Llama-3.2-3B.json` | Llama 3.2 3B | Linear vs MLP, held-out HP selection |
+| `nonlinear_probe_Llama_Multi-3.2-3B.json` | Llama 3.2 3B | 5-layer sweep |
+| `nonlinear_probe_pythia-410m.json` | Pythia 410M | Collapse-point MLP comparison |
+| `nonlinear_probe_pythia-1.4b.json` | Pythia 1.4B | Collapse-point MLP comparison |
+
+## Mechanistic analysis
+
+| File | Model | Analysis |
+|---|---|---|
+| `mechanistic_7b.json` | Qwen 2.5 7B base+instruct | Mean-ablation patching |
+| `mechanistic_llama_comparison.json` | Llama 3.2 1B + 3B | Mean-ablation patching |
+| `mechanistic_mistral.json` | Mistral 7B | Mean-ablation patching |
+
+## Held for future work
 
 | File | Model | Notes |
 |---|---|---|
-| `mnist.json` | MLP (MNIST) | Phase 1, BP vs FF comparison |
-| `cifar10.json` | MLP (CIFAR-10) | Phase 1, BP vs FF comparison |
-| `observe_mnist.json` | MLP observer (MNIST) | Phase 2, pure observer |
-| `observe_mnist_auxiliary.json` | MLP observer (MNIST) | Phase 2, auxiliary loss |
-| `observe_mnist_denoise.json` | MLP observer (MNIST) | Phase 2, denoising |
-| `observe_mnist_observer_head.json` | MLP observer head (MNIST) | Phase 4, learned head variants |
-| `scaling.json` | MLP scaling (5 sizes) | Phase 3, width scaling |
-| `auxiliary_loss_results.json` | Qwen 0.5B | Auxiliary observability loss experiment |
-| `bottleneck_scaling.json` | Multiple | Output predictor bottleneck sizes |
-| `nonlinear_probe_gpt2.json` | GPT-2 124M | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Qwen2.5-0.5B.json` | Qwen 2.5 0.5B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Qwen2.5-1.5B.json` | Qwen 2.5 1.5B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Qwen2.5-3B.json` | Qwen 2.5 3B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Qwen2.5-7B.json` | Qwen 2.5 7B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Qwen2.5-14B.json` | Qwen 2.5 14B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_gemma-3-1b-pt.json` | Gemma 3 1B | 3-seed, linear vs MLP comparison |
-| `nonlinear_probe_Llama-3.2-3B.json` | Llama 3.2 3B | 3-seed, linear vs MLP + HP sweep |
-| `nonlinear_probe_Llama_Multi-3.2-3B.json` | Llama 3.2 3B | 5-layer sweep, linear + swept MLP |
-| `smoke_fixture_gpt2.json` | GPT-2 124M | CI smoke test fixture |
+| `qwen32b_results.json` | Qwen 2.5 32B | Partial save: pcorr mean 0.213 and std 0.0067, peak L44, no per-seed array, no baselines, no cross-domain; clean rerun queued for v3.1.0 |
 
-## Preliminary and superseded results
+## Preliminary and superseded
 
 | File | Model | Notes |
 |---|---|---|
-| `cross_family.json` | Qwen 0.5B/1.5B, Llama 1B | Phase 9 preliminary, 3-seed |
-| `llama3b_v2_results.json` | Llama 3.2 3B | v2 protocol, superseded by `llama3b_v3_results.json` |
-| `llama3b_diagnostic.json` | Llama 3.2 3B | Early diagnostic run |
-| `llama8b_comprehensive.json` | Llama 3.1 8B | 3-seed preliminary, superseded by `llama8b_results.json` |
-| `qwen7b_comprehensive.json` | Qwen 2.5 7B | Pre-v3, fallback for `qwen7b_v3_results.json` |
+| `cross_family.json` | Qwen 0.5B/1.5B, Llama 1B | Preliminary, 3-seed |
+| `llama8b_results.json` | Llama 3.1 8B | Intermediate, superseded by v3 |
+| `gemma4b_results.json` | Gemma 3 4B | Intermediate, superseded by v3 |
+| `qwen7b_comprehensive.json` | Qwen 2.5 7B | Pre-v3, fallback |
 | `qwen7b_instruct_results.json` | Qwen 2.5 7B Instruct | Pre-v3 |
-| `qwen05b_instruct_results.json` | Qwen 2.5 0.5B Instruct | Pre-v3 |
-| `qwen1_5b_instruct_results.json` | Qwen 2.5 1.5B Instruct | Pre-v3 |
 | `qwen05b_v2_results.json` | Qwen 2.5 0.5B | v2 protocol, fallback |
 | `qwen1_5b_v2_results.json` | Qwen 2.5 1.5B | v2 protocol, fallback |
 | `qwen3b_v2_results.json` | Qwen 2.5 3B | v2 protocol, fallback |
-| `qwen3b_instruct_v2_results.json` | Qwen 2.5 3B Instruct | v2 protocol |
-| `qwen14b_results.json` | Qwen 2.5 14B | v1 protocol (68 ex/dim) |
-| `qwen14b_v2_results.json` | Qwen 2.5 14B | v2 protocol (250 ex/dim) |
-| `qwen32b_results.json` | Qwen 2.5 32B | 7-seed, 350 ex/dim (disk quota failure, rerun queued) |
-| `comprehensive_v3_results.json` | Multiple | Aggregated v3 snapshot |
-| `selective_prediction_results.json` | Qwen 2.5 7B Instruct | v1 selective prediction, superseded by v2 |
+| `qwen7b_flagging_results.json` | Qwen 2.5 7B | Legacy flagging variant |
+
+## Predecessor MLP observability work
+
+| File | Task | Notes |
+|---|---|---|
+| `scaling.json` | MLP scaling (5 sizes) | Width scaling |
+| `bottleneck_scaling.json` | Multiple | Output predictor bottleneck sizes |
+| `sae_compare.json` | GPT-2 124M | SAE vs raw probe, 3 seeds |
+
+## Infrastructure
+
+| File | Purpose |
+|---|---|
+| `model_revisions.json` | HuggingFace commit hashes for all models |
+| `smoke_fixture_gpt2.json` | CI smoke test fixture |
 
 ## Versioning
 
-Files named `*_v3_*` use the final protocol (matched ex/dim, 7-seed, full control battery). Files named `*_v2_*` are intermediate. The `v3` files are the paper's primary data source. Fallback logic is in `analysis/load_results.py`.
+Files named `*_v3_*` use the final protocol (matched ex/dim, 7-seed, full control battery). Files named `*_v2_*` are intermediate. Fallback logic is in `analysis/load_results.py`.
 
 ## JSON schema
 
-Every full-protocol result contains: `model`, `n_layers`, `hidden_dim`, `protocol`, `peak_layer_final`, `layer_profile`, `partial_corr` (with `per_seed`), `test_split_comparison`, `seed_agreement`, `output_controlled`, `baselines`, `cross_domain`, `control_sensitivity`, `flagging_6a`. See `analysis/README.md` for the full schema specification.
+Every full-protocol result contains: `model`, `n_layers`, `hidden_dim`, `protocol`, `peak_layer_final`, `layer_profile`, `partial_corr` (with `per_seed`), `test_split_comparison`, `seed_agreement`, `output_controlled`, `baselines`, `cross_domain`, `control_sensitivity`, `flagging_6a`. See `analysis/load_results.py` for the schema validator.

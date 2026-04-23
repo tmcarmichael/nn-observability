@@ -1,0 +1,534 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "task": "medqa_selective_prediction",
+  "dataset": "GBaker/MedQA-USMLE-4-options",
+  "peak_layer": 18,
+  "provenance": {
+    "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "script": "scripts/medqa_selective.py",
+    "timestamp": "2026-04-21T21:16:45.669694+00:00",
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "attn_impl": "sdpa",
+    "torch_version": "2.8.0+cu128",
+    "args": {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "peak_layer": 18,
+      "ex_dim": 350,
+      "max_questions": 1000,
+      "seeds": "42,43,44",
+      "output": "/workspace/medqa_selective_qwen7b_instruct_L18_results.json",
+      "dtype": "bfloat16",
+      "attn_impl": "sdpa"
+    }
+  },
+  "protocol": {
+    "target_ex_per_dim": 350,
+    "probe_seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "n_questions": 1000,
+  "n_errors": 395,
+  "accuracy": 0.605,
+  "probe_seeds": [
+    42,
+    43,
+    44
+  ],
+  "flag_rates": {
+    "0.05": {
+      "observer_exclusive": 22,
+      "confidence_exclusive": 32,
+      "both": 4,
+      "pct_of_errors": 5.6
+    },
+    "0.1": {
+      "observer_exclusive": 36,
+      "confidence_exclusive": 49,
+      "both": 12,
+      "pct_of_errors": 9.1
+    },
+    "0.2": {
+      "observer_exclusive": 55,
+      "confidence_exclusive": 88,
+      "both": 37,
+      "pct_of_errors": 13.9
+    },
+    "0.3": {
+      "observer_exclusive": 0,
+      "confidence_exclusive": 249,
+      "both": 146,
+      "pct_of_errors": 0.0
+    },
+    "observer_auacc": -0.28388437135940536,
+    "confidence_auacc": -0.28660624810165014
+  },
+  "per_question": [
+    {
+      "question": "A junior orthopaedic surgery resident is completing a carpal tunnel repair with the department chair",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "B",
+      "correct": false,
+      "mean_observer": -0.20988047122955322,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 67-year-old man with transitional cell carcinoma of the bladder comes to the physician because of ",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.04106816897789637,
+      "mean_confidence": 0.83984375
+    },
+    {
+      "question": "Two weeks after undergoing an emergency cardiac catherization with stenting for unstable angina pect",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "B",
+      "correct": true,
+      "mean_observer": -0.3956478436787923,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 39-year-old woman is brought to the emergency department because of fevers, chills, and left lower",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.2542928544183572,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 35-year-old man comes to the physician because of itchy, watery eyes for the past week. He has als",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "B",
+      "correct": true,
+      "mean_observer": -0.41401568551858264,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 39-year-old man presents to the emergency department because of progressively worsening chest pain",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.621159295241038,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 68-year-old male comes to the physician for evaluation of right flank pain. He has a history of di",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": -0.2135120133558909,
+      "mean_confidence": 0.998046875
+    },
+    {
+      "question": "A 65-year-old man is brought to the emergency department 30 minutes after the onset of acute chest p",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "C",
+      "correct": true,
+      "mean_observer": -0.5237003092964491,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 37-year-old-woman presents to her primary care physician requesting a new form of birth control. S",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "B",
+      "correct": true,
+      "mean_observer": -0.4288102711240451,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 23-year-old woman comes to the physician because she is embarrassed about the appearance of her na",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.11893786986668904,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 24-year-old G2P1 woman at 39 weeks\u2019 gestation presents to the emergency department complaining of ",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.4677550792694092,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 72-year-old man comes to the physician because of a 2-month history of fatigue and worsening abdom",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.21978889654080072,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 20-year-old man comes to the physician because of worsening gait unsteadiness and bilateral hearin",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "B",
+      "correct": false,
+      "mean_observer": -0.21348765244086584,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 47-year-old executive schedules an appointment his physician for a routine medical check-up. He cu",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.2752608060836792,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A microbiologist is studying the emergence of a virulent strain of the virus. After a detailed study",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": -0.19474686682224274,
+      "mean_confidence": 0.9921875
+    },
+    {
+      "question": "A 59-year-old overweight woman presents to the urgent care clinic with the complaint of severe abdom",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "B",
+      "correct": true,
+      "mean_observer": -0.24977474162975946,
+      "mean_confidence": 0.990234375
+    },
+    {
+      "question": "A 7-year-old boy is brought to his pediatrician\u2019s office for a follow-up visit. He was diagnosed wit",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.3458768179019292,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 3-month-old boy is brought the emergency department by his parents after an episode of cyanosis an",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.5423569306731224,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 29-year-old man presents to the emergency department due to central chest pain over the past 3 day",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "B",
+      "correct": false,
+      "mean_observer": -0.2954806511600812,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 46-year-old man is brought to the emergency department for evaluation of altered mental status. He",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.43033160269260406,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 77-year-old woman presents to the emergency room with the complaints of fever, malaise, and night ",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": 0.045441240072250366,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 3-month-old infant is brought to her pediatrician because she coughs and seems to have difficulty ",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.23810013631979624,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 30-year-old African American woman comes to the physician for the evaluation of a dry cough and ch",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "C",
+      "correct": true,
+      "mean_observer": -0.4387260402242343,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 62-year-old patient has been hospitalized for a week due to a stroke. One week into the hospitaliz",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.1165177250901858,
+      "mean_confidence": 0.98828125
+    },
+    {
+      "question": "A 6-year-old boy is brought to the emergency department by his mother for worsening wheezing and sho",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.23306584606568018,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 5-year-old female suffers from recurrent infections by Aspergillus species, Pseudomonas species, a",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.4360583424568176,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 3-year-old boy presents to the emergency department with a \u2018cough-like-a-seal bark\u2019 and a high-pit",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.4562363177537918,
+      "mean_confidence": 0.998046875
+    },
+    {
+      "question": "A 26-year-old woman presents to a gynecologist after a missed period. After performing a complete ph",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.5352864613135656,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 4-year-old previously healthy boy presents with 4 days of intermittent vomiting and 5-6 daily loos",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.18537883460521698,
+      "mean_confidence": 0.994140625
+    },
+    {
+      "question": "A 3-week-old male newborn is brought to the physician because of an inward turning of his left foref",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "C",
+      "correct": true,
+      "mean_observer": -0.42009251316388446,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 42-year-old woman comes to the emergency department because of a 2-day history of right upper abdo",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.29575181752443314,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 72-year-old woman is admitted to the intensive care unit for shortness of breath and palpitations.",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": -0.46758799503246945,
+      "mean_confidence": 0.83984375
+    },
+    {
+      "question": "A 22-year-old woman is brought to the emergency department because of a 2-day history of fever, inte",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.21210381388664246,
+      "mean_confidence": 0.93359375
+    },
+    {
+      "question": "An otherwise healthy 50-year-old man comes to the physician because of a 6-month history of increasi",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "B",
+      "correct": false,
+      "mean_observer": -0.4055054634809494,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 27-year-old man presents to the emergency department. He was brought in by staff from the homeless",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "A",
+      "correct": false,
+      "mean_observer": -0.35827329258124035,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 67-year-old man who was diagnosed with arthritis 16 years ago presents with right knee swelling an",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.1470660294095675,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 65-year-old woman schedules an appointment with her physician for evaluation of weight loss and we",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.2967727929353714,
+      "mean_confidence": 0.865234375
+    },
+    {
+      "question": "A 3-month-old boy presents to his pediatrician with persistent diarrhea, oral candidiasis, and signs",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.038059805830319725,
+      "mean_confidence": 0.998046875
+    },
+    {
+      "question": "A 53-year-old man with recurrent pancreatic adenocarcinoma is enrolled in a clinical trial for a nov",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "D",
+      "correct": false,
+      "mean_observer": -0.1193431740005811,
+      "mean_confidence": 0.7470703125
+    },
+    {
+      "question": "A 67-year-old male is seen by neurology after he was noticed to be speaking strangely by his family.",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "A",
+      "correct": false,
+      "mean_observer": -0.34624287982781726,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 27-year-old woman presents to the office with concerns about her long struggle with her physical a",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "C",
+      "correct": true,
+      "mean_observer": -0.4474835991859436,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "\u0410 43-\u0443\u0435\u0430r-old m\u0430n \u0440r\u0435\u0455\u0435nt\u0455 w\u0456th t\u0456ngl\u0456ng \u0430nd numbn\u0435\u0455\u0455 of the low\u0435r l\u0456mb\u0455 for 2 w\u0435\u0435k\u0455. \u041d\u0435 also \u0441om\u0440l\u0430",
+      "answer": "C",
+      "pred_letter": "C",
+      "gold_letter": "C",
+      "correct": true,
+      "mean_observer": -0.6300662457942963,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A one-day-old male is evaluated in the hospital nursery for bilious vomiting. The patient has urinat",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.05392012000083923,
+      "mean_confidence": 0.962890625
+    },
+    {
+      "question": "A healthy 23-year-old male is undergoing an exercise stress test as part of his physiology class. If",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "B",
+      "correct": false,
+      "mean_observer": 0.004275081058343251,
+      "mean_confidence": 0.908203125
+    },
+    {
+      "question": "A 45-year-old G5P4105 presents to her gynecologist\u2019s office with six months of increasingly heavy pe",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": -0.09320068359375,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A man is brought into the emergency department by the police department. The officer state that the ",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "D",
+      "correct": true,
+      "mean_observer": -0.22448077301184335,
+      "mean_confidence": 0.998046875
+    },
+    {
+      "question": "A medical research study is evaluating an investigational novel drug (medication 1) compared with st",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": -0.20394344006975493,
+      "mean_confidence": 0.92578125
+    },
+    {
+      "question": "A 55-year-old man comes to the physician because of a 6-week history of tingling pain in the sole of",
+      "answer": "A",
+      "pred_letter": "A",
+      "gold_letter": "A",
+      "correct": true,
+      "mean_observer": 0.056545356909434,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 29-year-old primigravid woman at 35 weeks' gestation is admitted to the hospital in labor. She has",
+      "answer": "B",
+      "pred_letter": "B",
+      "gold_letter": "B",
+      "correct": true,
+      "mean_observer": -0.36097775399684906,
+      "mean_confidence": 1.0
+    },
+    {
+      "question": "A 67-year-old man is hospitalized after several days of fever and increasing shortness of breath. Re",
+      "answer": "D",
+      "pred_letter": "D",
+      "gold_letter": "C",
+      "correct": false,
+      "mean_observer": -0.5612102126081785,
+      "mean_confidence": 1.0
+    }
+  ],
+  "summary": {
+    "accuracy": 0.605,
+    "n_questions": 1000,
+    "n_errors": 395,
+    "exclusive_at_10pct": {
+      "observer_exclusive": 36,
+      "confidence_exclusive": 49,
+      "both": 12,
+      "pct_of_errors": 9.1
+    },
+    "observer_auacc": -0.28388437135940536,
+    "confidence_auacc": -0.28660624810165014
+  }
+}

@@ -1,17 +1,8 @@
-"""Mechanistic analysis: Llama 3.2 1B vs 3B.
+"""Mechanistic analysis: Llama 3.2 1B vs 3B via mean-ablation patching.
 
-Runs mean-ablation patching on both models to compare the mechanistic
-landscape of a high-observability model (1B, pcorr +0.286) against a
-low-observability model (3B, pcorr +0.091) from the same family.
-
-The question: is the signal never generated at 3B, or generated and
-then destroyed by a specific component?
-
-Layers chosen for proportional matching:
-  - 1B: L13 (81% depth, official peak)
-  - 3B: L14 (50% depth, mid-network where other models peak)
-
-Runs locally on M3 Max (36GB) with MPS.
+Compares the high-observability 1B model against the low-observability 3B
+model within the same family. Tests whether the 3B signal is never
+generated or generated and then suppressed by a specific component.
 """
 
 import gc

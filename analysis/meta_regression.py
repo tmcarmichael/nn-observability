@@ -1,16 +1,14 @@
 """Three-level meta-analytic model: seeds within models within families.
 
-Primary statistical analysis for the paper. Handles nested data
-correctly via random effects per model. The ANCOVA (ancova_family.py)
-is the supplementary accessible version.
-
-Usage: cd nn-observability && uv run python analysis/meta_regression.py
+Handles nested data via random effects per model. The ANCOVA
+(ancova_family.py) is an accessible alternative.
 """
 
 import sys
 
 import numpy as np
-from load_results import load_all_models, load_per_seed
+
+from analysis.load_results import load_all_models, load_per_seed
 
 
 def run_mixed_effects():
@@ -59,8 +57,8 @@ def run_mixed_effects():
             print("\n  Note: random-effects variance estimated at zero (boundary).")
             print("  The model collapsed to fixed-effects. This occurs when")
             print("  between-model variance is small relative to within-model")
-            print("  noise. Adding families with different signal levels (Llama)")
-            print("  should resolve this.")
+            print("  noise. The OLS cluster-robust fallback below captures the")
+            print("  same fixed-effect coefficients under the same assumption.")
     except Exception as e:
         print(f"  Mixed-effects failed: {e}")
         print("  Falling back to OLS with clustered standard errors.")

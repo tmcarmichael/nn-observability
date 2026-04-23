@@ -1,14 +1,8 @@
-"""Split-level bootstrap: stability under document resampling (GPU-optimized).
+"""Split-level bootstrap: probe stability under document resampling.
 
-Resamples WikiText train documents 30 times, retrains probe on each,
-evaluates on fixed test set. Reports variance of partial correlation.
-If tight, the signal is robust to document selection.
-
-Usage:
-  pip install transformers datasets scipy
-  python split_bootstrap_gpu.py --model Qwen/Qwen2.5-7B --peak-layer 17
-
-Usage: python split_bootstrap_gpu.py --model MODEL [--peak-layer N] [--n-boot 30]
+Resamples WikiText train documents, retrains the probe on each sample,
+and evaluates on a fixed test set. Reports the variance of partial
+correlation to bound sensitivity to document selection.
 """
 
 import argparse

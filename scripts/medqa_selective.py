@@ -1,14 +1,8 @@
-"""MedQA selective prediction: does the observer catch medical errors confidence misses?
+"""MedQA selective prediction: does the observer catch errors confidence misses?
 
-Model: Qwen/Qwen2.5-7B-Instruct | GPU: H100/H200 | Peak layer from v3 results
-Protocol: train WikiText probe (standard), generate MedQA answers, compare
-  observer vs confidence at catching wrong answers.
-
-Tests whether the exclusive catch finding (7-11% at 10% flag rate) generalizes
-from general-domain text to safety-critical medical QA. If it holds, the
-monitoring value argument extends to the domain where it matters most.
-
-Usage: pip install transformers datasets scipy scikit-learn && python medqa_selective.py
+Trains a WikiText probe, generates MedQA answers, then compares observer
+and confidence at flagging wrong answers. Tests whether the exclusive-catch
+finding transfers from general-domain text to medical QA.
 """
 
 import gc
@@ -22,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+from scipy.integrate import trapezoid
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 TRAIN_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -311,24 +306,50 @@ def extract_answer_letter(text):
 # Main
 # ---------------------------------------------------------------------------
 
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
-PEAK_LAYER = 14
-TARGET_EX_PER_DIM = 350
-MAX_QUESTIONS = 1000
-SEEDS = [42, 43, 44]
+import argparse
+import datetime as _dt
+
+parser = argparse.ArgumentParser(description="MedQA selective prediction with observer probe.")
+parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="HuggingFace model ID")
+parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
+parser.add_argument("--max-questions", type=int, default=1000, help="MedQA questions to evaluate")
+parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
+parser.add_argument("--output", default=None, help="Output JSON path (default: auto from model slug)")
+parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
+parser.add_argument("--attn-impl", default="sdpa", choices=["sdpa", "eager", "flash_attention_2"])
+parser.add_argument(
+    "--trust-remote-code",
+    action="store_true",
+    help="Pass trust_remote_code=True to from_pretrained (native HF impls preferred otherwise)",
+)
+args = parser.parse_args()
+
+MODEL_ID = args.model
+PEAK_LAYER = args.peak_layer
+TARGET_EX_PER_DIM = args.ex_dim
+MAX_QUESTIONS = args.max_questions
+SEEDS = [int(s) for s in args.seeds.split(",")]
+DTYPE = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+MODEL_SLUG = re.sub(r"[^A-Za-z0-9]+", "_", MODEL_ID.split("/")[-1]).strip("_").lower()
 
 print(f"=== MedQA selective prediction [{elapsed_str()}] ===")
-print(f"Model: {MODEL_ID}, peak layer: {PEAK_LAYER}")
+print(f"Model: {MODEL_ID} (slug={MODEL_SLUG}), peak layer: {PEAK_LAYER}, dtype: {args.dtype}")
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=args.trust_remote_code)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID, trust_remote_code=True, dtype=torch.bfloat16, attn_implementation="sdpa"
+    MODEL_ID,
+    trust_remote_code=args.trust_remote_code,
+    dtype=DTYPE,
+    attn_implementation=args.attn_impl,
 ).to(DEVICE)
 model.eval()
+
+_model_revision = getattr(model.config, "_commit_hash", None) or "unknown"
 
 HIDDEN_DIM = model.config.hidden_size
 MAX_TRAIN = TARGET_EX_PER_DIM * HIDDEN_DIM
@@ -446,7 +467,7 @@ for strategy_name, scores, ascending in [
         k = max(1, int(n * cov))
         kept = order[:k]
         accs.append(float(correct[kept].mean()))
-    auacc = float(np.trapz(accs, coverage_levels))
+    auacc = float(trapezoid(accs, coverage_levels))
     print(f"    {strategy_name}: AUACC = {auacc:.3f}")
     catch_results[f"{strategy_name}_auacc"] = auacc
 
@@ -457,6 +478,20 @@ output = {
     "task": "medqa_selective_prediction",
     "dataset": "GBaker/MedQA-USMLE-4-options",
     "peak_layer": PEAK_LAYER,
+    "provenance": {
+        "model_revision": _model_revision,
+        "script": "scripts/medqa_selective.py",
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
+        "device": str(DEVICE),
+        "dtype": args.dtype,
+        "attn_impl": args.attn_impl,
+        "torch_version": torch.__version__,
+        "args": vars(args),
+    },
+    "protocol": {
+        "target_ex_per_dim": TARGET_EX_PER_DIM,
+        "probe_seeds": SEEDS,
+    },
     "n_questions": n,
     "n_errors": n_errors,
     "accuracy": accuracy,
@@ -473,9 +508,13 @@ output = {
     },
 }
 
-out_path = Path("/workspace/medqa_selective_results.json")
-if not out_path.parent.exists():
-    out_path = Path("results/medqa_selective_results.json")
+if args.output:
+    out_path = Path(args.output)
+else:
+    filename = f"medqa_selective_{MODEL_SLUG}_results.json"
+    out_path = Path("/workspace") / filename
+    if not out_path.parent.exists():
+        out_path = Path("results") / filename
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 

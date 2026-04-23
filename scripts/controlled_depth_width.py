@@ -1,32 +1,9 @@
 """Controlled training: depth vs width at matched parameters.
 
-Trains two parameter-matched models from scratch on identical OpenWebText data
-with different depth-width ratios:
-  - Config A (shallow-wide): fewer layers, larger hidden dim
-  - Config B (deep-narrow): more layers, smaller hidden dim
-
-Same tokenizer, optimizer, schedule, seed. Only depth-width ratio varies.
-
-Context: Llama 1B (16L, 2048d) has observability (+0.286), Llama 3B
-(28L, 3072d) does not (+0.091). Both use GQA; the transition changes
-depth, width, and their ratio simultaneously. This experiment isolates
-depth-width ratio by holding attention mechanism, parameter count, and
-training data constant. Complements controlled_training.py (MHA vs GQA).
-
-Three scales available:
-  --scale 150m   Pilot (~150M params, 1B tokens, ~12h on H200)
-  --scale 1b     ~1.2B params, 5B tokens
-  --scale 3b     ~3B params, 10B tokens
-
-Multi-seed for publication:
-  --seeds 3      Train 3 models per config (6 total)
-
-GPU: H200 (144GB). Single-GPU.
-
-Usage:
-  pip install transformers datasets scipy scikit-learn accelerate
-  python controlled_depth_width.py --scale 150m
-  python controlled_depth_width.py --scale 1b --seeds 3
+Trains two parameter-matched models from scratch on identical data, varying
+only the depth-width ratio (shallow-wide vs deep-narrow). Isolates the
+depth-width ratio as a candidate driver of the observability shift seen
+between Llama 1B and 3B.
 """
 
 import gc
@@ -46,6 +23,10 @@ if shutil.which("nvidia-smi"):
     subprocess.run(["nvidia-smi"], check=False)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+OUT_DIR = (
+    Path("/workspace") if Path("/workspace").exists() else Path(__file__).resolve().parent.parent / "results"
+)
 RUN_START = time.time()
 
 
@@ -305,7 +286,7 @@ def train_model(config_name, config, train_data, val_data, tokenizer):
     step = 0
     best_val_loss = float("inf")
     train_losses = []
-    checkpoint_dir = Path(f"/workspace/checkpoint_{config_name}")
+    checkpoint_dir = OUT_DIR / f"checkpoint_{config_name}"
     checkpoint_dir.mkdir(exist_ok=True)
 
     # Re-seed so both models see data in the same order
@@ -663,7 +644,7 @@ output = {
     },
 }
 
-out_path = Path(f"/workspace/controlled_depth_width_{args.scale}_results.json")
+out_path = OUT_DIR / f"controlled_depth_width_{args.scale}_results.json"
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 

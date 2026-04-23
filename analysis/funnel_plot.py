@@ -1,20 +1,18 @@
 """Funnel plot and Egger's test for publication bias.
 
-Uses SE = std/sqrt(n_seeds) as the precision metric. Note: SE from
-probe-seed variance understates true measurement uncertainty (seeds
-share data, model, and layer). Treat as a lower bound on SE.
-
-Egger's test has low power with <10 studies. Results are descriptive.
-
-Usage: cd nn-observability && uv run python analysis/funnel_plot.py
+Uses SE = std/sqrt(n_seeds) as the precision metric. SE from probe-seed
+variance understates true measurement uncertainty (seeds share data,
+model, and layer), so treat it as a lower bound. Egger's test has low
+power with fewer than ten studies, so the results are descriptive.
 """
 
 import sys
 from pathlib import Path
 
 import numpy as np
-from load_results import load_all_models
 from scipy.stats import t as t_dist
+
+from analysis.load_results import load_all_models
 
 fig_dir = Path(__file__).resolve().parent
 
@@ -97,9 +95,9 @@ def run():
         if p_value < 0.05:
             print("  Significant asymmetry.")
             print("  Note: Egger's confounds publication bias with genuine")
-            print("  heterogeneity. With families at different signal levels")
-            print("  (the paper's finding), asymmetry is expected and does")
-            print("  not indicate selective reporting.")
+            print("  heterogeneity. Asymmetry is expected when families")
+            print("  differ in signal level and does not indicate selective")
+            print("  reporting.")
         else:
             print("  No significant asymmetry.")
         if len(valid) < 10:
@@ -113,7 +111,16 @@ def run():
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-        colors = {"GPT-2": "#4878A8", "Qwen": "#E07B39", "Llama": "#C44E52", "Gemma": "#2CA02C"}
+        # Okabe-Ito palette, kept in sync with figures/style.py PALETTE.
+        colors = {
+            "GPT-2": "#0072B2",
+            "Qwen": "#E69F00",
+            "Llama": "#D55E00",
+            "Gemma": "#009E73",
+            "Mistral": "#CC79A7",
+            "Phi": "#56B4E9",
+            "Pythia": "#F0E442",
+        }
         plotted_families = set()
         for m in valid:
             label = m["family"] if m["family"] not in plotted_families else None

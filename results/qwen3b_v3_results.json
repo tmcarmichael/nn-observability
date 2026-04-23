@@ -185,5 +185,10 @@
         "observer_exclusive": 13034.666666666666
       }
     }
+  },
+  "provenance": {
+    "model_revision": "3aab1f19",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-11T09:37:23-05:00"
   }
 }

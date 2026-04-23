@@ -3,7 +3,7 @@ Observer head variant sweep with seed-agreement built in.
 
 Three variants tested in parallel:
   1. Linear head (no hidden layer): tests whether the informative direction
-     is a linear combination that Phase 3's hand-designed readouts missed.
+     is a linear combination that hand-designed readouts missed.
   2. Bottleneck (500→4→1): forces convergence through a low-dimensional
      subspace. Tests whether seeds can agree through a narrow channel.
   3. Binary target (predict correct/incorrect residual sign instead of
@@ -289,7 +289,7 @@ def main():
     bn = results.get("bottleneck_regression", {})
     mb = results.get("mlp_binary", {})
     if lr and np.mean(lr["rhos"]) > 0.05:
-        print("  - Linear head finds signal: Phase 3 tested wrong linear directions")
+        print("  - Linear head finds signal: hand-designed readouts tested wrong linear directions")
     if bn and np.mean(bn["agreements"]) > 0.3:
         print("  - Bottleneck converges: shared signal in low-dimensional subspace")
     if mb and np.mean(mb["agreements"]) > 0.3:

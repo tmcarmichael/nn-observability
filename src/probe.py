@@ -23,7 +23,7 @@ from scipy.stats import pearsonr, rankdata, spearmanr  # noqa: F401
 # ---------------------------------------------------------------------------
 
 
-def load_wikitext(split="test", max_docs=None):
+def load_wikitext(split: str = "test", max_docs: int | None = None) -> list[str]:
     """Load WikiText-103 documents. Lazy-imports datasets."""
     from datasets import load_dataset
 
@@ -43,7 +43,7 @@ def load_wikitext(split="test", max_docs=None):
     return docs
 
 
-def pretokenize(docs, tokenizer, max_length=512):
+def pretokenize(docs: list[str], tokenizer, max_length: int = 512) -> list[list[int]]:
     """Tokenize all docs once. Sort by length for efficient padding."""
     encoded = []
     for doc in docs:
@@ -56,7 +56,7 @@ def pretokenize(docs, tokenizer, max_length=512):
     return encoded
 
 
-def build_batches(encoded, batch_size):
+def build_batches(encoded: list[list[int]], batch_size: int) -> list[tuple[torch.Tensor, torch.Tensor]]:
     """Create padded batches on CPU from pre-tokenized docs."""
     batches = []
     for i in range(0, len(encoded), batch_size):
@@ -77,7 +77,7 @@ def build_batches(encoded, batch_size):
 # ---------------------------------------------------------------------------
 
 
-def partial_spearman(x, y, covariates):
+def partial_spearman(x, y, covariates) -> tuple[float, float]:
     """Spearman rank partial correlation controlling for covariates."""
     rx, ry = rankdata(x), rankdata(y)
     rc = np.column_stack([rankdata(c) for c in covariates])
@@ -88,7 +88,7 @@ def partial_spearman(x, y, covariates):
     return float(r), float(p)
 
 
-def compute_loss_residuals(losses, max_softmax, activation_norm):
+def compute_loss_residuals(losses, max_softmax, activation_norm) -> np.ndarray:
     """OLS residuals of loss ~ max_softmax + activation_norm."""
     X = np.column_stack([max_softmax, activation_norm, np.ones(len(losses))])
     beta = np.linalg.lstsq(X, losses, rcond=None)[0]
@@ -100,7 +100,7 @@ def compute_loss_residuals(losses, max_softmax, activation_norm):
 # ---------------------------------------------------------------------------
 
 
-def _get_layer_list(model):
+def _get_layer_list(model) -> torch.nn.ModuleList:
     """Return the nn.ModuleList of transformer layers, architecture-agnostic."""
     if hasattr(model, "model") and hasattr(model.model, "layers"):
         return model.model.layers  # Llama, Qwen, Mistral, Gemma, Phi
@@ -109,7 +109,14 @@ def _get_layer_list(model):
     raise ValueError(f"Unsupported architecture: {type(model).__name__}")
 
 
-def collect_multi_layer_fast(model, batches, layers, max_tokens, device, sm_chunk=8):
+def collect_multi_layer_fast(
+    model,
+    batches: list[tuple[torch.Tensor, torch.Tensor]],
+    layers: list[int],
+    max_tokens: int,
+    device: str,
+    sm_chunk: int = 8,
+) -> dict[int, dict]:
     """Collect activations from multiple layers using pre-built batches.
     All extraction done on GPU with masked tensor ops."""
     model.eval()
@@ -203,7 +210,14 @@ def collect_multi_layer_fast(model, batches, layers, max_tokens, device, sm_chun
     return results
 
 
-def collect_single_layer_fast(model, batches, layer, max_tokens, device, sm_chunk=8):
+def collect_single_layer_fast(
+    model,
+    batches: list[tuple[torch.Tensor, torch.Tensor]],
+    layer: int,
+    max_tokens: int,
+    device: str,
+    sm_chunk: int = 8,
+) -> dict:
     """Single-layer wrapper."""
     return collect_multi_layer_fast(model, batches, [layer], max_tokens, device, sm_chunk)[layer]
 
@@ -213,7 +227,13 @@ def collect_single_layer_fast(model, batches, layer, max_tokens, device, sm_chun
 # ---------------------------------------------------------------------------
 
 
-def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3, train_device="cpu"):
+def train_linear_binary(
+    train_data: dict,
+    seed: int = 42,
+    epochs: int = 20,
+    lr: float = 1e-3,
+    train_device: str = "cpu",
+) -> torch.nn.Linear:
     """Train a linear binary probe on residualized targets."""
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -236,7 +256,7 @@ def train_linear_binary(train_data, seed=42, epochs=20, lr=1e-3, train_device="c
     return head.cpu()
 
 
-def evaluate_head(head, test_data):
+def evaluate_head(head: torch.nn.Module, test_data: dict) -> tuple[np.ndarray, float, float]:
     """Evaluate a probe head, returning (scores, partial_corr, p_value)."""
     head.eval()
     with torch.inference_mode():
@@ -247,7 +267,7 @@ def evaluate_head(head, test_data):
     return scores, rho, p
 
 
-def compute_hand_designed(data):
+def compute_hand_designed(data: dict) -> dict[str, np.ndarray]:
     """Compute hand-designed activation statistics for baseline comparison."""
     acts = data["activations"]
     p = acts.abs() / (acts.abs().sum(dim=1, keepdim=True) + 1e-8)

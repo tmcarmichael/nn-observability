@@ -1,14 +1,8 @@
-"""Nonlinear probe comparison: does a 2-layer MLP find more signal than a linear probe?
+"""Nonlinear probe comparison: 2-layer MLP versus linear head.
 
-Trains both linear and nonlinear (2-layer MLP) probes on the same
-activations and compares partial correlations. Tests whether the
-confidence-independent signal is genuinely linear or has a nonlinear
-component the linear probe misses.
-
-Runs on one model at a time. Needs GPU or MPS for activation collection.
-
-Usage: cd nn-observability && uv run python scripts/nonlinear_probe.py --model Qwen/Qwen2.5-7B
-       cd nn-observability && uv run python scripts/nonlinear_probe.py --model Qwen/Qwen2.5-14B --peak-layer 30
+Trains both probe types on identical activations and compares partial
+correlations. Tests whether the confidence-independent signal is
+linearly readable or whether a nonlinear probe recovers more.
 """
 
 import argparse
@@ -80,6 +74,9 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens, max_le
     if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
         # GPT-2: model.transformer.h[layer]
         handle = model.transformer.h[layer].register_forward_hook(hook_fn)
+    elif hasattr(model, "gpt_neox") and hasattr(model.gpt_neox, "layers"):
+        # Pythia / GPTNeoX: model.gpt_neox.layers[layer]
+        handle = model.gpt_neox.layers[layer].register_forward_hook(hook_fn)
     elif hasattr(model, "model") and hasattr(model.model, "layers"):
         # Qwen, Llama, Gemma, Mistral: model.model.layers[layer]
         handle = model.model.layers[layer].register_forward_hook(hook_fn)
@@ -92,7 +89,7 @@ def collect_layer_data(model, tokenizer, docs, layer, device, max_tokens, max_le
         input_ids = tokens["input_ids"].to(device)
         attn_mask = tokens["attention_mask"].to(device)
         with torch.inference_mode():
-            outputs = model(input_ids, attention_mask=attn_mask)
+            outputs = model(input_ids, attention_mask=attn_mask, use_cache=False)
         h_all = captured["h"]
         for b in range(input_ids.size(0)):
             if total >= max_tokens:
@@ -212,6 +209,23 @@ def main():
     parser.add_argument("--ex-dim", type=int, default=350)
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44])
     parser.add_argument("--max-docs", type=int, default=8000)
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Output filename (default: nonlinear_probe_<model>.json)",
+    )
+    parser.add_argument("--batch-size", type=int, default=16, help="Batch size for activation collection")
+    parser.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Pass trust_remote_code=True to from_pretrained",
+    )
+    parser.add_argument(
+        "--attn-impl",
+        default="sdpa",
+        choices=["sdpa", "eager", "flash_attention_2"],
+        help="Attention implementation",
+    )
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -220,13 +234,15 @@ def main():
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     print(f"Loading {args.model}...")
-    tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model, trust_remote_code=True, dtype=torch.bfloat16, attn_implementation="sdpa"
-    ).to(device)
+    load_kwargs = {"dtype": torch.bfloat16, "attn_implementation": args.attn_impl}
+    if args.trust_remote_code:
+        load_kwargs["trust_remote_code"] = True
+    model = AutoModelForCausalLM.from_pretrained(args.model, **load_kwargs).to(device)
     model.eval()
+    _model_revision = getattr(model.config, "_commit_hash", None) or "unknown"
 
     hidden_dim = model.config.hidden_size
     n_layers = model.config.num_hidden_layers
@@ -238,11 +254,20 @@ def main():
     print("Loading data...")
     train_docs = load_wikitext("train", max_docs=args.max_docs)
     val_docs = load_wikitext("validation", max_docs=None)
+    test_docs = load_wikitext("test", max_docs=None)
 
     print("Collecting train activations...")
-    train_data = collect_layer_data(model, tokenizer, train_docs, peak, device, max_tokens)
+    train_data = collect_layer_data(
+        model, tokenizer, train_docs, peak, device, max_tokens, batch_size=args.batch_size
+    )
     print("Collecting val activations...")
-    val_data = collect_layer_data(model, tokenizer, val_docs, peak, device, max_tokens)
+    val_data = collect_layer_data(
+        model, tokenizer, val_docs, peak, device, max_tokens, batch_size=args.batch_size
+    )
+    print("Collecting test activations...")
+    test_data = collect_layer_data(
+        model, tokenizer, test_docs, peak, device, max_tokens, batch_size=args.batch_size
+    )
 
     del model
     import gc
@@ -349,24 +374,111 @@ def main():
     delta_swept = np.mean([s["delta"] for s in swept_results])
     best_swept = np.mean([s["best_mlp"] for s in swept_results])
 
+    # --- HP-swept MLP, held-out protocol: select on val, report on test ---
+    print("\n=== HP-swept MLP, held-out protocol (select on val, report on test) ===")
+    print(f"  {'Seed':<6} {'Lin(test)':>10} {'Val*':>10} {'MLP(test)':>10} {'Config':>25} {'Delta':>8}")
+    print(f"  {'-' * 76}")
+
+    test_covs = [test_data["max_softmax"], test_data["activation_norm"]]
+    holdout_grid_hidden = [64, 128]
+    holdout_grid_lr = [1e-2, 1e-3, 1e-4]
+    holdout_grid_epochs = [20, 50]
+
+    holdout_results = []
+    for seed in args.seeds:
+        linear_head = train_linear(train_data["activations"], targets, seed=seed)
+        linear_head.eval()
+        with torch.inference_mode():
+            lin_scores_test = linear_head(test_data["activations"]).squeeze(-1).numpy()
+        lin_rho_test, _ = partial_spearman(lin_scores_test, test_data["losses"], test_covs)
+
+        best_val_rho = -np.inf
+        best_test_rho = None
+        best_cfg = None
+        for hidden in holdout_grid_hidden:
+            for lr in holdout_grid_lr:
+                for epochs in holdout_grid_epochs:
+                    head = train_mlp(
+                        train_data["activations"],
+                        targets,
+                        seed=seed,
+                        epochs=epochs,
+                        lr=lr,
+                        hidden=hidden,
+                    )
+                    head.eval()
+                    with torch.inference_mode():
+                        val_scores = head(val_data["activations"]).squeeze(-1).numpy()
+                        test_scores = head(test_data["activations"]).squeeze(-1).numpy()
+                    val_rho, _ = partial_spearman(val_scores, val_data["losses"], covs)
+                    if val_rho > best_val_rho:
+                        best_val_rho = val_rho
+                        test_rho, _ = partial_spearman(test_scores, test_data["losses"], test_covs)
+                        best_test_rho = test_rho
+                        best_cfg = {"hidden": hidden, "lr": lr, "epochs": epochs}
+
+        delta = best_test_rho - lin_rho_test
+        cfg_str = f"h={best_cfg['hidden']} lr={best_cfg['lr']} ep={best_cfg['epochs']}"
+        print(
+            f"  {seed:<6} {lin_rho_test:+.4f}   {best_val_rho:+.4f}   "
+            f"{best_test_rho:+.4f}   {cfg_str:>25} {delta:+.4f}"
+        )
+        holdout_results.append(
+            {
+                "seed": seed,
+                "linear_test": lin_rho_test,
+                "best_val_rho": best_val_rho,
+                "best_mlp_test": best_test_rho,
+                "best_config": cfg_str,
+                "delta": delta,
+            }
+        )
+
+    lin_test_mean = np.mean([s["linear_test"] for s in holdout_results])
+    mlp_test_mean = np.mean([s["best_mlp_test"] for s in holdout_results])
+    delta_holdout = np.mean([s["delta"] for s in holdout_results])
+
     print("\n=== Summary ===")
-    print(f"  Linear mean:              {lin_mean:+.4f}")
-    print(f"  MLP-64 (fixed HP) mean:   {mlp64_mean:+.4f}  (delta {delta_fixed:+.4f})")
-    print(f"  Best MLP (swept HP) mean: {best_swept:+.4f}  (delta {delta_swept:+.4f})")
-    print(f"  Delta as % of linear:     {delta_swept / lin_mean * 100:+.1f}%" if lin_mean > 0 else "")
+    print(f"  Linear mean (val):              {lin_mean:+.4f}")
+    print(f"  MLP-64 (fixed HP, val) mean:    {mlp64_mean:+.4f}  (delta {delta_fixed:+.4f})")
+    print(f"  Best MLP (swept HP, val) mean:  {best_swept:+.4f}  (delta {delta_swept:+.4f})")
+    print(f"  Linear (held-out test) mean:    {lin_test_mean:+.4f}")
+    print(f"  MLP (select val, eval test):    {mlp_test_mean:+.4f}  (delta {delta_holdout:+.4f})")
+    print(
+        f"  Delta as % of linear (test):    {delta_holdout / lin_test_mean * 100:+.1f}%"
+        if lin_test_mean > 0
+        else ""
+    )
     print()
-    print("  Note: HP sweep evaluates on the same val set used for selection,")
-    print("  biasing in favor of MLP. If MLP still does not exceed linear,")
-    print("  the result is conservative. Report the delta and let the reader")
-    print("  judge whether it is practically meaningful.")
+    print("  The held-out delta is the selection-bias-free estimate of how much")
+    print("  a nonlinear probe improves over linear on this representation.")
 
     # Save results
+    import datetime as _dt
+
+    output_name = args.output or f"nonlinear_probe_{args.model.split('/')[-1]}.json"
+
     out = {
         "model": args.model,
         "peak_layer": peak,
         "ex_dim": args.ex_dim,
         "seeds": args.seeds,
         "hidden_dim": hidden_dim,
+        "provenance": {
+            "model_revision": _model_revision,
+            "script": "scripts/nonlinear_probe.py",
+            "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
+            "device": str(device),
+            "torch_version": torch.__version__,
+            "output_file": output_name,
+        },
+        "protocol": {
+            "peak_layer": peak,
+            "ex_dim": args.ex_dim,
+            "seeds": args.seeds,
+            "batch_size": args.batch_size,
+            "attn_impl": args.attn_impl,
+        },
         "fixed_hp": {
             "per_seed": per_seed,
             "linear_mean": lin_mean,
@@ -374,9 +486,26 @@ def main():
             "delta_mean": delta_fixed,
         },
         "swept_hp": {"per_seed": swept_results, "best_mlp_mean": best_swept, "delta_mean": delta_swept},
-        "conclusion": "linear_sufficient" if abs(delta_swept) < 0.02 else "nonlinear_advantage",
+        "swept_hp_holdout": {
+            "protocol": "fit on train, select HP on wikitext validation, report on wikitext test",
+            "grid": {
+                "hidden": holdout_grid_hidden,
+                "lr": holdout_grid_lr,
+                "epochs": holdout_grid_epochs,
+            },
+            "per_seed": holdout_results,
+            "linear_test_mean": lin_test_mean,
+            "best_mlp_test_mean": mlp_test_mean,
+            "delta_mean": delta_holdout,
+        },
+        "conclusion": "linear_sufficient" if abs(delta_holdout) < 0.02 else "nonlinear_advantage",
     }
-    out_path = Path(__file__).parent.parent / "results" / f"nonlinear_probe_{args.model.split('/')[-1]}.json"
+
+    if Path("/workspace").exists():
+        out_path = Path(f"/workspace/{output_name}")
+    else:
+        out_path = Path(__file__).resolve().parent.parent / "results" / output_name
+        out_path.parent.mkdir(exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(out, f, indent=2)
     print(f"Saved {out_path}")

@@ -26,6 +26,7 @@ SCRIPTS = [
     "loocv_scaling.py",
     "funnel_plot.py",
     "exclusive_catch_rates.py",
+    "held_out_split.py",
 ]
 
 

@@ -1,14 +1,8 @@
-"""TruthfulQA hallucination detection: does the observer catch confident wrong answers?
+"""TruthfulQA hallucination detection: catching confident wrong answers.
 
-Model: Qwen/Qwen2.5-7B-Instruct | GPU required
-Protocol: train WikiText probe (standard), generate TruthfulQA answers,
-  analyze the confident-but-wrong quadrant where confidence monitoring fails.
-
-The key metric: among answers where confidence > 0.9 AND the answer is wrong,
-what fraction does the observer flag? These are the dangerous failures (model
-is sure and hallucinating). Confidence monitoring will never catch them.
-
-Usage: pip install transformers datasets scipy scikit-learn && python truthfulqa_hallucination.py
+Trains a WikiText probe, generates TruthfulQA answers, and measures the
+observer's flag rate on the confident-but-wrong quadrant. This is the
+failure mode where confidence monitoring cannot help by construction.
 """
 
 import gc
@@ -31,6 +25,10 @@ if shutil.which("nvidia-smi"):
     subprocess.run(["nvidia-smi"], check=False)
 
 RUN_START = time.time()
+
+CHECKPOINT_DIR = (
+    Path("/workspace") if Path("/workspace").exists() else Path(__file__).resolve().parent.parent / "results"
+)
 
 
 def elapsed_str():
@@ -331,27 +329,55 @@ def greedy_decode_with_observer(model, tokenizer, probes, peak_layer, prompt, de
 # Main
 # ---------------------------------------------------------------------------
 
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
-PEAK_LAYER = 14
-TARGET_EX_PER_DIM = 350
-SEEDS = [42, 43, 44]
-CONFIDENCE_THRESHOLD = 0.9  # "confident" = mean token confidence > 0.9
+import argparse
+import datetime as _dt
+
+parser = argparse.ArgumentParser(description="TruthfulQA hallucination detection with observer probe.")
+parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="HuggingFace model ID")
+parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
+parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
+parser.add_argument(
+    "--confidence-threshold",
+    type=float,
+    default=0.9,
+    help="Mean-token-confidence threshold defining 'confident' answers",
+)
+parser.add_argument("--output", default=None, help="Output JSON path (default: auto from model slug)")
+parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
+parser.add_argument("--attn-impl", default="sdpa", choices=["sdpa", "eager", "flash_attention_2"])
+parser.add_argument(
+    "--trust-remote-code",
+    action="store_true",
+    help="Pass trust_remote_code=True to from_pretrained (native HF impls preferred otherwise)",
+)
+args = parser.parse_args()
+
+MODEL_ID = args.model
+PEAK_LAYER = args.peak_layer
+TARGET_EX_PER_DIM = args.ex_dim
+SEEDS = [int(s) for s in args.seeds.split(",")]
+CONFIDENCE_THRESHOLD = args.confidence_threshold
+DTYPE = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
+MODEL_SLUG = re.sub(r"[^A-Za-z0-9]+", "_", MODEL_ID.split("/")[-1]).strip("_").lower()
 
 print(f"=== TruthfulQA hallucination detection [{elapsed_str()}] ===")
-print(f"Model: {MODEL_ID}, peak layer: {PEAK_LAYER}")
+print(f"Model: {MODEL_ID} (slug={MODEL_SLUG}), peak layer: {PEAK_LAYER}, dtype: {args.dtype}")
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=args.trust_remote_code)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_ID,
-    trust_remote_code=True,
-    dtype=torch.bfloat16,
-    attn_implementation="sdpa",
+    trust_remote_code=args.trust_remote_code,
+    dtype=DTYPE,
+    attn_implementation=args.attn_impl,
 ).to(DEVICE)
 model.eval()
+
+_model_revision = getattr(model.config, "_commit_hash", None) or "unknown"
 
 HIDDEN_DIM = model.config.hidden_size
 MAX_TRAIN = TARGET_EX_PER_DIM * HIDDEN_DIM
@@ -422,7 +448,7 @@ for qi, q in enumerate(questions):
         )
         # Checkpoint
         try:
-            with open(Path("/workspace/truthfulqa_checkpoint.json"), "w") as f:
+            with open(CHECKPOINT_DIR / "truthfulqa_checkpoint.json", "w") as f:
                 json.dump({"n": len(all_results), "results": all_results}, f)
         except OSError:
             pass
@@ -541,6 +567,20 @@ output = {
     "dataset": "truthfulqa/truthful_qa",
     "peak_layer": PEAK_LAYER,
     "confidence_threshold": CONFIDENCE_THRESHOLD,
+    "provenance": {
+        "model_revision": _model_revision,
+        "script": "scripts/truthfulqa_hallucination.py",
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
+        "device": str(DEVICE),
+        "dtype": args.dtype,
+        "attn_impl": args.attn_impl,
+        "torch_version": torch.__version__,
+        "args": vars(args),
+    },
+    "protocol": {
+        "target_ex_per_dim": TARGET_EX_PER_DIM,
+        "probe_seeds": SEEDS,
+    },
     "n_questions": n,
     "accuracy": accuracy,
     "n_errors": n_errors,
@@ -556,9 +596,13 @@ output = {
     "per_question": all_results,
 }
 
-out_path = Path("/workspace/truthfulqa_hallucination_results.json")
-if not out_path.parent.exists():
-    out_path = Path("results/truthfulqa_hallucination_results.json")
+if args.output:
+    out_path = Path(args.output)
+else:
+    filename = f"truthfulqa_hallucination_{MODEL_SLUG}_results.json"
+    out_path = Path("/workspace") / filename
+    if not out_path.parent.exists():
+        out_path = Path("results") / filename
 with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 
