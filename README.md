@@ -1,5 +1,5 @@
 [![Paper](https://img.shields.io/badge/paper-preprint-B31B1B.svg)](https://doi.org/10.5281/zenodo.19435674)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19435674.svg)](https://doi.org/10.5281/zenodo.19435674)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19435674-blue)](https://doi.org/10.5281/zenodo.19435674)
 [![CI](https://github.com/tmcarmichael/nn-observability/actions/workflows/ci.yml/badge.svg)](https://github.com/tmcarmichael/nn-observability/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
