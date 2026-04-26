@@ -4,7 +4,10 @@ Uses model means (one per model) to avoid pseudoreplication. Exact
 enumeration when unique permutations < 100,000, Monte Carlo otherwise.
 """
 
+from __future__ import annotations
+
 import sys
+from collections.abc import Sequence
 from itertools import permutations
 from math import factorial
 
@@ -13,8 +16,27 @@ import numpy as np
 from analysis.load_results import load_all_models, load_model_means
 
 
-def family_f_stat(families, log_params, pcorrs):
-    """F-statistic for family effect after residualizing against scale."""
+def family_f_stat(
+    families: Sequence[str],
+    log_params: np.ndarray,
+    pcorrs: np.ndarray,
+) -> float:
+    """One-way F-statistic for family on pcorr, residualized against scale.
+
+    Fits OLS pcorr ~ log10(params), takes residuals, then computes a
+    standard one-way F-statistic for family on the residuals. This isolates
+    the family effect from any residual scale signal.
+
+    Args:
+        families: per-model family labels, parallel to log_params and pcorrs.
+        log_params: log10 of parameter count (in billions or absolute, scale
+            does not affect the test) for each model.
+        pcorrs: partial correlation values for each model.
+
+    Returns:
+        F-statistic (>= 0). Returns 0.0 when the test is undefined (one
+        family, n <= number of families, or zero within-group variance).
+    """
     X = np.column_stack([log_params, np.ones(len(log_params))])
     beta = np.linalg.lstsq(X, pcorrs, rcond=None)[0]
     resid = pcorrs - X @ beta
@@ -37,10 +59,11 @@ def family_f_stat(families, log_params, pcorrs):
     n = len(families)
     if k <= 1 or n <= k or ss_within == 0:
         return 0.0
-    return (ss_between / (k - 1)) / (ss_within / (n - k))
+    return float((ss_between / (k - 1)) / (ss_within / (n - k)))
 
 
-def n_unique_permutations(families):
+def n_unique_permutations(families: Sequence[str]) -> int:
+    """Multinomial coefficient for the number of distinct label permutations."""
     from collections import Counter
 
     counts = Counter(families)
@@ -50,7 +73,23 @@ def n_unique_permutations(families):
     return n
 
 
-def run_permutation_test(mc_threshold=100000, mc_n=50000, seed=42):
+def run_permutation_test(
+    mc_threshold: int = 100000,
+    mc_n: int = 50000,
+    seed: int = 42,
+) -> None:
+    """Run the family-effect permutation test and print a summary.
+
+    Loads model means via `load_model_means()`, computes the observed F,
+    builds the null distribution by permuting family labels, and prints
+    the observed F, p-value, minimum achievable p, and per-model values.
+
+    Args:
+        mc_threshold: switch to Monte Carlo when unique permutations exceed
+            this count; otherwise enumerate exactly.
+        mc_n: Monte Carlo sample size when above threshold.
+        seed: RNG seed for Monte Carlo sampling.
+    """
     rng = np.random.RandomState(seed)
 
     models = load_model_means()
@@ -70,14 +109,14 @@ def run_permutation_test(mc_threshold=100000, mc_n=50000, seed=42):
     n_unique = n_unique_permutations(families)
 
     if n_unique <= mc_threshold:
-        seen = set()
-        null_fs = []
+        seen: set[tuple[str, ...]] = set()
+        null_fs_list: list[float] = []
         for perm in permutations(families):
             if perm in seen:
                 continue
             seen.add(perm)
-            null_fs.append(family_f_stat(list(perm), log_params, pcorrs))
-        null_fs = np.array(null_fs)
+            null_fs_list.append(family_f_stat(list(perm), log_params, pcorrs))
+        null_fs = np.array(null_fs_list)
         method = f"exact ({len(null_fs)} unique permutations)"
     else:
         null_fs = np.array(
@@ -86,7 +125,7 @@ def run_permutation_test(mc_threshold=100000, mc_n=50000, seed=42):
         method = f"Monte Carlo ({mc_n} samples of {n_unique} possible)"
 
     n_total = len(null_fs)
-    p_value = (null_fs >= observed_f).mean()
+    p_value = float((null_fs >= observed_f).mean())
     min_p = 1.0 / n_total
 
     print("=== Permutation test for family effect ===")

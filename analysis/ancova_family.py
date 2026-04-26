@@ -4,6 +4,8 @@ Supplementary analysis. The meta-regression (meta_regression.py) is the
 primary test because it handles the nested data structure correctly.
 """
 
+from __future__ import annotations
+
 import sys
 
 import numpy as np
@@ -11,7 +13,12 @@ import numpy as np
 from analysis.load_results import load_all_models, load_per_seed
 
 
-def run_ancova():
+def run_ancova() -> None:
+    """Fit family + log10(params) ANCOVA on per-seed observations and print results.
+
+    Reported p-values are anticonservative (per-seed observations are not
+    independent; meta_regression.py is the primary test).
+    """
     try:
         import pandas as pd
         from statsmodels.formula.api import ols

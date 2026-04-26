@@ -5,8 +5,11 @@ flag rates to confirm the complementary-coverage result is not a
 single-operating-point artifact.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -14,9 +17,9 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 FLAG_RATES = ["0.05", "0.1", "0.2", "0.3"]
 
 
-def load_flagging(path: Path, key: str | None = None) -> dict:
+def load_flagging(path: Path, key: str | None = None) -> dict[str, Any]:
     """Load flagging data from a results file."""
-    data = json.loads(path.read_text())
+    data: dict[str, Any] = json.loads(path.read_text())
     if key:
         data = data[key]
     return data
@@ -43,7 +46,8 @@ def exclusive_catch_table(name: str, flagging: dict) -> None:
         print(f"{float(rate) * 100:>9.0f}%  {obs_only:>14,.0f}  {conf_only:>15,.0f}  {pct_errors:>11.1f}%")
 
 
-def main():
+def main() -> None:
+    """Print exclusive catch rate tables for GPT-2 124M and Qwen 7B."""
     print("Exclusive error catch rates across flag rates")
     print("Observer catches errors confidence misses at every operating point.")
 

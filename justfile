@@ -2,6 +2,7 @@
 # Run `just` to see all available recipes
 
 set dotenv-load := false
+set fallback
 
 default_device := "auto"
 default_seeds  := "3"
@@ -192,10 +193,20 @@ lint:
 fmt:
     uv run ruff format src/ scripts/ figures/ analysis/
 
-# Run all checks (lint + format check + version consistency + README freshness)
+# Type check (analysis API + core library)
+typecheck:
+    uv run mypy analysis/ src/observe.py src/probe.py src/utils.py --ignore-missing-imports
+
+# Dead code check
+deadcode:
+    uv run vulture src/ analysis/ figures/ scripts/vulture_whitelist.py --min-confidence 90
+
+# Run all checks (lint + format + types + dead code + version + README freshness)
 check:
     uv run ruff check src/ scripts/ figures/ analysis/
     uv run ruff format --check src/ scripts/ figures/ analysis/
+    @just typecheck
+    @just deadcode
     @just check-version
     @just check-readme-freshness
 

@@ -4,14 +4,19 @@ Reports the delta between standard (rank-based) and nonlinear (raw-value)
 controls across models that have both measurements.
 """
 
+from __future__ import annotations
+
 import numpy as np
 from scipy.stats import pearsonr
 
 from analysis.load_results import load_all_models, load_control_sensitivity
 
 
-def partial_pearson(x, y, covariates):
-    """Pearson partial correlation on raw (unranked) values."""
+def partial_pearson(
+    x: np.ndarray,
+    y: np.ndarray,
+    covariates: list[np.ndarray],
+) -> tuple[float, float]:
     X = np.column_stack(covariates + [np.ones(len(x))])
     coef_x = np.linalg.lstsq(X, x, rcond=None)[0]
     coef_y = np.linalg.lstsq(X, y, rcond=None)[0]
@@ -19,7 +24,8 @@ def partial_pearson(x, y, covariates):
     return float(r), float(p)
 
 
-def report():
+def report() -> None:
+    """Print the Pearson-vs-Spearman delta table for all available models."""
     load_all_models(verbose=True)
     print()
 

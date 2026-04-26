@@ -48,7 +48,6 @@ RECOMMENDED_FIELDS = {
 
 
 def _get_nested(d: dict, dotpath: str) -> Any:
-    """Get a value from a nested dict using dot notation."""
     parts = dotpath.split(".")
     current = d
     for part in parts:
@@ -68,7 +67,7 @@ def validate_results_json(data: dict, filename: str, strict: bool = False) -> li
         val = _get_nested(data, field)
         if val is None:
             warnings.append(f"{filename}: missing required field '{field}'")
-        elif not isinstance(val, expected_type):
+        elif not isinstance(val, expected_type):  # type: ignore[arg-type]
             warnings.append(
                 f"{filename}: field '{field}' has type {type(val).__name__}, expected {expected_type}"
             )
@@ -157,7 +156,7 @@ PYTHIA_MODELS = [
 
 
 def _load_gpt2() -> dict[str, dict[str, Any]]:
-    """Load GPT-2 scaling results from transformer_observe.json (key "8")."""
+    """Load GPT-2 scaling results from transformer_observe.json phase 8."""
     path = RESULTS_DIR / "transformer_observe.json"
     if not path.exists():
         return {}
@@ -183,9 +182,8 @@ def _load_gpt2() -> dict[str, dict[str, Any]]:
 
 
 def _load_family(
-    file_list: list[tuple], family_name: str, fallbacks: dict[str, str] | None = None
+    file_list: list[tuple[str, float, str]], family_name: str, fallbacks: dict[str, str] | None = None
 ) -> dict[str, dict[str, Any]]:
-    """Load a family of models from individual result files."""
     models = {}
     for fname, params_b, label in file_list:
         path = RESULTS_DIR / fname
@@ -225,7 +223,7 @@ def _load_family(
 
 
 def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
-    """Load all v1-scope models. Returns dict keyed by label."""
+    """Load all paper-scope models, keyed by label."""
     models = {}
     models.update(_load_gpt2())
     models.update(_load_family(QWEN_MODELS, "Qwen", QWEN_FALLBACKS))
@@ -257,8 +255,7 @@ def load_all_models(verbose: bool = False) -> dict[str, dict[str, Any]]:
 
 
 def load_per_seed() -> list[tuple[str, str, float, int, float]]:
-    """Load per-seed observations: (family, label, params_b, seed_idx, pcorr).
-    Models without per_seed data are excluded (not fabricated as n=1)."""
+    """Per-seed observations: (family, label, params_b, seed_idx, pcorr)."""
     rows = []
     models = load_all_models()
     for label, m in models.items():
@@ -273,7 +270,7 @@ def load_per_seed() -> list[tuple[str, str, float, int, float]]:
 
 
 def load_model_means() -> list[tuple[str, float, float]]:
-    """Load one row per model: (family, log_params, mean_pcorr)."""
+    """One row per model: (family, log10_params, mean_pcorr)."""
     models = load_all_models()
     rows = []
     for _label, m in models.items():
@@ -284,7 +281,7 @@ def load_model_means() -> list[tuple[str, float, float]]:
 
 
 def load_control_sensitivity() -> list[dict[str, Any]]:
-    """Load models that have control sensitivity data."""
+    """Models with control sensitivity data for the waterfall plot."""
     models = load_all_models()
     results = []
     for label, m in models.items():
@@ -307,7 +304,7 @@ def load_control_sensitivity() -> list[dict[str, Any]]:
 
 
 def load_random_head_baselines() -> list[tuple[str, str, float, float]]:
-    """Load random_head baseline: (label, family, params_b, value)."""
+    """Random-probe baseline: (label, family, params_b, value)."""
     models = load_all_models()
     results = []
     for label, m in models.items():
@@ -318,8 +315,7 @@ def load_random_head_baselines() -> list[tuple[str, str, float, float]]:
 
 
 def validate_all(strict: bool = False) -> int:
-    """Validate all configured results JSONs. Returns count of warnings."""
-
+    """Validate all configured results JSONs. Returns warning count."""
     all_files = (
         [(f, "Qwen") for f, _, _ in QWEN_MODELS]
         + [(f, "Llama") for f, _, _ in LLAMA_MODELS]

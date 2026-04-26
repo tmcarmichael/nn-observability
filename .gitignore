@@ -18,6 +18,7 @@ venv/
 .mypy_cache/
 .dmypy.json
 .coverage
+coverage.json
 coverage.xml
 htmlcov/
 
@@ -74,6 +75,7 @@ results/internal/
 # Claude
 CLAUDE.md
 .claude/
+.claudeignore
 .worktreeinclude
 
 # Generated charts and analysis output

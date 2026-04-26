@@ -44,3 +44,17 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+
+      - id: typecheck
+        name: mypy type check (analysis + core library)
+        entry: just typecheck
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: deadcode
+        name: vulture dead code check
+        entry: just deadcode
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

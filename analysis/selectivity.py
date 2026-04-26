@@ -5,6 +5,8 @@ learning) and the control gap (what fraction of raw correlation is
 confidence).
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 
 import numpy as np
@@ -12,7 +14,8 @@ import numpy as np
 from analysis.load_results import load_all_models, load_control_sensitivity, load_random_head_baselines
 
 
-def analyze_selectivity():
+def analyze_selectivity() -> None:
+    """Print random-head baselines and the per-model raw-vs-controlled gap."""
     load_all_models(verbose=True)
     print()
 

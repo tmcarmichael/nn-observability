@@ -5,6 +5,8 @@ publication-quality rcParams, and a save_fig helper that writes
 PDFs to a caller-provided output directory.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import matplotlib
@@ -15,7 +17,7 @@ import matplotlib.pyplot as plt
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "results"
 
-# Colorblind-safe palette (Okabe-Ito)
+# Colorblind-safe palette (Okabe-Ito, full saturation)
 # Source: https://jfly.uni-koeln.de/color/
 PALETTE = {
     "GPT-2": "#0072B2",  # blue
@@ -68,13 +70,13 @@ _HEALTHY_FLOOR_LINE = {
 }
 
 
-def draw_detection_floor(ax, value: float = DETECTION_FLOOR) -> None:
+def draw_detection_floor(ax: plt.Axes, value: float = DETECTION_FLOOR) -> None:
     """Draw the shared detection-floor band (fill from 0 to value, dashed upper edge)."""
     ax.axhspan(0, value, **_DETECTION_FLOOR_FILL)
     ax.axhline(value, **_DETECTION_FLOOR_LINE)
 
 
-def draw_healthy_floor(ax, value: float = HEALTHY_FLOOR) -> None:
+def draw_healthy_floor(ax: plt.Axes, value: float = HEALTHY_FLOOR) -> None:
     """Draw the shared healthy-floor reference line."""
     ax.axhline(value, **_HEALTHY_FLOOR_LINE)
 
@@ -89,7 +91,7 @@ def signed(val: float, dp: int = 3) -> str:
     return f"{val:.{dp}f}"
 
 
-def apply_style():
+def apply_style() -> None:
     """Apply publication-quality matplotlib rcParams.
 
     Font family carries a fallback chain so the figures render reasonably
@@ -168,7 +170,9 @@ def apply_style():
     )
 
 
-def despine(ax, top=True, right=True, left=False, bottom=False):
+def despine(
+    ax: plt.Axes, top: bool = True, right: bool = True, left: bool = False, bottom: bool = False
+) -> None:
     """Hide axis spines (publication default: drop top + right).
 
     Matches the Tufte-style "remove non-data ink" practice by stripping
@@ -183,7 +187,15 @@ def despine(ax, top=True, right=True, left=False, bottom=False):
             ax.spines[side].set_color("#333333")
 
 
-def figure_rule(fig, y=0.985, color="#222222", linewidth=0.8, left=0.02, right=0.98, bottom=False):
+def figure_rule(
+    fig: plt.Figure,
+    y: float = 0.985,
+    color: str = "#222222",
+    linewidth: float = 0.8,
+    left: float = 0.02,
+    right: float = 0.98,
+    bottom: bool = False,
+) -> None:
     """Draw thin horizontal rule(s) across the figure.
 
     Default (bottom=False) draws a single rule above the suptitle,
@@ -217,7 +229,7 @@ def figure_rule(fig, y=0.985, color="#222222", linewidth=0.8, left=0.02, right=0
         fig.add_artist(bot_line)
 
 
-def panel_label(ax, letter, x=-0.02, y=1.04, fontsize=10):
+def panel_label(ax: plt.Axes, letter: str, x: float = -0.02, y: float = 1.04, fontsize: int = 10) -> None:
     """Add a small bold letter label in the top-left of an axes."""
     ax.text(
         x,

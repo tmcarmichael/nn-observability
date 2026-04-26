@@ -6,6 +6,8 @@ model, and layer), so treat it as a lower bound. Egger's test has low
 power with fewer than ten studies, so the results are descriptive.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -17,7 +19,11 @@ from analysis.load_results import load_all_models
 fig_dir = Path(__file__).resolve().parent
 
 
-def load_model_stats():
+def load_model_stats() -> list[dict]:
+    """Return one row per model with mean, std, n_seeds, and SE for the funnel plot.
+
+    Drops models with fewer than 2 seeds (no per-seed variance).
+    """
     models_raw = load_all_models(verbose=True)
     models = []
     for label, m in models_raw.items():
@@ -45,8 +51,10 @@ def load_model_stats():
     return models
 
 
-def eggers_test(means, ses):
-    """Egger's test using SE-based precision."""
+def eggers_test(
+    means: list[float],
+    ses: list[float],
+) -> tuple[float, float, float]:
     precision = 1.0 / np.array(ses)
     standardized = np.array(means) / np.array(ses)
     X = np.column_stack([precision, np.ones(len(precision))])
@@ -65,7 +73,8 @@ def eggers_test(means, ses):
     return beta[1], t_stat, p_value
 
 
-def run():
+def run() -> None:
+    """Print funnel-plot data, run Egger's test, save funnel_plot.pdf to analysis/."""
     print()
     models = load_model_stats()
     if len(models) < 3:

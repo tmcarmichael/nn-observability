@@ -1,5 +1,7 @@
 """Run all CPU-based analysis scripts and print a combined summary."""
 
+from __future__ import annotations
+
 import subprocess
 import sys
 from pathlib import Path
@@ -19,8 +21,9 @@ SCRIPTS = [
 analysis_dir = Path(__file__).resolve().parent
 
 
-def main():
-    failed = []
+def main() -> None:
+    """Run each analysis script in sequence; print a pass/fail summary."""
+    failed: list[str] = []
     for script in SCRIPTS:
         path = analysis_dir / script
         print(f"\n{'=' * 70}")

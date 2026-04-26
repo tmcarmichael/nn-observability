@@ -3,12 +3,19 @@
 Tests whether any single Qwen model drives the scaling relationship.
 """
 
+from __future__ import annotations
+
 import numpy as np
 
 from analysis.load_results import load_all_models
 
 
-def load_qwen_models():
+def load_qwen_models() -> list[tuple[str, float, float]]:
+    """Return (label, log10(params_b), pcorr_mean) for each Qwen model.
+
+    Drops models without a `partial_corr.mean`. Output is sorted by parameter
+    count via the underlying loader's ordering.
+    """
     all_models = load_all_models()
     models = []
     for label, m in all_models.items():
@@ -20,7 +27,8 @@ def load_qwen_models():
     return models
 
 
-def run():
+def run() -> None:
+    """Print the leave-one-out CV table and the full regression summary."""
     models = load_qwen_models()
     if len(models) < 3:
         print(f"Only {len(models)} Qwen models. Need at least 3.")

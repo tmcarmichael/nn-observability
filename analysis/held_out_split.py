@@ -5,9 +5,12 @@ paper's in-sample partial Spearman against a held-out 50/50 split. Reports
 the per-model delta to bound any in-sample fitting bias.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from scipy.stats import pearsonr, rankdata
@@ -16,7 +19,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TOKENS_DIR = REPO_ROOT / "results" / "tokens"
 
 
-def partial_spearman_in_sample(x, y, covariates):
+def partial_spearman_in_sample(
+    x: np.ndarray,
+    y: np.ndarray,
+    covariates: list[np.ndarray],
+) -> float:
     """The paper's current partial-Spearman: fit and evaluate on the same set."""
     rx, ry = rankdata(x), rankdata(y)
     rc = np.column_stack([rankdata(c) for c in covariates])
@@ -27,11 +34,18 @@ def partial_spearman_in_sample(x, y, covariates):
     return float(r)
 
 
-def partial_spearman_held_out(x, y, covariates, seed=42):
-    """Cross-validated partial-Spearman: fit residualization on split A, evaluate on split B; swap; average.
+def partial_spearman_held_out(
+    x: np.ndarray,
+    y: np.ndarray,
+    covariates: list[np.ndarray],
+    seed: int = 42,
+) -> tuple[float, list[float]]:
+    """Cross-validated partial-Spearman with two-fold split.
 
-    Within-split ranking. Both x (probe scores) and y (target loss) are residualized
-    against the rank covariates (max softmax rank, activation norm rank).
+    Fit residualization on split A, evaluate on split B; swap; average.
+    Within-split ranking. Both x (probe scores) and y (target loss) are
+    residualized against the rank covariates (max softmax rank, activation
+    norm rank). Returns (mean across folds, per-fold values).
     """
     rng = np.random.default_rng(seed)
     n = len(x)
@@ -63,7 +77,8 @@ def partial_spearman_held_out(x, y, covariates, seed=42):
     return float(np.mean(rs)), rs
 
 
-def analyze_token_file(path):
+def analyze_token_file(path: Path) -> dict[str, Any]:
+    """Load a per-token .npz dump and compute in-sample vs held-out pcorr."""
     d = np.load(path, allow_pickle=False)
     target = d["target_surprise"]
     sm = d["max_softmax"]
@@ -94,7 +109,8 @@ def analyze_token_file(path):
     }
 
 
-def main():
+def main() -> None:
+    """CLI entry point: scan tokens dir, run held-out vs in-sample, write JSON."""
     parser = argparse.ArgumentParser(description="Cross-validated held-out partial-Spearman analysis.")
     parser.add_argument("--tokens-dir", default=str(TOKENS_DIR), help="Directory of *_tokens.npz files")
     parser.add_argument(

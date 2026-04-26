@@ -26,7 +26,7 @@ import json
 import math
 import time
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import matplotlib
 import numpy as np
@@ -42,12 +42,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-def _import_train():
-    """Lazy import of train.py to avoid torchvision dependency at import time.
-
-    Metric functions (partial_spearman, compute_loss_residuals) don't need
-    train.py. Only the training/main pipeline does.
-    """
+def _import_train() -> tuple:
     from train import BPNet, eval_bp, get_data, overlay_label, train_bp, wrong_labels
 
     return BPNet, eval_bp, get_data, overlay_label, train_bp, wrong_labels
@@ -76,7 +71,10 @@ class ObserverData(TypedDict):
 def compute_observers(model, loader, device) -> ObserverData:
     """Single pass over dataset: collect per-example observer scores and metadata."""
     model.eval()
-    all_acts, all_logits, all_losses, all_labels = None, [], [], []
+    all_acts: list[list[torch.Tensor]] | None = None
+    all_logits: list[torch.Tensor] = []
+    all_losses: list[torch.Tensor] = []
+    all_labels: list[torch.Tensor] = []
     criterion = nn.CrossEntropyLoss(reduction="none")
 
     with torch.inference_mode():
@@ -94,6 +92,7 @@ def compute_observers(model, loader, device) -> ObserverData:
             all_losses.append(losses.cpu())
             all_labels.append(y.cpu())
 
+    assert all_acts is not None
     acts = [torch.cat(a) for a in all_acts]
     logits = torch.cat(all_logits)
     losses = torch.cat(all_losses)
@@ -115,7 +114,7 @@ def compute_observers(model, loader, device) -> ObserverData:
     for a in acts:
         p = a.abs() / (a.abs().sum(dim=1, keepdim=True) + 1e-8)
         act_entropy += -(p * (p + 1e-8).log()).sum(dim=1)
-    act_entropy = (act_entropy / n_layers).numpy()
+    act_entropy_np = (act_entropy / n_layers).numpy()
 
     observers = {
         "ff_goodness": sum((a**2).mean(dim=1) for a in acts).numpy(),
@@ -125,7 +124,7 @@ def compute_observers(model, loader, device) -> ObserverData:
         "nll": losses.numpy(),
         "activation_norm": torch.stack([a.norm(dim=1) for a in acts]).mean(dim=0).numpy(),
         "active_ratio": active_ratio,
-        "act_entropy": act_entropy,
+        "act_entropy": act_entropy_np,
     }
 
     return dict(
@@ -139,8 +138,7 @@ def compute_observers(model, loader, device) -> ObserverData:
     )
 
 
-def fit_probe(model, loader, device, max_n=5000):
-    """Fit logistic regression on last-layer training activations."""
+def fit_probe(model, loader, device, max_n=5000) -> LogisticRegression:
     model.eval()
     xs, ys, n = [], [], 0
     with torch.inference_mode():
@@ -159,10 +157,11 @@ def fit_probe(model, loader, device, max_n=5000):
     return clf
 
 
-def compute_class_prototypes(model, loader, device, n_cls, max_n=5000):
-    """Per-class mean activation at each layer, from training data."""
+def compute_class_prototypes(model, loader, device, n_cls, max_n=5000) -> list[torch.Tensor]:
     model.eval()
-    all_acts, all_y, n = None, [], 0
+    all_acts: list[list[torch.Tensor]] | None = None
+    all_y: list[torch.Tensor] = []
+    n = 0
     with torch.inference_mode():
         for x, y in loader:
             if n >= max_n:
@@ -176,6 +175,7 @@ def compute_class_prototypes(model, loader, device, n_cls, max_n=5000):
             all_y.append(y)
             n += x.size(0)
 
+    assert all_acts is not None
     layer_acts = [torch.cat(a)[:max_n] for a in all_acts]
     labels = torch.cat(all_y)[:max_n]
 
@@ -190,20 +190,19 @@ def compute_class_prototypes(model, loader, device, n_cls, max_n=5000):
     return prototypes
 
 
-def class_similarity_score(test_acts, predictions, prototypes):
-    """Per-example cosine similarity to predicted class prototype, averaged across layers."""
+def class_similarity_score(test_acts, predictions, prototypes) -> npt.NDArray[np.floating]:
     preds = torch.from_numpy(predictions).long()
     total = torch.zeros(test_acts[0].size(0))
     for la, protos in zip(test_acts, prototypes, strict=True):
         pred_protos = protos[preds]
         total += F.cosine_similarity(la, pred_protos, dim=1)
-    return (total / len(test_acts)).numpy()
+    return np.asarray((total / len(test_acts)).numpy())
 
 
-def collect_activations(model, loader, device):
-    """Collect per-layer activations and labels from a data loader."""
+def collect_activations(model, loader, device) -> tuple[list[torch.Tensor], npt.NDArray[np.integer]]:
     model.eval()
-    all_acts, all_labels = None, []
+    all_acts: list[list[torch.Tensor]] | None = None
+    all_labels: list[torch.Tensor] = []
     with torch.inference_mode():
         for x, y in loader:
             x = x.to(device)
@@ -213,6 +212,7 @@ def collect_activations(model, loader, device):
             for i, a in enumerate(acts):
                 all_acts[i].append(a.cpu())
             all_labels.append(y)
+    assert all_acts is not None
     return [torch.cat(a) for a in all_acts], torch.cat(all_labels).numpy()
 
 
@@ -236,15 +236,10 @@ class ObserverHead(nn.Module):
         return self.net(x).squeeze(-1)
 
 
-def compute_loss_residuals(losses, margins, norms):
-    """Remove the component of per-example loss explained by confidence proxies.
-
-    Fits OLS: loss = a * margin + b * norm + c
-    Returns the residual (what confidence cannot predict).
-    """
+def compute_loss_residuals(losses, margins, norms) -> npt.NDArray[np.floating]:
     X = np.column_stack([margins, norms, np.ones(len(margins))])
     coef, _, _, _ = np.linalg.lstsq(X, losses, rcond=None)
-    return losses - X @ coef
+    return np.asarray(losses - X @ coef)
 
 
 def train_observer_head(model, head, loader, device, epochs=20, lr=1e-3):
@@ -289,7 +284,8 @@ def train_observer_head(model, head, loader, device, epochs=20, lr=1e-3):
     dl = torch.utils.data.DataLoader(dataset, batch_size=512, shuffle=True)
 
     for ep in range(epochs):
-        tot = n = 0
+        tot: float = 0
+        n = 0
         for batch_x, batch_y in dl:
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
             pred = head(batch_x)
@@ -324,7 +320,9 @@ def train_bp_auxiliary(model, loader, epochs, bp_lr, device, n_cls, ff_weight=0.
     bp_crit = nn.CrossEntropyLoss()
 
     for ep in range(epochs):
-        tot_bp = tot_ff = n = 0
+        tot_bp: float = 0
+        tot_ff: float = 0
+        n = 0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
 
@@ -370,7 +368,9 @@ def train_bp_denoise(model, loader, epochs, bp_lr, device, ff_weight=0.1, thresh
     bp_crit = nn.CrossEntropyLoss()
 
     for ep in range(epochs):
-        tot_bp = tot_ff = n = 0
+        tot_bp: float = 0
+        tot_ff: float = 0
+        n = 0
         for x, y in loader:
             x, y = x.to(device), y.to(device)
 
@@ -426,8 +426,7 @@ DIRECTION = {
 }
 
 
-def partial_spearman(x, y, covariates):
-    """Spearman partial correlation: rank x and y, regress out covariates, Pearson residuals."""
+def partial_spearman(x, y, covariates) -> tuple[float, float]:
     rx, ry = rankdata(x), rankdata(y)
     rc = np.column_stack([rankdata(c) for c in covariates])
     rc = np.column_stack([rc, np.ones(len(rc))])  # intercept
@@ -440,8 +439,7 @@ def partial_spearman(x, y, covariates):
     return float(r), float(p)
 
 
-def correlation_suite(data: ObserverData):
-    """Compute correlation metrics for all observers."""
+def correlation_suite(data: ObserverData) -> dict[str, Any]:
     obs = data["observers"]
     losses = data["losses"]
     is_correct = data["is_correct"]
@@ -449,7 +447,7 @@ def correlation_suite(data: ObserverData):
     logit_margin = obs["logit_margin"]
     act_norm = obs["activation_norm"]
 
-    results = {"spearman_vs_loss": {}, "spearman_vs_margin": {}, "within_class": {}}
+    results: dict[str, Any] = {"spearman_vs_loss": {}, "spearman_vs_margin": {}, "within_class": {}}
 
     for name, scores in obs.items():
         r_loss, p_loss = spearmanr(scores, losses)
@@ -486,8 +484,7 @@ def correlation_suite(data: ObserverData):
 # ---------------------------------------------------------------------------
 
 
-def eval_ablated(model, loader, device, layer_idx, neuron_indices):
-    """Evaluate model accuracy with specific neurons zeroed at one layer."""
+def eval_ablated(model, loader, device, layer_idx, neuron_indices) -> float:
     model.eval()
     n_layers = len(model.linears)
     # Normalize layer_idx (support negative indexing)
@@ -540,7 +537,7 @@ def intervention_curves(
     n_cls = labels.max() + 1
 
     strategies = ["ff_targeted", "anti_targeted", "magnitude", "sparsity", "class_disc", "random_mean"]
-    results = {"fractions": list(fractions), "layers": {}}
+    results: dict[str, Any] = {"fractions": list(fractions), "layers": {}}
 
     for layer_idx in range(n_layers):
         acts = acts_list[layer_idx]
@@ -567,7 +564,7 @@ def intervention_curves(
             "class_disc": np.argsort(-class_disc),
         }
 
-        layer_result = {s: [] for s in strategies}
+        layer_result: dict[str, list[float]] = {s: [] for s in strategies}
         layer_result["random_std"] = []
 
         for frac in fractions:
@@ -616,8 +613,7 @@ def intervention_curves(
 # ---------------------------------------------------------------------------
 
 
-def prediction_aucs(data: ObserverData):
-    """AUC for predicting correctness, per observer."""
+def prediction_aucs(data: ObserverData) -> dict[str, dict[str, float]]:
     is_correct = data["is_correct"].astype(float)
     if is_correct.mean() in (0.0, 1.0):
         return {name: {"auc": float("nan")} for name in data["observers"]}
@@ -701,7 +697,7 @@ def plot_intervention(all_runs, n_layers, dataset, out_path):
         row, col = divmod(idx, ncols)
         axes[row, col].set_visible(False)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.tight_layout(rect=(0, 0, 1, 0.95))
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="white")
     print(f"  Saved {out_path}")
@@ -712,8 +708,7 @@ def plot_intervention(all_runs, n_layers, dataset, out_path):
 # ---------------------------------------------------------------------------
 
 
-def run_once(args, seed):
-    """One seed: train BP, compute all observer metrics."""
+def run_once(args, seed) -> dict[str, Any]:
     BPNet, eval_bp, get_data, _, train_bp, _ = _import_train()
     torch.manual_seed(seed)
     np.random.seed(seed)

@@ -1,11 +1,13 @@
 # Notebooks
 
-_Updated 2026-04-22 for repo v3.0.0._
+_Updated 2026-04-25 for repo v3.1.0._
 
 These notebooks ran the GPU experiments and wrote the committed JSONs in `results/`. To reproduce the results, read the JSONs directly; re-execution is not required. The committed JSONs are the source of truth.
 
 | Notebook | Model | What it does |
 |---|---|---|
+| `walkthrough_analysis` | (CPU-only) | Analysis pipeline walkthrough: cross-family table, permutation test, partial correlation, Pythia collapse |
+
 | `qwen05b_base_instruct_v3` | Qwen 0.5B base+instruct | v3 protocol at 600 ex/dim, full battery |
 | `qwen3b_base_instruct_v3` | Qwen 3B base+instruct | v3 protocol, adds control sensitivity |
 | `qwen7b_base_instruct_v2` | Qwen 7B base+instruct | Back-to-back run, two JSONs |
@@ -21,3 +23,5 @@ These notebooks ran the GPU experiments and wrote the committed JSONs in `result
 | `colab_nonlinear_probe_pythia_1_4b` | Pythia 1.4B | Linear vs MLP probe at the (24L, 16H) collapse configuration |
 
 Models added after the notebook workflow (Llama 1B, Llama 8B, Llama 1B Instruct, Mistral 7B, Phi-3 Mini, Gemma 4B, and the Pythia suite) were run via `scripts/run_model.py`.
+
+Notebooks are designed for Google Colab execution on A100/L4 GPUs. Cell outputs are not committed because they depend on the runtime environment; the committed JSONs in `results/` are the source of truth for all paper numbers. To view outputs, open a notebook in Colab and run it, or read the corresponding result JSON directly.

@@ -1,6 +1,6 @@
 # Scripts
 
-_Updated 2026-04-22 for repo v3.0.0._
+_Updated 2026-04-25 for repo v3.1.0._
 
 GPU experiment scripts. Results write to `results/`.
 

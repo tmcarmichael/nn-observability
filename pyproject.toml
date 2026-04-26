@@ -1,11 +1,11 @@
 [project]
 name = "nn-observability"
-version = "3.0.0"
-description = "Architecture configuration determines linear readability of decision quality in transformer activations. Controlled within-family evidence from the Pythia suite and cross-family evaluation across six model families."
+version = "3.1.0"
+description = "Whether activation monitoring can catch high-confidence transformer errors depends on architecture: some configurations preserve a linearly readable signal after controlling for output confidence, while others collapse. Code and data for 22 models across 7 families."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12"
 keywords = [
     "transformer interpretability",
     "neural network observability",
@@ -58,8 +58,12 @@ transformer = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "hypothesis>=6.100",
     "ruff>=0.15",
     "pre-commit>=4.0",
+    "mypy>=1.10",
+    "vulture>=2.14",
 ]
 
 [tool.pytest.ini_options]
@@ -90,12 +94,42 @@ ignore = [
 "scripts/nonlinear_probe.py" = ["I001"]    # inline import gc after del model
 "scripts/run_model.py" = ["I001", "E402"]  # lazy imports for optional deps (datasets, transformers)
 "scripts/pythia_12b_backfill.py" = ["C901"] # single-pod backfill script, linear flow
+"scripts/vulture_whitelist.py" = ["F821", "B018"] # bare names are vulture's whitelist format
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25
 
 [tool.ruff.lint.isort]
 known-first-party = ["train", "observe", "probe", "scale", "observer_variants", "seed_agreement", "inspect_weights", "transformer_observe", "sae_compare", "selective_prediction", "utils"]
+
+[tool.coverage.run]
+source = ["analysis", "src"]
+omit = [
+    "scripts/*",
+    "src/transformer_observe.py",
+    "src/sae_compare.py",
+    "src/scale.py",
+    "src/inspect_weights.py",
+    "src/observer_variants.py",
+    "src/seed_agreement.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__",
+    "pragma: no cover",
+]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["src"]
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "train"
+ignore_errors = true
 
 [tool.ruff.format]
 quote-style = "double"

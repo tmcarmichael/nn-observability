@@ -13,7 +13,7 @@ import numpy as np
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
 
-def _deep_merge(base, update):
+def _deep_merge(base: dict, update: dict) -> dict:
     """Recursively merge `update` into `base`, preserving nested keys.
 
     Prevents partial reruns from nuking sibling results. Rerunning a single
@@ -28,7 +28,7 @@ def _deep_merge(base, update):
     return base
 
 
-def _save_results(results, filename="transformer_observe.json"):
+def _save_results(results: dict, filename: str = "transformer_observe.json") -> None:
     """Deep-merge results into existing JSON file and save."""
     RESULTS_DIR.mkdir(exist_ok=True)
     out_file = RESULTS_DIR / filename
@@ -42,7 +42,9 @@ def _save_results(results, filename="transformer_observe.json"):
     print(f"Saved {out_file} (keys: {sorted(existing.keys())})")
 
 
-def bootstrap_ci(values, n_boot=10000, ci=0.95, seed=0):
+def bootstrap_ci(
+    values: list | np.ndarray, n_boot: int = 10000, ci: float = 0.95, seed: int = 0
+) -> tuple[float, float]:
     """Bootstrap confidence interval for the mean."""
     rng = np.random.default_rng(seed)
     arr = np.asarray(values, dtype=float)

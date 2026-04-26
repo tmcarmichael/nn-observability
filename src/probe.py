@@ -28,7 +28,8 @@ def load_wikitext(split: str = "test", max_docs: int | None = None) -> list[str]
     from datasets import load_dataset
 
     ds = load_dataset("wikitext", "wikitext-103-raw-v1", split=split)
-    docs, current = [], []
+    docs: list[str] = []
+    current: list[str] = []
     for row in ds:
         text = row["text"]
         if text.strip() == "" and current:
@@ -92,7 +93,7 @@ def compute_loss_residuals(losses, max_softmax, activation_norm) -> np.ndarray:
     """OLS residuals of loss ~ max_softmax + activation_norm."""
     X = np.column_stack([max_softmax, activation_norm, np.ones(len(losses))])
     beta = np.linalg.lstsq(X, losses, rcond=None)[0]
-    return losses - X @ beta
+    return np.asarray(losses - X @ beta)
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +104,9 @@ def compute_loss_residuals(losses, max_softmax, activation_norm) -> np.ndarray:
 def _get_layer_list(model) -> torch.nn.ModuleList:
     """Return the nn.ModuleList of transformer layers, architecture-agnostic."""
     if hasattr(model, "model") and hasattr(model.model, "layers"):
-        return model.model.layers  # Llama, Qwen, Mistral, Gemma, Phi
+        return model.model.layers  # type: ignore[no-any-return]  # Llama, Qwen, Mistral, Gemma, Phi
     if hasattr(model, "transformer") and hasattr(model.transformer, "h"):
-        return model.transformer.h  # GPT-2
+        return model.transformer.h  # type: ignore[no-any-return]  # GPT-2
     raise ValueError(f"Unsupported architecture: {type(model).__name__}")
 
 
@@ -136,8 +137,8 @@ def collect_multi_layer_fast(
 
         handles.append(layer_modules[layer].register_forward_hook(make_hook(layer)))
 
-    per_layer_acts = {l: [] for l in layers}
-    per_layer_norms = {l: [] for l in layers}
+    per_layer_acts: dict[int, list[torch.Tensor]] = {l: [] for l in layers}
+    per_layer_norms: dict[int, list[torch.Tensor]] = {l: [] for l in layers}
     all_losses, all_sm, all_ent = [], [], []
     total = 0
 
@@ -177,7 +178,7 @@ def collect_multi_layer_fast(
             per_layer_acts[l].append(h[shift_mask].cpu())
             per_layer_norms[l].append(h.norm(dim=-1)[shift_mask].cpu())
 
-        total += shift_mask.sum().item()
+        total += int(shift_mask.sum().item())
         for l in layers:
             captured.pop(l, None)
         del outputs, input_ids, attn_mask, shift_logits, shift_labels

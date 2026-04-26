@@ -1,6 +1,6 @@
 # Results directory
 
-_Updated 2026-04-22 for repo v3.0.0._
+_Updated 2026-04-25 for repo v3.1.0._
 
 Every JSON file here is a committed experimental result. Analysis scripts read from these files via `analysis/load_results.py`.
 

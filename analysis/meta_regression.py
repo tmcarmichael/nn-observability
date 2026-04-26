@@ -4,6 +4,8 @@ Handles nested data via random effects per model. The ANCOVA
 (ancova_family.py) is an accessible alternative.
 """
 
+from __future__ import annotations
+
 import sys
 
 import numpy as np
@@ -11,7 +13,13 @@ import numpy as np
 from analysis.load_results import load_all_models, load_per_seed
 
 
-def run_mixed_effects():
+def run_mixed_effects() -> None:
+    """Fit a mixed-effects model with random intercepts per model and print results.
+
+    Random intercepts per model absorb within-model correlation from shared
+    data and layer selection. Fixed effects: log10(params) and family. This
+    is the primary cross-family inferential test.
+    """
     try:
         import pandas as pd
         import statsmodels.formula.api as smf
@@ -79,7 +87,7 @@ def run_mixed_effects():
     var_between_family = sum(n * (m - grand_mean) ** 2 for m, n in zip(family_means, family_ns)) / len(df)
 
     model_means = df.groupby("model")["partial_corr"].mean()
-    var_between_model = 0
+    var_between_model: float = 0
     for model_name, model_mean in model_means.items():
         fam = df[df["model"] == model_name]["family"].iloc[0]
         fam_mean = family_means[fam]
@@ -87,7 +95,7 @@ def run_mixed_effects():
         var_between_model += n * (model_mean - fam_mean) ** 2
     var_between_model /= len(df)
 
-    var_within = 0
+    var_within: float = 0
     for model_name in df["model"].unique():
         sub = df[df["model"] == model_name]
         var_within += ((sub["partial_corr"] - sub["partial_corr"].mean()) ** 2).sum()
