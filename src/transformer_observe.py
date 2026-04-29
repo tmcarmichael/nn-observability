@@ -3420,9 +3420,27 @@ def main():
     P.add_argument("--cross-domain", action="store_true", help="Cross-domain transfer test")
     P.add_argument("--scale", "--phase8", action="store_true", help="Scaling across GPT-2 family")
     P.add_argument("--model", default="gpt2", help="Model for single-model scaling run")
-    P.add_argument("--phase9a", action="store_true", help="Cross-family test: Llama 3.2 1B")
-    P.add_argument("--phase9b", action="store_true", help="Cross-family test: Qwen 2.5 0.5B and 1.5B")
-    P.add_argument("--phase9", action="store_true", help="All cross-family experiments (9a and 9b)")
+    P.add_argument(
+        "--cross-family-llama",
+        "--phase9a",
+        action="store_true",
+        dest="phase9a",
+        help="Cross-family test: Llama 3.2 1B",
+    )
+    P.add_argument(
+        "--cross-family-qwen",
+        "--phase9b",
+        action="store_true",
+        dest="phase9b",
+        help="Cross-family test: Qwen 2.5 0.5B and 1.5B",
+    )
+    P.add_argument(
+        "--cross-family-all",
+        "--phase9",
+        action="store_true",
+        dest="phase9",
+        help="All cross-family experiments",
+    )
     P.add_argument(
         "--mechanistic-7b",
         action="store_true",

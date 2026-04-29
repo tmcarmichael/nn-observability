@@ -1,21 +1,21 @@
 [project]
 name = "nn-observability"
-version = "3.3.0"
+version = "3.4.0"
 description = "Whether activation monitoring can catch high-confidence transformer errors depends on architecture: some configurations preserve a linearly readable signal after controlling for output confidence, while others collapse. Code and data for 25 models across 7 families."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]
 requires-python = ">=3.12"
 keywords = [
-    "transformer interpretability",
     "neural network observability",
-    "learned probes",
+    "transformer interpretability",
     "decision quality",
+    "learned probes",
     "confidence controls",
     "architecture-dependent readability",
     "partial correlation",
     "cross-family evaluation",
-    "retrieval-augmented generation",
+    "downstream QA transfer",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -41,7 +41,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["analysis*", "figures*"]
+include = ["analysis*"]
 exclude = ["tests*", "scripts*", "results*", "notebooks*", "docs*", "src*"]
 
 [project.urls]

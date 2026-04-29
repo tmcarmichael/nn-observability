@@ -128,5 +128,12 @@
         "observer_exclusive": 680.5
       }
     }
+  },
+  "provenance": {
+    "model_revision": "607a30d7",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-13T22:55:02-05:00",
+    "git_commit": "3674c680c8bd",
+    "backfilled": true
   }
 }

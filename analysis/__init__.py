@@ -1,9 +1,5 @@
 """Analysis library for the nn-observability research program.
 
-Public surface for downstream consumers (paper repo pipeline, notebooks,
-external analyses). Implementation details live in individual modules and
-are not part of the supported API.
-
 Loaders read committed JSONs from `../results/` into typed Python structures.
 Statistical primitives operate on those structures.
 
@@ -21,8 +17,7 @@ Schema validation:
     validate_results_json       check a single JSON against the required schema
     validate_all                check every paper-scope JSON, return failure count
 
-Stable across the v3.x line. Behavioral changes go through the paper pipeline
-gate (`just check` in the paper repo).
+Stable across the v3.x line.
 """
 
 from __future__ import annotations

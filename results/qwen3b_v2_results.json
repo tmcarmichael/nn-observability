@@ -176,5 +176,12 @@
         "observer_exclusive": 12869.333333333334
       }
     }
+  },
+  "provenance": {
+    "model_revision": "3aab1f19",
+    "script": "notebooks/",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
   }
 }

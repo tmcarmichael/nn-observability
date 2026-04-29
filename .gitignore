@@ -1,16 +1,18 @@
-# Python
+# Build
 __pycache__/
 *.py[oc]
 *.egg-info
 build/
 dist/
 
-# Virtual environments
+# Environments
 .venv/
 venv/
-
-# Python version pin (pyproject.toml is the source of truth)
 .python-version
+.env
+.env.*
+.envrc
+.direnv/
 
 # Tool caches
 .pytest_cache/
@@ -22,37 +24,33 @@ coverage.json
 coverage.xml
 htmlcov/
 
-# Environment and secrets
-.env
-.env.*
-.envrc
-.direnv/
+# Secrets
 .secrets/
 credentials.json
 *.pem
 *.key
 
-# Editor backups
+# Editors and system
 *.swp
 *.swo
 *~
 .*.un~
-
-# System
 .DS_Store
+.vscode/
+.idea/
 
-# Data (downloaded by torchvision)
-data/
-src/data/
-
-# Large artifacts
+# Model weights
 *.pt
 *.pth
 *.bin
 *.safetensors
 checkpoints/
 
-# ML framework logs
+# Data
+data/
+src/data/
+
+# ML logs
 wandb/
 lightning_logs/
 tb_logs/
@@ -60,17 +58,18 @@ tensorboard/
 runs/
 mlruns/
 
-# Results data (JSON is small, committed; large arrays are not)
+# Results (large arrays only; JSONs are committed)
 results/**/*.npy
 results/**/*.pkl
 results/internal/
 
+# Generated images
+*.png
+!assets/share/*.png
+analysis/*.pdf
+
 # Jupyter
 .ipynb_checkpoints/
-
-# IDE
-.vscode/
-.idea/
 
 # Claude
 CLAUDE.md
@@ -78,14 +77,8 @@ CLAUDE.md
 .claudeignore
 .worktreeinclude
 
-# Generated charts and analysis output
-*.png
-!assets/share/*.png
-analysis/*.pdf
-
-# Internal review
+# Internal
+figures/
 review/
 docs/internal/
-
-# Archived scripts and notebooks
 archive/

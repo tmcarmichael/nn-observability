@@ -560,5 +560,12 @@
     "n_params_b": 3.2,
     "n_layers": 28,
     "hidden_dim": 3072
+  },
+  "provenance": {
+    "model_revision": "n/a",
+    "script": "scripts/mechanistic_llama.py",
+    "timestamp": "2026-04-15T20:35:13-05:00",
+    "git_commit": "916210675601",
+    "backfilled": true
   }
 }

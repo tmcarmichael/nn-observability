@@ -120,7 +120,7 @@ def run() -> None:
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-        # Okabe-Ito palette, kept in sync with figures/style.py PALETTE.
+        # Okabe-Ito palette.
         colors = {
             "GPT-2": "#0072B2",
             "Qwen": "#E69F00",

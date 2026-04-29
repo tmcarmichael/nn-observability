@@ -1,6 +1,6 @@
 # Notebooks
 
-_Updated 2026-04-26 for repo v3.3.0._
+_Updated 2026-04-28 for repo v3.4.0._
 
 These notebooks ran the GPU experiments and wrote the committed JSONs in `results/`. To reproduce the results, read the JSONs directly; re-execution is not required. The committed JSONs are the source of truth.
 

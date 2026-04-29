@@ -44,5 +44,12 @@
   "design": {
     "probe_seed": 42,
     "note": "Probe seed fixed across all bootstrap iterations to isolate split variance from seed variance. Seed variance is measured separately by the 7-seed protocol in the main experiments."
+  },
+  "provenance": {
+    "model_revision": "d1497293",
+    "script": "scripts/split_bootstrap_gpu.py",
+    "timestamp": "2026-04-12T21:39:33-05:00",
+    "git_commit": "b455d0adf3de",
+    "backfilled": true
   }
 }

@@ -1,121 +1,83 @@
-[![Paper](https://img.shields.io/badge/paper-preprint-B31B1B.svg)](https://doi.org/10.5281/zenodo.19435674)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19435674-blue)](https://doi.org/10.5281/zenodo.19435674)
+[![arXiv](https://img.shields.io/badge/arXiv-2604.24801-b31b1b.svg)](https://arxiv.org/abs/2604.24801)
+[![Zenodo](https://img.shields.io/badge/Zenodo-10.5281%2Fzenodo.19435674-blue)](https://doi.org/10.5281/zenodo.19435674)
 [![CI](https://github.com/tmcarmichael/nn-observability/actions/workflows/ci.yml/badge.svg)](https://github.com/tmcarmichael/nn-observability/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 # Architecture Determines Observability in Transformers
 
-**[Read the paper](https://doi.org/10.5281/zenodo.19435674)** (preprint)
+**[Read the paper](https://arxiv.org/abs/2604.24801)** (arXiv)
 
-A linear probe on frozen mid-layer activations detects transformer errors that output confidence misses. Whether training preserves this signal depends on architecture and training recipe, not scale.
+Transformer activations carry information about which tokens will be wrong that output confidence does not expose. Whether this signal exists at all depends on which model you deploy. Training can erase it while the model keeps getting better at its task.
 
-#### 5 to 9% of confident model errors at 10% flag rate are invisible to the output distribution. Confidence thresholds miss them. Calibrated probabilities miss them. A trained predictor on the full output representation misses them. They reach users undetected.
+A frozen linear probe, one dot product per token, reads this signal with no fine-tuning and no task-specific data. A probe trained on Wikipedia catches the same errors zero-shot on medical licensing questions and reading comprehension. Standard probing methodology overstates the signal by a factor of two to three: confidence controls absorb 57.7% of the raw probe signal across 13 models in 6 families. After controlling for confidence, the surviving signal is stable across 20 seeds and output-independent. A trained MLP on last-layer activations does not recover it.
 
-A single dot product on frozen mid-layer activations catches them. No fine-tuning, no task-specific data. A probe trained on Wikipedia reads the same failure signal zero-shot on medical licensing questions and reading comprehension.
+## Observability collapse
 
-Which model you deploy determines whether this signal exists at all. Some architectures undergo **observability collapse**: the mid-layer readable signal falls from +0.21 to +0.10 and stays there. No layer recovers it. A nonlinear probe does not recover it. The information is not preserved in linearly readable form. Checkpoint dynamics show this is training-emergent: both matched-width Pythia configurations form the signal at the earliest measured checkpoint, but training erases it in the (24L, 16H) class while the healthy configuration recovers.
+**Whether this signal exists in a given model is determined before deployment.** Under Pythia's controlled training, both matched-width configurations form the signal at the earliest measured checkpoint. Training then erases it in the (24L, 16H) class while perplexity improves monotonically in both configurations through the collapse. Architecture determines observability not by preventing the signal from appearing, but by determining whether training preserves or erases it.
+
+The result is **observability collapse**: the decision-quality signal that neither confidence nor output-layer predictors recover falls to the detection floor at every measured layer. The collapse survives the standard escape hatches: it is not layer choice, probe nonlinearity, underpowered training, or final-layer predictor capacity. Six other Pythia configurations stay healthy across a 170x parameter range.
+
+The pattern replicates across families and training recipes. At matched 3B scale, Qwen and Llama differ by 2.9x with non-overlapping seed distributions. Mistral 7B preserves the signal where Llama 3.1 8B collapses despite similar architecture. The collapse map changes across recipes, but the phenomenon persists. Family membership explains 92% of variance at p = 0.006.
+
+## Implications
+
+**Monitorability has a ceiling set during training.** A probe trained on Wikipedia, with no task-specific data, transfers zero-shot to SQuAD, MedQA, and TruthfulQA. It exclusively catches 10.9-13.4% of all errors at 20% flag rate, errors that confidence marks correct, across seven of nine downstream model-task cells. When observability collapses, no post-hoc probe design recovers healthy-range signal. Architecture selection is a monitoring decision.
+
+**This ceiling is invisible to standard evaluation.** Raw probes can confuse confidence with decision quality. Output confidence is a lossy interface: it exposes a prediction and a score, but discards internal evidence about whether that prediction is fragile. Access to activations is not the same as access to useful internal evidence; a white-box model can still be unobservable if training failed to preserve the relevant signal. **Predictive capability can improve while monitorability is destroyed.** Model selection must evaluate not only what a model can do, but what internal evidence it preserves for oversight. Observability becomes an evaluation dimension alongside accuracy, latency, cost, and calibration.
+
+## Representation geometry as a design target
+
+The observable signal occupies a low-variance direction in representation space, nearly orthogonal to the dominant variance axes. The erasure is selective: some architecture-recipe configurations systematically push representation geometry toward structures where that direction cannot survive. These results turn representation geometry from a passive diagnostic object into an upstream design target that mediates tradeoffs between capability, interpretability, and monitorability. Architecture sets a geometric prior, training optimizes it, probing measures it, monitoring reads it out. Internal representation geometry becomes a first-class design variable, alongside loss, architecture, and data.
 
 <p align="center">
 <img src="assets/share/within_family_cliff.png" width="95%" alt="Two panels showing observability collapse in two training recipes. Left, Llama: 1B rises to +0.28, while 3B and 8B stay flat near +0.05 to +0.10 across all layers. Right, Pythia: six sizes peak between +0.20 and +0.38, while 410M and 1.4B (both 24 layers, 16 heads) stay flat near +0.10.">
 </p>
 
-Both panels use the same protocol, the same token budget per hidden dimension, and the same shaded detection band. Left panel: Llama 3.2 under a cross-recipe split, where 1B preserves the signal and 3B and 8B do not. Right panel: Pythia under held-recipe training, where three of nine configurations collapse. All three are 24 layers, 16 heads. The replication spans a 3.5x parameter gap, two Pile variants, and two hidden dimensions. Six other Pythia depths are healthy. No intermediate values appear.
-
-## What this repo contains
-
-The code, data, and analysis behind [the paper](https://doi.org/10.5281/zenodo.19435674). Every number in the PDF traces to a committed JSON in `results/` through an automated verification pipeline.
-
-```bash
-git clone https://github.com/tmcarmichael/nn-observability
-cd nn-observability
-uv sync                             # or: pip install -e .
-
-uv run pytest tests/ -q             # 410 tests, CPU only, schema + property + smoke
-uv run python analysis/run_all.py   # permutation test, mixed-effects, variance decomposition
-```
-
-## The finding
-
-Half to two-thirds of what standard probes measure is confidence in disguise. Raw probe-loss correlation on GPT-2 124M is +0.55. After controlling for max softmax and activation norm: +0.28 survives. Four hand-designed activation statistics that show strong raw correlation all collapse to near zero under the same controls.
-
-The signal that survives is real, linear, and output-independent. Twenty probe initializations converge to the same direction within 0.001. A nonlinear MLP is statistically equivalent. A 512-unit output predictor absorbs no more than a 64-unit bottleneck. The information exists in the model's hidden layers, and the output layer does not preserve it. Output-independence grows with scale, from 34% at GPT-2 124M to 60% at GPT-2 XL.
-
-Scale does not predict whether the signal is present. Configuration does. At matched 3B scale, Qwen produces +0.263 and Llama produces +0.091, a 2.9x gap with non-overlapping per-probe-seed distributions. Within Llama 3.2, the signal is present at 1B and absent at 3B and 8B. Under Pythia's held-recipe training, both 24-layer, 16-head configurations collapse to ~+0.10, with a third replication on the deduplicated Pile variant. Across 16 cross-family models, family membership explains 92% of the variance at permutation p = 0.006.
-
-## Reproduce a paper number
-
-Every number in the paper traces to a committed JSON through an automated verification pipeline. Pick a claim and verify it:
-
-| Paper claim                                | Value     | Command                                           | Source                                       |
-| ------------------------------------------ | --------- | ------------------------------------------------- | -------------------------------------------- |
-| Cross-family permutation F (family effect) | p = 0.006 | `uv run python analysis/permutation_test.py`      | 13-model scope in `analysis/load_results.py` |
-| Llama 1B partial correlation               | +0.286    | `uv run python analysis/load_results.py`          | `results/llama1b_v3_results.json`            |
-| Exclusive catch rate at 20% flag rate      | 12-15%    | `uv run python analysis/exclusive_catch_rates.py` | `results/transformer_observe.json` key `6a`  |
-
-## The cross-family comparison
-
-| Model        | Family    | Params | pcorr      | OC residual |
-| ------------ | --------- | ------ | ---------- | ----------- |
-| Gemma 3 1B\* | Gemma     | 1B     | +0.388\*   | +0.307      |
-| Mistral 7B   | Mistral   | 7B     | +0.313     | +0.156      |
-| Phi-3 Mini   | Phi       | 3.8B   | +0.300     | +0.144      |
-| GPT-2 XL     | GPT-2     | 1.5B   | +0.290     | +0.174      |
-| Llama 1B     | Llama     | 1.2B   | +0.286     | +0.120      |
-| Qwen 7B      | Qwen      | 7B     | +0.255     | +0.137      |
-| **Llama 3B** | **Llama** | **3B** | **+0.091** | **+0.031**  |
-| **Llama 8B** | **Llama** | **8B** | **+0.093** | **-0.007**  |
-
-Sorted by signal strength. Every row except the bold Llama entries produces observability above +0.19. Gemma 3 1B\* has anomalous representation geometry: a random untrained probe achieves +0.213, so the high score reflects this artifact rather than stronger observability. Within Llama, the signal is present at 1B and absent at 3B and 8B. Same lab, same training pipeline, different architectural configuration.
-
-**pcorr**: partial Spearman correlation between probe scores and per-token loss, controlling for max softmax probability and activation norm. **OC residual**: the additional partial correlation after also controlling for a trained MLP on the last-layer activations. All values are 7-seed means on WikiText-103, evaluated at each model's peak layer with matched token budget per hidden dimension. GPT-2 family uses 3 seeds. The full 13-model table with standard deviations, seed agreement, and random head baselines is in the [paper](https://doi.org/10.5281/zenodo.19435674).
+Both panels use the same protocol, the same token budget per hidden dimension, and the same shaded detection band. Left panel: Llama 3.2 under a cross-recipe split, where 1B preserves the signal and 3B and 8B do not. Right panel: Pythia under held-recipe training, where three of nine configurations collapse, all sharing 24 layers and 16 heads. The replication spans a 3.5x parameter gap, two Pile variants, and two hidden dimensions. No intermediate values appear.
 
 <p align="center">
 <img src="assets/share/oc_vs_pcorr.png" width="80%" alt="Scatter of 25 models showing output-controlled residual on the y-axis against confidence-controlled partial correlation on the x-axis. Bootstrap linear fit slope 0.88, with collapse points near the origin for Llama 3B and 8B and three Pythia (24L, 16H) configurations.">
 </p>
 
-Across 25 models spanning seven families, the output-controlled residual tracks partial correlation with slope 0.88. Collapse points sit near the origin. A monitoring tool that reads the mid-layer signal exposes information not recovered by the tested output-side predictors, and this surplus vanishes at exactly the configurations where the partial correlation collapses.
+25 models, seven families. The x-axis is pcorr (partial Spearman correlation between probe scores and per-token loss, controlling for confidence and activation norm). The y-axis is the output-controlled residual: what remains after also controlling for a trained last-layer predictor. Collapse points cluster near the origin. Where pcorr collapses, the surplus over output-side prediction vanishes with it.
 
-## What the observer does not catch
+## What this repo contains
 
-Three documented boundaries that any deployment should respect.
+The code, data, and analysis behind the paper. Every number in the PDF traces to a committed JSON in `results/` through an automated verification pipeline.
 
-**Fluent factual errors.** TruthfulQA isolates the subset of confidently wrong answers where the model asserts a smooth falsehood. The observer scores at chance on this subset, with AUC 0.499 to 0.568 across three production instruct models. Activation monitoring catches token-level prediction failures, not learned falsehoods.
+```bash
+git clone https://github.com/tmcarmichael/nn-observability
+cd nn-observability
+uv sync                             # or: pip install -e . (requires Python 3.12+)
 
-**Architectures where the signal collapsed.** Llama 3B and 8B, and the Pythia 24-layer, 16-head configurations. On these, the linear probe scores at the detection floor and a held-out-tuned nonlinear probe does not cross it. Whether a deployed model is observable in this sense is a property of the architecture, not of better tooling.
+uv run pytest tests/ -q             # CPU only, schema + property + smoke
+uv run python analysis/run_all.py   # permutation test, mixed-effects, variance decomposition
+```
 
-**Adversarial evasion.** McGuinness et al. (2025) show that activation monitors can be evaded under training pressure. The observer has not been tested against adaptive attacks. PC1 cosine of 0.002 indicates the observer direction is not on a dominant variance axis, but the threat model still applies.
+## Reproduce a paper number
 
-The observer's value is the complementary catch: errors confidence marks correct. Confidence has higher single-signal precision at every flag rate. Use both.
+Pick a claim and verify it:
+
+| Paper claim                                | Value     | Command                                           | Source                                       |
+| ------------------------------------------ | --------- | ------------------------------------------------- | -------------------------------------------- |
+| Cross-family permutation F (family effect) | p = 0.006 | `uv run python analysis/permutation_test.py`      | 13-model scope in `analysis/load_results.py` |
+| Llama 1B partial correlation               | +0.286    | `uv run python analysis/load_results.py`          | `results/llama1b_results.json`               |
+| Exclusive catch rate at 20% flag rate (LM) | 12-15%    | `uv run python analysis/exclusive_catch_rates.py` | `results/transformer_observe.json` key `6a`  |
 
 ## Run it on your model
 
 ```bash
-pip install -e ".[transformer]"   # or: uv sync --extra transformer
+uv sync --extra transformer       # or: pip install -e ".[transformer]"
 
-python scripts/run_model.py \
+uv run python scripts/run_model.py \
   --model Qwen/Qwen2.5-7B \
   --output qwen7b_results.json
 ```
 
 This runs the full protocol: layer sweep, 7-seed evaluation, output-controlled residual, cross-domain transfer, control sensitivity, and flagging analysis. Output is a self-contained JSON with provenance metadata.
 
-To add the result to the analysis scope, validate the JSON and add one line to `analysis/load_results.py`:
-
-```bash
-just validate-results                          # check required fields
-```
-
-```python
-# In analysis/load_results.py, add to the appropriate family list:
-QWEN_MODELS = [
-    ...
-    ("qwen7b_v3_results.json", 7.0, "Qwen 7B"),   # existing
-    ("your_model_results.json", 7.0, "Your 7B"),   # new entry
-]
-```
-
-Then `uv run python analysis/run_all.py` includes the new model in every statistical test. See `analysis/README.md` for the full schema and checklist.
+To add a new model to the analysis scope, see `analysis/README.md`.
 
 ## Repository structure
 
@@ -124,57 +86,32 @@ src/                  Core library (probe, observer, experiment engine)
 scripts/              GPU experiment launchers (run_model.py is the entry point)
 analysis/             CPU statistical analysis (permutation test, mixed-effects, schema validation)
 results/              All result JSONs (committed, reproducible, schema-validated)
-figures/              Shared matplotlib style and save helper
 tests/                Schema, metrics, analysis smoke, probe-sync drift guards
+notebooks/            Walkthrough and per-model run history
+assets/               Paper figures and share-ready PNGs
 ```
-
-Full directory map and script descriptions in `analysis/README.md` and `results/README.md`.
-
-## Using the analysis library
-
-The `analysis` package is the stable public API (v3.x). Install the repo as a package (`uv sync` or `pip install -e .`) and import directly:
-
-```python
-from analysis import load_all_models, load_model_means, family_f_stat, validate_all
-```
-
-Nine exported functions cover data loading, statistical primitives, and schema validation. See `analysis/__init__.py` for the full list with descriptions.
-
-## Where to find what
-
-| I want to                                  | Start here                                                      |
-| ------------------------------------------ | --------------------------------------------------------------- |
-| Read the paper                             | [Zenodo pre-print](https://doi.org/10.5281/zenodo.19435674)     |
-| Run the tests                              | `uv run pytest tests/ -q`                                       |
-| Run the full analysis pipeline             | `uv run python analysis/run_all.py`                             |
-| Reproduce a specific paper number          | "Reproduce a paper number" table above                          |
-| See the raw experimental data              | `results/*.json` (every paper number traces here)               |
-| Walk through the analysis pipeline         | `notebooks/walkthrough_analysis.ipynb` (CPU-only, no GPU)       |
-| Use the analysis library in your own code  | `analysis/__init__.py` (public API, stable across v3.x)         |
-| Add my own model to the cross-family scope | "Run it on your model" section above, then `analysis/README.md` |
-| Understand the result-JSON schema          | `analysis/load_results.py` and `results/README.md`              |
-| Look at how a specific number was produced | `notebooks/README.md` (per-model run history)                   |
 
 ## Citation
 
-Cite the paper and the code separately. Both share a Zenodo concept DOI that resolves to the latest version; pin to a specific version DOI from the [Zenodo record](https://doi.org/10.5281/zenodo.19435674) for reproducibility.
+Cite the [paper](https://arxiv.org/abs/2604.24801) and the [code](https://doi.org/10.5281/zenodo.19435674) separately:
 
 ```bibtex
-@article{carmichael2026observability,
+@misc{carmichael2026observability,
   title={Architecture Determines Observability in Transformers},
   author={Carmichael, Thomas},
   year={2026},
-  journal={Zenodo pre-print},
-  doi={10.5281/zenodo.19435674},
-  url={https://doi.org/10.5281/zenodo.19435674},
-  note={v3.3.0}
+  eprint={2604.24801},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG},
+  doi={10.48550/arXiv.2604.24801},
+  url={https://arxiv.org/abs/2604.24801}
 }
 
 @software{carmichael2026code,
   title={nn-observability: code for ``Architecture Determines Observability in Transformers''},
   author={Carmichael, Thomas},
   year={2026},
-  version={3.3.0},
+  version={3.4.0},
   doi={10.5281/zenodo.19435674},
   url={https://github.com/tmcarmichael/nn-observability}
 }

@@ -63,5 +63,12 @@
     "best_mlp_mean": 0.2679614446071937,
     "delta_mean": 0.0022975664169355516
   },
-  "conclusion": "linear_sufficient"
+  "conclusion": "linear_sufficient",
+  "provenance": {
+    "model_revision": "fcf18a2a",
+    "script": "scripts/nonlinear_probe.py",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
+  }
 }

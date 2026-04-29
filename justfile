@@ -37,15 +37,15 @@ observe-denoise dataset="mnist" seeds=default_seeds epochs=default_epochs device
     uv run src/observe.py --mode denoise --dataset {{dataset}} --epochs {{epochs}} --seeds {{seeds}} --device {{device}}
 
 # Observer head variant sweep (linear vs MLP, regression vs binary)
-observer-variants device=default_device:
+observer-variants:
     uv run src/observer_variants.py
 
 # Cross-seed ranking agreement test
-seed-agreement device=default_device:
+seed-agreement:
     uv run src/seed_agreement.py
 
 # Weight vector analysis for linear binary heads
-inspect-weights device=default_device:
+inspect-weights:
     uv run src/inspect_weights.py
 
 # GPT-2 124M observer heads (direct replication)
@@ -96,25 +96,25 @@ hardening device=default_device:
 control-sensitivity seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --control-sensitivity --seeds {{seeds}} --device {{device}}
 
-# Cross-domain transfer (WikiText → OpenWebText, code)
+# Cross-domain transfer (WikiText to OpenWebText, code)
 cross-domain seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --cross-domain --seeds {{seeds}} --device {{device}}
 
-# Scale characterization across GPT-2 family (124M → 1.5B)
-phase8 seeds=default_seeds device=default_device:
+# Scale characterization across GPT-2 family (124M to 1.5B)
+gpt2-scale seeds=default_seeds device=default_device:
     uv run --extra transformer src/transformer_observe.py --scale --seeds {{seeds}} --device {{device}}
 
 # Cross-family replication: Llama 3.2 1B
-phase9a seeds=default_seeds device=default_device:
-    uv run --extra transformer src/transformer_observe.py --phase9a --seeds {{seeds}} --device {{device}}
+cross-family-llama seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --cross-family-llama --seeds {{seeds}} --device {{device}}
 
 # Cross-family replication: Qwen 2.5 0.5B + 1.5B
-phase9b seeds=default_seeds device=default_device:
-    uv run --extra transformer src/transformer_observe.py --phase9b --seeds {{seeds}} --device {{device}}
+cross-family-qwen seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --cross-family-qwen --seeds {{seeds}} --device {{device}}
 
 # All cross-family experiments (Llama 1B + Qwen 0.5B + Qwen 1.5B)
-phase9 seeds=default_seeds device=default_device:
-    uv run --extra transformer src/transformer_observe.py --phase9 --seeds {{seeds}} --device {{device}}
+cross-family-all seeds=default_seeds device=default_device:
+    uv run --extra transformer src/transformer_observe.py --cross-family-all --seeds {{seeds}} --device {{device}}
 
 # Mechanistic analysis on Qwen 7B (mean-ablation patching at scale)
 mechanistic-7b device=default_device:
@@ -132,8 +132,8 @@ all device=default_device:
 smoke device=default_device:
     uv run src/train.py --dataset mnist --epochs 5 --seeds 1 --device {{device}}
 
-# Smoke test for run_model.py (GPT-2 124M, CPU)
-smoke-gpu:
+# Smoke test for run_model.py pipeline (GPT-2 124M, CPU)
+smoke-pipeline:
     uv run pytest tests/test_smoke_run_model.py -v
 
 # Run metric tests
@@ -149,9 +149,8 @@ validate-results-strict:
     uv run python analysis/load_results.py --strict
 
 # Reproduce predecessor MLP work, GPT-2 scaling, and the cross-family sample
-# (Llama 1B + Qwen 0.5B + Qwen 1.5B). Full v3 paper scope (13 cross-family models,
-# 9 Pythia configurations, 3 downstream tasks) runs via scripts/run_model.py; see
-# `just pythia-suite` below and the per-model commands in notebooks/README.md.
+# (Llama 1B + Qwen 0.5B + Qwen 1.5B). Full paper scope runs via
+# scripts/run_model.py; see `just pythia-suite` and `just downstream-all`.
 # Committed results/*.json are the source of truth.
 reproduce device=default_device:
     just train mnist 3 50 {{device}}
@@ -160,15 +159,16 @@ reproduce device=default_device:
     just observe mnist 3 50 {{device}}
     just observe-aux mnist 3 50 {{device}}
     just observe-denoise mnist 3 50 {{device}}
-    just observer-variants {{device}}
-    just seed-agreement {{device}}
-    just inspect-weights {{device}}
+    just observer-variants
+    just seed-agreement
+    just inspect-weights
     just transformer-all 3 {{device}}
     just sae-compare 3 {{device}}
-    just phase8 3 {{device}}
-    just phase9 3 {{device}}
+    just gpt2-scale 3 {{device}}
+    just cross-family-all 3 {{device}}
 
 # Pythia controlled suite (9 configurations, 70M to 12B plus 1.4B-deduped)
+# Runs sequentially. On failure, rerun individual models with: just pythia model=EleutherAI/pythia-410m
 pythia-suite:
     uv run --extra transformer python scripts/run_model.py --model EleutherAI/pythia-70m --output pythia_70m_results.json
     uv run --extra transformer python scripts/run_model.py --model EleutherAI/pythia-160m --output pythia_160m_results.json
@@ -179,6 +179,16 @@ pythia-suite:
     uv run --extra transformer python scripts/run_model.py --model EleutherAI/pythia-2.8b --output pythia_2.8b_results.json
     uv run --extra transformer python scripts/run_model.py --model EleutherAI/pythia-6.9b --output pythia_6.9b_results.json
     uv run --extra transformer python scripts/run_model.py --model EleutherAI/pythia-12b --output pythia_12b_results.json
+
+# Run a single Pythia model (for reruns after partial failure)
+pythia model output="":
+    #!/usr/bin/env bash
+    out="{{output}}"
+    if [ -z "$out" ]; then
+        slug=$(echo "{{model}}" | sed 's|.*/||')
+        out="${slug}_results.json"
+    fi
+    uv run --extra transformer python scripts/run_model.py --model "{{model}}" --output "$out"
 
 # Downstream QA tasks (3 tasks x 3 instruct models = 9 evaluations)
 # Each trains a WikiText probe then evaluates on the downstream task.
@@ -203,11 +213,11 @@ install-hooks:
 
 # Lint all Python (matches CI scope)
 lint:
-    uv run ruff check src/ scripts/ figures/ analysis/
+    uv run ruff check src/ scripts/ analysis/
 
 # Auto-format all Python
 fmt:
-    uv run ruff format src/ scripts/ figures/ analysis/
+    uv run ruff format src/ scripts/ analysis/
 
 # Type check (analysis API + core library)
 typecheck:
@@ -215,12 +225,12 @@ typecheck:
 
 # Dead code check
 deadcode:
-    uv run vulture src/ analysis/ figures/ scripts/vulture_whitelist.py --min-confidence 90
+    uv run vulture src/ analysis/ scripts/vulture_whitelist.py --min-confidence 90
 
 # Run all checks (lint + format + types + dead code + version + README freshness)
 check:
-    uv run ruff check src/ scripts/ figures/ analysis/
-    uv run ruff format --check src/ scripts/ figures/ analysis/
+    @just lint
+    uv run ruff format --check src/ scripts/ analysis/
     @just typecheck
     @just deadcode
     @just check-version
@@ -278,7 +288,8 @@ bump-readme-versions:
     done
     echo "  READMEs: bumped to ${today} / v${toml_version}"
 
-# Remove generated results and charts
+# Remove build artifacts and caches
 clean:
-    rm -f results/*.json assets/*.png
-    rm -rf src/__pycache__
+    rm -rf src/__pycache__ analysis/__pycache__ tests/__pycache__
+    rm -rf .pytest_cache .ruff_cache .mypy_cache
+    rm -f .coverage coverage.json

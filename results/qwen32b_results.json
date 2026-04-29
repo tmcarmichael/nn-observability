@@ -5,7 +5,15 @@
   "hidden_dim": 5120,
   "protocol": {
     "layer_select_seed": 42,
-    "eval_seeds": [43, 44, 45, 46, 47, 48, 49],
+    "eval_seeds": [
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49
+    ],
     "target_ex_per_dim": 350,
     "batch_size": 16,
     "sweep": "coarse_4_dense_6"
@@ -71,7 +79,11 @@
   },
   "output_controlled": {
     "mean": 0.094,
-    "per_seed": [0.0949, 0.0936, 0.0936]
+    "per_seed": [
+      0.0949,
+      0.0936,
+      0.0936
+    ]
   },
   "control_sensitivity": {
     "none": 0.6356,
@@ -90,5 +102,12 @@
     }
   },
   "seed_agreement": {},
-  "baselines": {}
+  "baselines": {},
+  "provenance": {
+    "model_revision": "1818d358",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
+  }
 }

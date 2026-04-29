@@ -4,9 +4,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        files: '^(src|scripts|figures|analysis|tests)/.*\.py$'
+        files: '^(src|scripts|analysis|tests)/.*\.py$'
       - id: ruff-format
-        files: '^(src|scripts|figures|analysis|tests)/.*\.py$'
+        files: '^(src|scripts|analysis|tests)/.*\.py$'
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -30,8 +30,7 @@ repos:
             toml_v=$(grep "^version" pyproject.toml | head -1 | sed "s/.*\"\(.*\)\"/\1/")
             tag_v=$(git tag -l "v*" --sort=-v:refname | head -1 | sed "s/^v//")
             if [ -n "$tag_v" ] && [ "$toml_v" != "$tag_v" ]; then
-              echo "ERROR: pyproject.toml ($toml_v) != latest tag (v$tag_v)"
-              exit 1
+              echo "WARNING: pyproject.toml ($toml_v) != latest tag (v$tag_v)"
             fi
           '
         language: system

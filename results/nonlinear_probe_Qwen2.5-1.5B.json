@@ -63,5 +63,12 @@
     "best_mlp_mean": 0.32490593090950987,
     "delta_mean": 0.04809790802828456
   },
-  "conclusion": "nonlinear_advantage"
+  "conclusion": "nonlinear_advantage",
+  "provenance": {
+    "model_revision": "8faed761",
+    "script": "scripts/nonlinear_probe.py",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
+  }
 }

@@ -30,13 +30,13 @@ jobs:
         run: uv sync
 
       - name: Ruff check
-        run: uv run ruff check src/ scripts/ figures/ analysis/
+        run: uv run ruff check src/ scripts/ analysis/
 
       - name: Ruff format check
-        run: uv run ruff format --check src/ scripts/ figures/ analysis/
+        run: uv run ruff format --check src/ scripts/ analysis/
 
       - name: Vulture dead code check
-        run: uv run vulture src/ analysis/ figures/ scripts/vulture_whitelist.py --min-confidence 90
+        run: uv run vulture src/ analysis/ scripts/vulture_whitelist.py --min-confidence 90
 
   typecheck:
     runs-on: ubuntu-latest

@@ -171,5 +171,12 @@
     "v1_peak_layer": 19,
     "v1_eval_split": "validation",
     "v1_seeds": 3
+  },
+  "provenance": {
+    "model_revision": "8faed761",
+    "script": "notebooks/",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
   }
 }

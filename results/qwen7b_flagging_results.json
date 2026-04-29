@@ -227,5 +227,12 @@
         "combined_precision": 0.8563973372576826
       }
     }
+  },
+  "provenance": {
+    "model_revision": "d1497293",
+    "script": "notebooks/",
+    "timestamp": "2026-04-12T13:04:08-05:00",
+    "git_commit": "ec37caa2e8b8",
+    "backfilled": true
   }
 }

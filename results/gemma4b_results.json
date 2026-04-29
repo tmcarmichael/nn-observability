@@ -134,7 +134,7 @@
     "per_seed": [
       0.1923
     ],
-    "note": "single test mean from Phase 5"
+    "note": "single test mean"
   },
   "seed_agreement": {
     "mean": 0.8017785934165399

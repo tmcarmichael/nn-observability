@@ -61,5 +61,12 @@
     "standard": 0.25541882098492835,
     "plus_entropy": 0.11347709220647623,
     "nonlinear": 0.24948045142376674
+  },
+  "provenance": {
+    "model_revision": "d1497293",
+    "script": "notebooks/",
+    "timestamp": "2026-04-07T01:32:32-05:00",
+    "git_commit": "f761af1616b7",
+    "backfilled": true
   }
 }

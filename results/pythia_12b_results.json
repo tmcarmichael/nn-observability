@@ -10,7 +10,7 @@
     "device": "cuda",
     "torch_version": "2.8.0+cu128",
     "output_file": "pythia_12b_results.json",
-    "note": "Phase 1-3 (layer_profile, multi_layer_eval, partial_corr, seed_agreement) reproduced from pythia_12b_checkpoint.json (run_model.py, batch_size=24, bf16 forward, use_cache=False). Phase 4-5 plus C4 cross-domain collected by this backfill script with bf16 CPU activation storage to fit pod memory."
+    "note": "layer_profile, multi_layer_eval, partial_corr, seed_agreement reproduced from pythia_12b_checkpoint.json (run_model.py, batch_size=24, bf16 forward, use_cache=False). Remaining fields collected by backfill script with bf16 CPU activation storage."
   },
   "protocol": {
     "layer_select_seed": 42,

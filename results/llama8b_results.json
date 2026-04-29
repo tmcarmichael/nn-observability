@@ -118,7 +118,7 @@
     "per_seed": [
       0.0821
     ],
-    "note": "single test mean from Phase 5"
+    "note": "single test mean"
   },
   "seed_agreement": {
     "mean": 0.9940248818682788
@@ -137,5 +137,12 @@
     "act_entropy": -0.0328,
     "activation_norm": -0.0014,
     "random_head": 0.0046
+  },
+  "provenance": {
+    "model_revision": "d04e592b",
+    "script": "scripts/run_model.py",
+    "timestamp": "2026-04-14T18:26:32-05:00",
+    "git_commit": "9b6f3898382e",
+    "backfilled": true
   }
 }
