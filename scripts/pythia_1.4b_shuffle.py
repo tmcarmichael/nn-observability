@@ -266,20 +266,22 @@ def _get_layer_list(model):
 
 
 def main():
-    # Peak layer + real rho come from the existing Pythia 1.4B result.
-    # Hardcoded for pod portability; falls back to reading the JSON if present.
-    PEAK = 17
-    HIDDEN = 2048
-    REAL_RHO = 0.10619
-    if RESULTS_PATH.exists():
-        prev = json.load(open(RESULTS_PATH))
-        PEAK = int(prev["peak_layer_final"])
-        HIDDEN = int(prev["hidden_dim"])
-        REAL_RHO = float(prev["partial_corr"]["mean"])
-        print(f"Loaded reference values from {RESULTS_PATH.name}")
-    else:
-        print(f"Using hardcoded reference values (no {RESULTS_PATH.name} on pod)")
+    # Peak layer, hidden dim, and reference rho come from the committed
+    # Pythia 1.4B main result. No hardcoded fallback: those values mirror
+    # paper-cited data and would silently drift if the canonical result is
+    # ever re-run with updated values.
+    if not RESULTS_PATH.exists():
+        sys.exit(
+            f"Reference result missing: {RESULTS_PATH}. "
+            f"Run `just run-model EleutherAI/pythia-1.4b` first to produce "
+            f"the canonical Pythia 1.4B main JSON before this shuffle test."
+        )
+    prev = json.load(open(RESULTS_PATH))
+    PEAK = int(prev["peak_layer_final"])
+    HIDDEN = int(prev["hidden_dim"])
+    REAL_RHO = float(prev["partial_corr"]["mean"])
     MAX_TRAIN = EX_DIM * HIDDEN
+    print(f"Loaded reference values from {RESULTS_PATH.name}")
     print(f"Pythia 1.4B: peak=L{PEAK}, real_rho={REAL_RHO:+.4f}, MAX_TRAIN={MAX_TRAIN}")
 
     from transformers import AutoModelForCausalLM, AutoTokenizer

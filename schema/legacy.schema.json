@@ -7,7 +7,10 @@
   "required": ["provenance"],
   "additionalProperties": true,
   "properties": {
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

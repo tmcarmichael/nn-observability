@@ -1465,7 +1465,7 @@ wheels = [
 
 [[package]]
 name = "nn-observability"
-version = "4.0.1"
+version = "5.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },

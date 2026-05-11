@@ -197,11 +197,14 @@ QWEN_MODELS = [
 ]
 
 LLAMA_MODELS = [
+    ("llama-3.2-1b_main.json", 1.0, "Llama-1B"),
     ("llama-3.2-3b_main.json", 3.0, "Llama-3B"),
+    ("llama-3.1-8b_main.json", 8.0, "Llama-8B"),
 ]
 
 GEMMA_MODELS = [
     ("gemma-3-1b_main.json", 1.0, "Gemma-1B"),
+    ("gemma-3-4b_main.json", 4.0, "Gemma-4B"),
 ]
 
 MISTRAL_MODELS = [
@@ -262,10 +265,34 @@ _PYTHIA_CONTROLLED_9 = frozenset(
         "Pythia-12B",
     }
 )
+# Confidence-absorption headline cohort. Differs from _CROSS_FAMILY_14: one
+# GPT-2 size (124M) rather than four, all evaluated Llama sizes, both Gemma
+# sizes. This is the scope behind the paper's cross-family confidence-
+# absorption headline; the canonical value lives in
+# reports/paper_values.json under the confabsorbmean macro.
+_ABSORPTION_COHORT_14 = frozenset(
+    {
+        "GPT2-124M",
+        "Qwen-0.5B",
+        "Qwen-1.5B",
+        "Qwen-3B",
+        "Qwen-7B",
+        "Qwen-14B",
+        "Qwen-32B",
+        "Llama-1B",
+        "Llama-3B",
+        "Llama-8B",
+        "Gemma-1B",
+        "Gemma-4B",
+        "Mistral-7B",
+        "Phi-3-Mini",
+    }
+)
 
 SCOPES: dict[str, frozenset[str] | None] = {
     "cross_family_14": _CROSS_FAMILY_14,
     "control_sensitivity_14": _CROSS_FAMILY_14,
+    "absorption_cohort_14": _ABSORPTION_COHORT_14,
     "pythia_controlled_9": _PYTHIA_CONTROLLED_9,
     "all": None,
 }
@@ -510,8 +537,8 @@ def validate_all(strict: bool = False) -> int:
 
 CANONICAL_PROVENANCE_FIELDS = ("model_revision", "script", "timestamp", "value_source", "device")
 CANONICAL_VALUE_SOURCE = {"runtime", "post_hoc_deterministic"}
-# Paper-cited committed results are 100% CUDA. MPS and CPU runs are for
-# local development only and do not ship.
+# Paper-cited committed results require CUDA. MPS and CPU runs are
+# accepted for local development only and are excluded from committed results.
 CANONICAL_DEVICE = {"cuda"}
 NON_RESULT_FILES = {
     "model_revisions.json",  # HF model revision registry, not a result

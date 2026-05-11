@@ -18,20 +18,56 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "n_params_b": {"type": "number", "minimum": 0},
-    "hidden_dim": {"type": "integer", "minimum": 1},
-    "peak_layer": {"type": "integer", "minimum": 0},
-    "output_layer": {"type": "integer", "minimum": 0},
-    "widths": {"type": "array", "items": {"type": "integer", "minimum": 1}, "minItems": 1},
-    "eval_seeds": {"type": "array", "items": {"type": "integer"}, "minItems": 1},
-    "target_ex_per_dim": {"type": "integer", "minimum": 1},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
+    "n_params_b": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Parameter count in billions."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
+    "peak_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Mid-layer probe site under test."
+    },
+    "output_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Output-side layer used for the controlled MLP predictor."
+    },
+    "widths": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 1},
+      "minItems": 1,
+      "description": "Sweep grid of output-side MLP hidden widths (e.g. 64, 128, 256, 512)."
+    },
+    "eval_seeds": {
+      "type": "array",
+      "items": {"type": "integer"},
+      "minItems": 1,
+      "description": "Probe-training seeds used for cross-seed averaging."
+    },
+    "target_ex_per_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Tokens-per-feature-dim ratio for the probe fit."
+    },
     "results": {
       "type": "object",
       "description": "Per-width residual partial correlation summary.",
       "additionalProperties": true
     },
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

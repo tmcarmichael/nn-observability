@@ -86,7 +86,7 @@ def test_exact_model_count():
     QWEN_MODELS) or additions trip this test.
     """
     models = load_all_models()
-    expected_count = 23
+    expected_count = 26
     assert len(models) == expected_count, f"Got {len(models)} models, expected {expected_count}"
 
 
@@ -131,6 +131,24 @@ EXPECTED_SCOPE_MEMBERSHIP = {
             "Qwen-32B",
             "Llama-3B",
             "Gemma-1B",
+            "Mistral-7B",
+            "Phi-3-Mini",
+        }
+    ),
+    "absorption_cohort_14": frozenset(
+        {
+            "GPT2-124M",
+            "Qwen-0.5B",
+            "Qwen-1.5B",
+            "Qwen-3B",
+            "Qwen-7B",
+            "Qwen-14B",
+            "Qwen-32B",
+            "Llama-1B",
+            "Llama-3B",
+            "Llama-8B",
+            "Gemma-1B",
+            "Gemma-4B",
             "Mistral-7B",
             "Phi-3-Mini",
         }

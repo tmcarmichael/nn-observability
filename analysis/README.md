@@ -17,14 +17,15 @@ Each headline number in the paper applies to a specific subset of models. Pass `
 | Scope | Models | Reproduces |
 |---|---|---|
 | `cross_family_14` | 4 GPT-2, 6 Qwen (0.5B-32B), Llama-3B, Gemma-1B, Mistral-7B, Phi-3 Mini | Section 5 cross-family permutation test |
-| `control_sensitivity_14` | same 14 (alias) | confidence-control absorption headline |
+| `control_sensitivity_14` | same 14 (alias for `cross_family_14`) | legacy alias; retained for backward compatibility |
+| `absorption_cohort_14` | GPT2-124M, 4 Qwen sizes (0.5B-7B) + 14B + 32B, 3 Llama (1B/3B/8B), 2 Gemma (1B/4B), Mistral-7B, Phi-3 Mini | confidence-control absorption headline |
 | `pythia_controlled_9` | the 9 Pythia base configurations | Pythia controlled-suite within-recipe results |
 | `all` | every model in every family list (no filter) | Equivalent to omitting `--scope` |
 
 Headline-driving scripts default to the paper scope:
 
 - `permutation_test.py` defaults to `cross_family_14`
-- `selectivity.py` defaults to `control_sensitivity_14`
+- `selectivity.py` defaults to `absorption_cohort_14`
 
 Other scripts default to no scope (all loaded), since they are supplementary or figure-side. Pass `--scope` explicitly to those when reproducing a paper-table number that uses a specific subset.
 

@@ -1,16 +1,17 @@
 cff-version: 1.2.0
-title: "Architectural Observability Collapse in Transformers"
+title: "Architecture Determines Observability of Transformers"
 message: "If you use this work, please cite it using the metadata from this file."
 type: software
 authors:
   - family-names: Carmichael
     given-names: Thomas
-version: "4.0.1"
-date-released: "2026-05-05"
+    orcid: "https://orcid.org/0009-0001-3436-1010"
+version: "5.0.0"
+date-released: "2026-05-10"
 license: MIT
 doi: "10.5281/zenodo.19435674"
 repository-code: "https://github.com/tmcarmichael/nn-observability"
-abstract: "Autoregressive transformers make confident errors, but activation monitoring can catch them only if training preserves an internal decision-quality signal that output confidence does not expose. Monitorability is an architectural property before it is a monitor-design problem. We measure this via observability: the linear readability of per-token decision quality from frozen mid-layer activations after controlling for max-softmax confidence and activation norm. Confidence controls absorb on average 60.3% of raw probe signal across 14 models in 6 families. Observability is not a generic property of transformers. In Pythia's controlled suite, every tested run with the 24-layer, 16-head configuration collapses to pcorr approximately 0.10 across a 3.5x parameter gap and two Pile variants, while six other configurations occupy a separated healthy band from 0.21 to 0.38. The output-controlled residual collapses at the same points, and neither tested nonlinear probes nor layer sweeps recover healthy-range signal. Checkpoint dynamics show the collapse is emergent during training. At matched hidden dimension, both 1B and 1.4B form the signal at the earliest measured checkpoint. Training erases the signal in 1.4B even as it reaches lower final loss than 1B. Across independent recipes the collapse map changes but the phenomenon persists. Qwen 2.5 and Llama differ by 2.9x at matched 3B scale with probe seed distributions that do not overlap, while Mistral 7B v0.3 preserves observability where Llama 3.1 8B collapses despite similar broad architecture. Within Qwen 2.5, observability persists from 0.5B through 32B. A WikiText-trained observer transfers to downstream QA without training on those tasks, catching errors confidence misses. At 20% flag rate, exclusive catch reaches 10.9-13.4% of all errors on most downstream model-task cells, near the 12-15% language-modeling ceiling. Architecture selection is a monitoring decision."
+abstract: "Activation monitors catch high-confidence errors in autoregressive transformers only when training preserves decision-quality information that output confidence does not expose. Monitorability is therefore an architectural property before it is a monitor-design problem. We make this property measurable by defining observability: the confidence-controlled linear readability of per-token decision quality from frozen mid-layer activations. An output-controlled residual then tests whether this signal survives what a trained predictor on the final-layer representation can recover. Across the model suite, controlling for confidence removes 60.3% of raw probe signal, so raw probes substantially overstate what activations reveal beyond output confidence. In Pythia's controlled suite, the 24-layer, 16-head class shows observability collapse: pcorr falls to the detection floor and the output-controlled residual falls with it, while other configurations preserve both. Checkpoint dynamics show this is training-emergent erasure: the signal forms early, then training removes it from linearly readable form while perplexity improves. Across independent recipes, collapse points change, but the preservation-versus-collapse pattern recurs. Without task-specific training, a WikiText-trained probe transfers to downstream QA, catching about one in eight errors missed by output-confidence monitoring at a 20% flag rate. Deliberate signal engineering at training time becomes a new axis alongside loss and capability. Architecture selection is a monitoring decision."
 keywords:
   - neural network observability
   - transformer interpretability

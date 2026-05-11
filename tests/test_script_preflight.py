@@ -18,6 +18,14 @@ PINNED_DATASETS = {
     "rajpurkar/squad_v2",
     "GBaker/MedQA-USMLE-4-options",
     "truthfulqa/truthful_qa",
+    # Cross-domain datasets pinned end-to-end via revision= in
+    # src/transformer_observe.py and scripts/controlled_*.py. These producers
+    # are not in SCRIPTS_REQUIRING_PREFLIGHT (controlled-training jobs run
+    # separately from the canonical paper protocol), so the per-script
+    # preflight check does not run on them; the drift test below still
+    # enforces this set equals the manifest keys.
+    "Skylion007/openwebtext",
+    "code_search_net",
 }
 
 # Datasets a paper-cited script may load without a manifest entry. Empty by

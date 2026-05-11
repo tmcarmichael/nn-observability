@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -38,7 +39,8 @@ def load_wikitext(split="test", max_docs=None):
         revision=DATASET_REVISIONS["Salesforce/wikitext"]["commit"],
         streaming=bool(max_docs),
     )
-    docs, current = [], []
+    docs: list[str] = []
+    current: list[str] = []
     for row in ds:
         text = row["text"]
         if text.strip() == "" and current:
@@ -131,8 +133,8 @@ def collect_multi_layer_fast(model, batches, layers, max_tokens, device, sm_chun
 
         handles.append(layer_modules[layer].register_forward_hook(make_hook(layer)))
 
-    per_layer_acts = {l: [] for l in layers}
-    per_layer_norms = {l: [] for l in layers}
+    per_layer_acts: dict[int, list] = {l: [] for l in layers}
+    per_layer_norms: dict[int, list] = {l: [] for l in layers}
     all_losses, all_sm, all_ent = [], [], []
     total = 0
 
@@ -403,7 +405,16 @@ if args.trust_remote_code:
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=args.trust_remote_code, **_rev_kw)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
-model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **load_kwargs).to(DEVICE)
+# transformers' AutoModel factory has incomplete stubs; the str-as-first-arg path is correct at runtime.
+try:
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **load_kwargs).to(DEVICE)  # type: ignore[arg-type]
+except torch.cuda.OutOfMemoryError as e:
+    free_b, total_b = torch.cuda.mem_get_info() if DEVICE == "cuda" else (0, 0)
+    raise RuntimeError(
+        f"CUDA OOM loading {MODEL_ID} on {DEVICE} "
+        f"(free {free_b / 1e9:.1f}GB / total {total_b / 1e9:.1f}GB, dtype={load_kwargs.get('dtype')}). "
+        f"Use a larger GPU or a smaller model."
+    ) from e
 model.eval()
 
 # Capture model revision for provenance
@@ -475,12 +486,12 @@ for chunk in layer_chunks:
     if DEVICE == "cuda":
         torch.cuda.empty_cache()
 
-peak_layer = max(layer_profile, key=layer_profile.get)
+peak_layer = max(layer_profile, key=layer_profile.get)  # type: ignore[arg-type]
 output_layer = N_LAYERS - 1
 if peak_layer >= output_layer - 1:
     mid = {l: r for l, r in layer_profile.items() if l <= int(0.8 * N_LAYERS)}
     if mid:
-        peak_layer = max(mid, key=mid.get)
+        peak_layer = max(mid, key=mid.get)  # type: ignore[arg-type]
 candidates = sorted(
     [
         l
@@ -549,7 +560,7 @@ for layer in candidates:
     }
     print(f"  L{layer}: {np.mean(seed_rhos):+.4f} +/- {np.std(seed_rhos):.4f}  agree={np.mean(pw):.4f}")
 
-FINAL = max(layer_eval, key=lambda l: layer_eval[l]["mean"])
+FINAL = max(layer_eval, key=lambda l: layer_eval[l]["mean"])  # type: ignore[arg-type,return-value]
 ev = layer_eval[FINAL]
 wiki_train_peak = train_cache[FINAL]
 wiki_val_peak = val_cache[FINAL]
@@ -806,7 +817,7 @@ for seed in EVAL_SEEDS[:3]:
     with torch.inference_mode():
         osc = h(fa).squeeze(-1).numpy()
     osc_sorted = np.sort(osc)
-    sr = {"observer": {}, "confidence": {}, "exclusive": {}}
+    sr: dict[str, dict[str, Any]] = {"observer": {}, "confidence": {}, "exclusive": {}}
     for rate in fr:
         k = int(nf * rate)
         of = osc >= osc_sorted[-k]

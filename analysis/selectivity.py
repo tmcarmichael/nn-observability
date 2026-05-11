@@ -19,12 +19,14 @@ from analysis.load_results import (
 )
 
 
-def analyze_selectivity(scope: str | None = "control_sensitivity_14") -> None:
+def analyze_selectivity(scope: str | None = "absorption_cohort_14") -> None:
     """Print random-head baselines and the per-model raw-vs-controlled gap.
 
     Args:
-        scope: named model scope from `SCOPES` (default 'control_sensitivity_14'
-            reproduces the paper's 57.7% confidence-absorption headline).
+        scope: named model scope from `SCOPES` (default 'absorption_cohort_14'
+            reproduces the paper's confidence-absorption headline; the
+            canonical value lives in reports/paper_values.json under the
+            'confabsorbmean' macro).
     """
     load_all_models(verbose=True, scope=scope)
     print()
@@ -107,9 +109,12 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--scope",
-        default="control_sensitivity_14",
+        default="absorption_cohort_14",
         choices=sorted(SCOPES),
-        help="Named model scope (default: %(default)s, reproduces paper 57.7% headline).",
+        help=(
+            "Named model scope (default: %(default)s, reproduces the paper's "
+            "confidence-absorption headline; see reports/paper_values.json:confabsorbmean)."
+        ),
     )
     args = p.parse_args()
     analyze_selectivity(scope=args.scope)

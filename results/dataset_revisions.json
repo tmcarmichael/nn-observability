@@ -1,31 +1,59 @@
 {
-  "description": "Hugging Face dataset IDs, configs, URLs, and commit hashes for all paper-cited eval data. Producer scripts pin via the revision= argument to load_dataset.",
-  "retrieved": "2026-05-03",
+  "description": "Hugging Face dataset IDs, configs, URLs, commit hashes, and license attribution for all paper-cited eval data. All seven entries are pinned end-to-end across the canonical paper-result CUDA producer scripts that generated the committed result JSONs: those scripts read this manifest and pass the recorded `commit` via the `revision=` argument to `load_dataset`. `tests/test_script_preflight.py` enforces this for the `SCRIPTS_REQUIRING_PREFLIGHT` list (paper-result producers). Local-dev MPS scripts and from-scratch trainer scripts are intentionally exempt from preflight and are not covered by the pinning test. Per-dataset `license` mirrors DATA.md.",
+  "retrieved": "2026-05-09",
   "datasets": {
     "Salesforce/wikitext": {
       "config": "wikitext-103-raw-v1",
       "url": "https://huggingface.co/datasets/Salesforce/wikitext",
-      "commit": "b08601e04326c79dfdd32d625aee71d232d685c3"
+      "commit": "b08601e04326c79dfdd32d625aee71d232d685c3",
+      "license": "CC-BY-SA-3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "notes": "Hugging Face card declares dual license: cc-by-sa-3.0 and GFDL (https://www.gnu.org/licenses/fdl-1.3.html), reflecting Wikipedia's source-content licensing prior to its June 2023 migration to CC BY-SA 4.0. WikiText-103 (Merity et al. 2016) was scraped before that migration, so the source content is governed by CC BY-SA 3.0 + GFDL."
     },
     "allenai/c4": {
       "config": "en",
       "url": "https://huggingface.co/datasets/allenai/c4",
-      "commit": "1588ec454efa1a09f29cd18ddd04fe05fc8653a2"
+      "commit": "1588ec454efa1a09f29cd18ddd04fe05fc8653a2",
+      "license": "ODC-BY-1.0",
+      "license_url": "https://opendatacommons.org/licenses/by/1-0/"
     },
     "rajpurkar/squad_v2": {
       "config": null,
       "url": "https://huggingface.co/datasets/rajpurkar/squad_v2",
-      "commit": "3ffb306f725f7d2ce8394bc1873b24868140c412"
+      "commit": "3ffb306f725f7d2ce8394bc1873b24868140c412",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
     },
     "GBaker/MedQA-USMLE-4-options": {
       "config": null,
       "url": "https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options",
-      "commit": "0fb93dd23a7339b6dcd27e241cb9b5eca62d4d18"
+      "commit": "0fb93dd23a7339b6dcd27e241cb9b5eca62d4d18",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/"
     },
     "truthfulqa/truthful_qa": {
       "config": "multiple_choice",
       "url": "https://huggingface.co/datasets/truthfulqa/truthful_qa",
-      "commit": "741b8276f2d1982aa3d5b832d3ee81ed3b896490"
+      "commit": "741b8276f2d1982aa3d5b832d3ee81ed3b896490",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "Skylion007/openwebtext": {
+      "config": null,
+      "url": "https://huggingface.co/datasets/Skylion007/openwebtext",
+      "commit": "b4325f019c648b1641a1784748667e8b74e5e064",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "aliases": ["openwebtext"],
+      "notes": "Legacy `openwebtext` id is a Hugging Face redirect to this canonical id; both resolve to the same SHA. Producer scripts pass revision= via this manifest."
+    },
+    "code_search_net": {
+      "config": "python",
+      "url": "https://huggingface.co/datasets/code_search_net",
+      "commit": "bd0cf261e357a3eb5c8fba490d23ec1a1cd59555",
+      "license": "other",
+      "license_url": "https://github.com/github/CodeSearchNet/blob/master/LICENSE",
+      "notes": "Hugging Face card declares license: other. The MIT license at the license_url covers the upstream CodeSearchNet curation tool (https://github.com/github/CodeSearchNet); the constituent function bodies are scraped from many GitHub repositories with heterogeneous original licenses (predominantly MIT, Apache 2.0, BSD, with smaller fractions of other licenses). Loaded with trust_remote_code=True; revision pinning covers the upstream loader script as well as the data."
     }
   }
 }

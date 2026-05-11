@@ -25,14 +25,28 @@
       "type": "string",
       "description": "Hugging Face model identifier (org/name)."
     },
-    "n_params_b": {"type": "number", "minimum": 0},
-    "n_layers": {"type": "integer", "minimum": 1},
-    "hidden_dim": {"type": "integer", "minimum": 1},
+    "n_params_b": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Parameter count in billions."
+    },
+    "n_layers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Transformer depth (number of decoder blocks)."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
     "provenance": {
-      "$ref": "#/$defs/provenance"
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
     },
     "protocol": {
       "type": "object",
+      "description": "Probe protocol parameters: seeds, target tokens-per-feature-dim ratio, batch and layer-pass shapes.",
       "required": ["target_ex_per_dim", "eval_seeds"],
       "properties": {
         "layer_select_seed": {"type": "integer"},
@@ -57,7 +71,12 @@
       "minimum": 0,
       "description": "Peak layer index (legacy field name; equivalent to peak_layer_final)."
     },
-    "peak_layer_frac": {"type": "number", "minimum": 0, "maximum": 1},
+    "peak_layer_frac": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Peak layer index expressed as fraction of total depth."
+    },
     "layer_profile": {
       "type": "object",
       "description": "Per-layer pcorr; keys are stringified layer indices.",
@@ -85,6 +104,7 @@
     },
     "test_split_comparison": {
       "type": "object",
+      "description": "Held-out test-split partial Spearman across seeds (held-in/held-out generalization check).",
       "properties": {
         "mean": {"type": "number"},
         "per_seed": {"type": "array", "items": {"type": "number"}}
@@ -92,6 +112,7 @@
     },
     "seed_agreement": {
       "type": "object",
+      "description": "Mean rank-correlation between probe predictions across seeds at the peak layer.",
       "properties": {"mean": {"type": "number", "minimum": -1, "maximum": 1}}
     },
     "output_controlled": {

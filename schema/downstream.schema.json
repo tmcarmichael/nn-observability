@@ -19,18 +19,51 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
     "task": {
       "type": "string",
+      "description": "Downstream task family: SQuAD-style RAG QA, MedQA selective prediction, or TruthfulQA hallucination.",
       "enum": ["rag_hallucination", "medqa_selective_prediction", "truthfulqa_hallucination"]
     },
-    "dataset": {"type": "string"},
-    "peak_layer": {"type": "integer", "minimum": 0},
-    "n_questions": {"type": "integer", "minimum": 1},
-    "n_errors": {"type": "integer", "minimum": 0},
-    "accuracy": {"type": "number", "minimum": 0, "maximum": 1},
-    "probe_seeds": {"type": "array", "items": {"type": "integer"}, "minItems": 1},
-    "protocol": {"type": "object", "additionalProperties": true},
+    "dataset": {
+      "type": "string",
+      "description": "Hugging Face dataset identifier evaluated on this task."
+    },
+    "peak_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Probe layer index sourced from the WikiText-trained main run."
+    },
+    "n_questions": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of evaluation items scored on this task."
+    },
+    "n_errors": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of evaluation items the model got wrong (denominator for exclusive-catch metrics)."
+    },
+    "accuracy": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of evaluation items the model got correct."
+    },
+    "probe_seeds": {
+      "type": "array",
+      "items": {"type": "integer"},
+      "minItems": 1,
+      "description": "Probe-training seeds used for cross-seed averaging on the downstream cell."
+    },
+    "protocol": {
+      "type": "object",
+      "description": "Per-task protocol parameters (prompt format, grading rules, target counts).",
+      "additionalProperties": true
+    },
     "per_question": {
       "type": "array",
       "description": "Per-question evaluation records. Length and field set vary by task; not all runs persist all questions.",
@@ -41,17 +74,38 @@
       "description": "Heterogeneous map: rate-keyed buckets (e.g. '0.05', '0.1') hold object summaries; scalar metric keys (e.g. 'observer_auacc', 'confidence_auacc') hold numbers. RAG and MedQA only.",
       "additionalProperties": true
     },
-    "summary": {"type": "object", "additionalProperties": true},
+    "summary": {
+      "type": "object",
+      "description": "Top-line metrics: AUC of accuracy-on-coverage curves, exclusive-catch counts, observer-vs-confidence comparison.",
+      "additionalProperties": true
+    },
     "quadrant": {
       "type": "object",
       "description": "TruthfulQA confident-correct/wrong/abstain quadrant counts.",
       "additionalProperties": true
     },
-    "standard_catches": {"type": "object", "additionalProperties": true},
-    "confident_hallucination_catches": {"type": "object", "additionalProperties": true},
-    "confidence_threshold": {"type": "number"},
-    "grading": {"type": "string"},
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "standard_catches": {
+      "type": "object",
+      "description": "Confidence-based baseline catch counts at fixed flag rates (TruthfulQA).",
+      "additionalProperties": true
+    },
+    "confident_hallucination_catches": {
+      "type": "object",
+      "description": "Observer-based catch counts on items the model answered confidently and incorrectly (TruthfulQA).",
+      "additionalProperties": true
+    },
+    "confidence_threshold": {
+      "type": "number",
+      "description": "Softmax threshold above which an answer is considered confident (TruthfulQA grading)."
+    },
+    "grading": {
+      "type": "string",
+      "description": "Grading protocol descriptor (e.g., MC1 single-correct format with normalized substring match)."
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

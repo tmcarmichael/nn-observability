@@ -1,7 +1,7 @@
 [project]
 name = "nn-observability"
-version = "4.0.1"
-description = "Whether activation monitoring can catch high-confidence transformer errors depends on architecture: some configurations preserve a linearly readable signal after controlling for output confidence, while others collapse. Code and data for 26 models across 7 families."
+version = "5.0.0"
+description = "Architecture and training recipe determine whether activation monitoring can catch high-confidence transformer errors: training preserves a linearly readable signal in some configurations and erases it in others. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]
@@ -130,6 +130,11 @@ check_untyped_defs = true
 warn_return_any = true
 warn_unused_configs = true
 
+# train.py is the FF-vs-BP comparison module. Several mypy errors against
+# it (DataLoader kwarg unpacking, BPNet/FFNet variant reassignment, None
+# narrowing) require assertion-based narrowing that would shift runtime
+# semantics. The module is exempt from type checking to preserve numerical
+# behavior committed in result JSONs.
 [[tool.mypy.overrides]]
 module = "train"
 ignore_errors = true

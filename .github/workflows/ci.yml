@@ -49,6 +49,24 @@ jobs:
             exit 1
           fi
 
+      - name: Croissant generator diff
+        run: uv run python scripts/generate_croissant.py --check
+
+      - name: Croissant JSON-LD validation
+        run: uvx --quiet --from "mlcroissant==1.1.0" mlcroissant validate --jsonld croissant.json
+
+      - name: Croissant Dataset round-trip
+        run: |
+          uvx --quiet --from "mlcroissant==1.1.0" python -c '
+          from mlcroissant import Dataset
+          ds = Dataset(jsonld="croissant.json")
+          rs = list(ds.metadata.record_sets)
+          assert rs, "no record sets parsed from croissant.json"
+          ids = [r.id for r in rs]
+          assert "main-results-records" in ids, f"main-results-records missing; got {ids}"
+          print(f"Round-trip OK: {ds.metadata.name} v{ds.metadata.version}, {len(rs)} record sets")
+          '
+
   typecheck:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -65,7 +83,7 @@ jobs:
         run: uv sync
 
       - name: Type check
-        run: uv run mypy analysis/ src/observe.py src/probe.py src/utils.py --ignore-missing-imports
+        run: uv run mypy analysis/ src/observe.py src/probe.py src/utils.py scripts/run_model.py scripts/verify_manifest_revisions.py --ignore-missing-imports
 
   test:
     runs-on: ubuntu-latest
@@ -99,3 +117,27 @@ jobs:
             exit 1
           fi
           echo "Version: $TOML_V (matches tag)"
+
+  manifest-verify:
+    # Verifies every commit hash in results/model_revisions.json still
+    # resolves on Hugging Face. Public repos are checked unauthenticated;
+    # gated repos (Llama, Mistral) return "gated_no_access" without an
+    # HF_TOKEN secret and are not counted as failures by the script.
+    # A failure here means a manifest entry has drifted (repo deleted,
+    # commit garbage-collected, or revision rewritten).
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies (transformer extra for huggingface_hub)
+        run: uv sync --extra transformer
+
+      - name: Verify manifest revisions
+        run: uv run python scripts/verify_manifest_revisions.py

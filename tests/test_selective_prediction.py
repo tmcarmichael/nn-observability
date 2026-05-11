@@ -97,7 +97,7 @@ class TestBuildCoverageCurves:
         for strategy in ["observer_mean", "confidence_mean", "combined"]:
             auacc = curves[strategy]["auacc"]
             # AUACC is an integral of accuracy over coverage levels.
-            # On synthetic data, observer ordering can be adversarial (negative AUACC).
+            # On synthetic data, observer ordering can be uninformative, producing negative AUACC.
             # Confidence and combined should be non-negative on reasonable data.
             assert isinstance(auacc, float), f"{strategy} AUACC not a float: {auacc}"
 

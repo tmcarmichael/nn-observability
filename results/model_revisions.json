@@ -1,138 +1,204 @@
 {
-  "description": "Hugging Face model IDs, URLs, and commit hashes for all results.",
+  "description": "Hugging Face model IDs, URLs, commit hashes, and license attribution for all evaluated models. Per-model `license` mirrors MODELS.md; license_url points to the upstream license text. Llama 3.2 Community License and Gemma license are custom and restrictive; the other five families ship under MIT or Apache 2.0.",
   "retrieved": "2026-04-21",
   "models": {
     "openai-community/gpt2": {
       "url": "https://huggingface.co/openai-community/gpt2",
-      "commit": "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+      "commit": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "license": "MIT",
+      "license_url": "https://opensource.org/licenses/MIT"
     },
     "openai-community/gpt2-medium": {
       "url": "https://huggingface.co/openai-community/gpt2-medium",
-      "commit": "6dcaa7a952f72f9298047fd5137cd6e4f05f41da"
+      "commit": "6dcaa7a952f72f9298047fd5137cd6e4f05f41da",
+      "license": "MIT",
+      "license_url": "https://opensource.org/licenses/MIT"
     },
     "openai-community/gpt2-large": {
       "url": "https://huggingface.co/openai-community/gpt2-large",
-      "commit": "32b71b12589c2f8d625668d2335a01cac3249519"
+      "commit": "32b71b12589c2f8d625668d2335a01cac3249519",
+      "license": "MIT",
+      "license_url": "https://opensource.org/licenses/MIT"
     },
     "openai-community/gpt2-xl": {
       "url": "https://huggingface.co/openai-community/gpt2-xl",
-      "commit": "15ea56dee5df4983c59b2538573817e1667135e2"
+      "commit": "15ea56dee5df4983c59b2538573817e1667135e2",
+      "license": "MIT",
+      "license_url": "https://opensource.org/licenses/MIT"
     },
     "Qwen/Qwen2.5-0.5B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B",
-      "commit": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+      "commit": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-1.5B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B",
-      "commit": "8faed761d45a263340a0528343f099c05c9a4323"
+      "commit": "8faed761d45a263340a0528343f099c05c9a4323",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-3B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-3B",
-      "commit": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b"
+      "commit": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+      "license": "qwen-research",
+      "license_url": "https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/LICENSE"
     },
     "Qwen/Qwen2.5-7B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-7B",
-      "commit": "d149729398750b98c0af14eb82c78cfe92750796"
+      "commit": "d149729398750b98c0af14eb82c78cfe92750796",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-7B-Instruct": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
-      "commit": "a09a35458c702b33eeacc393d103063234e8bc28"
+      "commit": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-14B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-14B",
-      "commit": "97e1e76335b7017d8f67c08a19d103c0504298c9"
+      "commit": "97e1e76335b7017d8f67c08a19d103c0504298c9",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-14B-Instruct": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
-      "commit": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8"
+      "commit": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-32B": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-32B",
-      "commit": "1818d35814b8319459f4bd55ed1ac8709630f003"
+      "commit": "1818d35814b8319459f4bd55ed1ac8709630f003",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "meta-llama/Llama-3.2-1B": {
       "url": "https://huggingface.co/meta-llama/Llama-3.2-1B",
-      "commit": "4e20de362430cd3b72f300e6b0f18e50e7166e08"
+      "commit": "4e20de362430cd3b72f300e6b0f18e50e7166e08",
+      "license": "Llama-3.2-Community-License",
+      "license_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/blob/main/LICENSE.txt"
     },
     "meta-llama/Llama-3.2-3B": {
       "url": "https://huggingface.co/meta-llama/Llama-3.2-3B",
-      "commit": "13afe5124825b4f3751f836b40dafda64c1ed062"
+      "commit": "13afe5124825b4f3751f836b40dafda64c1ed062",
+      "license": "Llama-3.2-Community-License",
+      "license_url": "https://huggingface.co/meta-llama/Llama-3.2-3B/blob/main/LICENSE.txt"
     },
     "meta-llama/Llama-3.1-8B": {
       "url": "https://huggingface.co/meta-llama/Llama-3.1-8B",
-      "commit": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b"
+      "commit": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+      "license": "Llama-3.1-Community-License",
+      "license_url": "https://huggingface.co/meta-llama/Llama-3.1-8B/blob/main/LICENSE"
     },
     "microsoft/Phi-3-mini-4k-instruct": {
       "url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct",
-      "commit": "f39ac1d28e925b323eae81227eaba4464caced4e"
+      "commit": "f39ac1d28e925b323eae81227eaba4464caced4e",
+      "license": "MIT",
+      "license_url": "https://opensource.org/licenses/MIT"
     },
     "EleutherAI/pythia-70m": {
       "url": "https://huggingface.co/EleutherAI/pythia-70m",
-      "commit": "a39f36b100fe8a5377810d56c3f4789b9c53ac42"
+      "commit": "a39f36b100fe8a5377810d56c3f4789b9c53ac42",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-160m": {
       "url": "https://huggingface.co/EleutherAI/pythia-160m",
-      "commit": "50f5173d932e8e61f858120bcb800b97af589f46"
+      "commit": "50f5173d932e8e61f858120bcb800b97af589f46",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-410m": {
       "url": "https://huggingface.co/EleutherAI/pythia-410m",
-      "commit": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f"
+      "commit": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-1b": {
       "url": "https://huggingface.co/EleutherAI/pythia-1b",
-      "commit": "f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2"
+      "commit": "f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-1.4b": {
       "url": "https://huggingface.co/EleutherAI/pythia-1.4b",
-      "commit": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79"
+      "commit": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-1.4b-deduped": {
       "url": "https://huggingface.co/EleutherAI/pythia-1.4b-deduped",
-      "commit": "554d9c1bae3877f740aece41feb90f912cf9fedc"
+      "commit": "554d9c1bae3877f740aece41feb90f912cf9fedc",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-2.8b": {
       "url": "https://huggingface.co/EleutherAI/pythia-2.8b",
-      "commit": "2a259cdd96a4beb1cdf467512e3904197345f6a9"
+      "commit": "2a259cdd96a4beb1cdf467512e3904197345f6a9",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-6.9b": {
       "url": "https://huggingface.co/EleutherAI/pythia-6.9b",
-      "commit": "c0e3eee36dc47af0c49f361c74cfe459c09f7f23"
+      "commit": "c0e3eee36dc47af0c49f361c74cfe459c09f7f23",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "EleutherAI/pythia-12b": {
       "url": "https://huggingface.co/EleutherAI/pythia-12b",
-      "commit": "bb1e3e710cdf6b524461d543cfb5ba773f0a81b6"
+      "commit": "bb1e3e710cdf6b524461d543cfb5ba773f0a81b6",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "google/gemma-3-1b-pt": {
       "url": "https://huggingface.co/google/gemma-3-1b-pt",
-      "commit": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29"
+      "commit": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "license": "Gemma-License",
+      "license_url": "https://ai.google.dev/gemma/terms"
     },
     "google/gemma-3-4b-pt": {
       "url": "https://huggingface.co/google/gemma-3-4b-pt",
-      "commit": "cc012e0a6d0787b4adcc0fa2c4da74402494554d"
+      "commit": "cc012e0a6d0787b4adcc0fa2c4da74402494554d",
+      "license": "Gemma-License",
+      "license_url": "https://ai.google.dev/gemma/terms"
     },
     "mistralai/Mistral-7B-v0.3": {
       "url": "https://huggingface.co/mistralai/Mistral-7B-v0.3",
-      "commit": "caa1feb0e54d415e2df31207e5f4e273e33509b1"
+      "commit": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "mistralai/Mistral-7B-Instruct-v0.3": {
       "url": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3",
-      "commit": "c170c708c41dac9275d15a8fff4eca08d52bab71"
+      "commit": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "meta-llama/Llama-3.2-1B-Instruct": {
       "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
-      "commit": "9213176726f574b556790deb65791e0c5aa438b6"
+      "commit": "9213176726f574b556790deb65791e0c5aa438b6",
+      "license": "Llama-3.2-Community-License",
+      "license_url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/blob/main/LICENSE.txt"
     },
     "Qwen/Qwen2.5-0.5B-Instruct": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
-      "commit": "7ae557604adf67be50417f59c2c2f167def9a775"
+      "commit": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-1.5B-Instruct": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct",
-      "commit": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+      "commit": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+      "license": "Apache-2.0",
+      "license_url": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     "Qwen/Qwen2.5-3B-Instruct": {
       "url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct",
-      "commit": "aa8e72537993ba99e69dfaafa59ed015b17504d1"
+      "commit": "aa8e72537993ba99e69dfaafa59ed015b17504d1",
+      "license": "qwen-research",
+      "license_url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE"
     }
   }
 }

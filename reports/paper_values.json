@@ -1,7 +1,7 @@
 {
   "schema_version": "1.2",
-  "paper_version": "v4.0.0",
-  "generated_at": "2026-05-05T07:27:22+00:00",
+  "paper_version": "v5.0.0",
+  "generated_at": "2026-05-11T05:13:44+00:00",
   "generated_from_repo": "paper-adot",
   "generated_from": "export_paper_values.py",
   "source": "data_macros.sty",
@@ -10,8 +10,8 @@
     "macro_provenance_auto.json (AST-derived)"
   ],
   "n_macros": 270,
-  "n_macros_with_provenance": 118,
-  "n_provenance_hand": 50,
+  "n_macros_with_provenance": 135,
+  "n_provenance_hand": 67,
   "n_provenance_auto_only": 68,
   "macros": [
     {
@@ -417,13 +417,13 @@
       "section": "GPT-2 scaling"
     },
     {
-      "name": "gptDiscardMin",
+      "name": "gptOcFracMin",
       "value": "28",
       "description": "min OC/pcorr % across 4 GPT-2 sizes",
       "section": "GPT-2 scaling"
     },
     {
-      "name": "gptDiscardMax",
+      "name": "gptOcFracMax",
       "value": "52",
       "description": "max OC/pcorr % across 4 GPT-2 sizes",
       "section": "GPT-2 scaling"
@@ -890,7 +890,15 @@
       "name": "pythiaFourTenstd",
       "value": "0.0009",
       "description": "",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-410m_main.json"
+      ],
+      "key_paths": [
+        "partial_corr.std"
+      ],
+      "formula": "direct read; 7-seed std at peak layer for Pythia 410M"
     },
     {
       "name": "pythiaOnepcorr",
@@ -980,19 +988,43 @@
       "name": "pyFourTenOC",
       "value": "0.043",
       "description": "Pythia~410M OC residual",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-410m_main.json"
+      ],
+      "key_paths": [
+        "output_controlled.mean"
+      ],
+      "formula": "direct read; output-controlled residual at peak layer for Pythia 410M"
     },
     {
       "name": "pyOneFourOC",
       "value": "0.003",
       "description": "Pythia~1.4B OC residual",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_main.json"
+      ],
+      "key_paths": [
+        "output_controlled.mean"
+      ],
+      "formula": "direct read; output-controlled residual at peak layer for Pythia 1.4B"
     },
     {
       "name": "pyOneFourDedOC",
       "value": "-0.012",
       "description": "Pythia~1.4B-deduped OC residual",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b-deduped_main.json"
+      ],
+      "key_paths": [
+        "output_controlled.mean"
+      ],
+      "formula": "direct read; output-controlled residual at peak layer for Pythia 1.4B deduped"
     },
     {
       "name": "pythiahealthyOClo",
@@ -1030,55 +1062,127 @@
       "name": "pythiaOneEarliestpcorr",
       "value": "0.315",
       "description": "Pythia~1B earliest-checkpoint pcorr",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step256.partial_corr.mean"
+      ],
+      "formula": "direct read; partial_corr.mean at earliest measured checkpoint (step 256) of Pythia 1B dynamics"
     },
     {
       "name": "pythiaOneEarliestOC",
       "value": "0.079",
       "description": "Pythia~1B earliest-checkpoint OC",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step256.output_controlled.mean"
+      ],
+      "formula": "direct read; output_controlled.mean at earliest measured checkpoint (step 256) of Pythia 1B dynamics"
     },
     {
       "name": "pythiaOneFourEarliestpcorr",
       "value": "0.297",
       "description": "Pythia~1.4B earliest-checkpoint pcorr",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step256.partial_corr.mean"
+      ],
+      "formula": "direct read; partial_corr.mean at earliest measured checkpoint (step 256) of Pythia 1.4B dynamics"
     },
     {
       "name": "pythiaOneFourEarliestOC",
       "value": "0.065",
       "description": "Pythia~1.4B earliest-checkpoint OC",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step256.output_controlled.mean"
+      ],
+      "formula": "direct read; output_controlled.mean at earliest measured checkpoint (step 256) of Pythia 1.4B dynamics"
     },
     {
       "name": "pythiaOneFourMidpcorr",
       "value": "0.314",
       "description": "Pythia~1.4B step-1000 pcorr",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step1000.partial_corr.mean"
+      ],
+      "formula": "direct read; partial_corr.mean at step 1000 checkpoint of Pythia 1.4B dynamics"
     },
     {
       "name": "pythiaOneFourMidOC",
       "value": "0.113",
       "description": "Pythia~1.4B step-1000 OC",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step1000.output_controlled.mean"
+      ],
+      "formula": "direct read; output_controlled.mean at step 1000 checkpoint of Pythia 1.4B dynamics"
     },
     {
       "name": "pythiaOneFinalOC",
       "value": "0.120",
       "description": "Pythia~1B final-checkpoint OC",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step143000.output_controlled.mean"
+      ],
+      "formula": "direct read; output_controlled.mean at final measured checkpoint (step 143000) of Pythia 1B dynamics"
     },
     {
       "name": "pythiaOnePerplexity",
       "value": "20.6",
       "description": "Pythia~1B final-checkpoint perplexity",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step143000.perplexity"
+      ],
+      "formula": "direct read; perplexity at final measured checkpoint (step 143000) of Pythia 1B dynamics"
     },
     {
       "name": "pythiaOneFourPerplexity",
       "value": "18.4",
       "description": "Pythia~1.4B final-checkpoint perplexity",
-      "section": "Pythia within-recipe suite"
+      "section": "Pythia within-recipe suite",
+      "provenance_source": "hand",
+      "source_files": [
+        "pythia-1.4b_dynamics.json"
+      ],
+      "key_paths": [
+        "checkpoints.step143000.perplexity"
+      ],
+      "formula": "direct read; perplexity at final measured checkpoint (step 143000) of Pythia 1.4B dynamics"
     },
     {
       "name": "pythiaShufflemean",
@@ -1319,7 +1423,15 @@
       "name": "coreocstd",
       "value": "0.008",
       "description": "GPT-2 OC residual std",
-      "section": "Orphan-value macros (appendix / signal)"
+      "section": "Orphan-value macros (appendix / signal)",
+      "provenance_source": "hand",
+      "source_files": [
+        "transformer_observe.json"
+      ],
+      "key_paths": [
+        "8.models.gpt2.output_controlled.std"
+      ],
+      "formula": "direct read; output-controlled std for GPT-2 124M at canonical layer 8"
     },
     {
       "name": "saefeatures",
@@ -1455,19 +1567,43 @@
       "name": "shaptotalpct",
       "value": "67",
       "description": "total Shapley-explained",
-      "section": "Orphan-value macros (appendix / signal)"
+      "section": "Orphan-value macros (appendix / signal)",
+      "provenance_source": "hand",
+      "source_files": [
+        "transformer_observe.json"
+      ],
+      "key_paths": [
+        "signal_decomposition.shapley_decomposition.total_explained_pct"
+      ],
+      "formula": "direct read; rounded to integer percentage"
     },
     {
       "name": "shapresidpct",
       "value": "33",
       "description": "Shapley unexplained residual",
-      "section": "Orphan-value macros (appendix / signal)"
+      "section": "Orphan-value macros (appendix / signal)",
+      "provenance_source": "hand",
+      "source_files": [
+        "transformer_observe.json"
+      ],
+      "key_paths": [
+        "signal_decomposition.shapley_decomposition.unexplained_pct"
+      ],
+      "formula": "direct read; rounded to integer percentage"
     },
     {
       "name": "pcaOneCosine",
       "value": "0.002",
       "description": "PC1 cosine, GPT-2~124M L8",
-      "section": "Orphan-value macros (appendix / signal)"
+      "section": "Orphan-value macros (appendix / signal)",
+      "provenance_source": "hand",
+      "source_files": [
+        "transformer_observe.json"
+      ],
+      "key_paths": [
+        "signal_decomposition.pca_alignment.top_10_projections.0"
+      ],
+      "formula": "direct read; cosine of probe direction with PC1 at GPT-2 124M layer 8"
     },
     {
       "name": "pcaTopTenPct",
@@ -1559,7 +1695,7 @@
     },
     {
       "name": "testvalmeanabs",
-      "value": "4.6",
+      "value": "4.3",
       "description": "mean absolute test-val gap pct",
       "section": "Orphan-value macros (appendix / signal)"
     },
@@ -1641,14 +1777,14 @@
     },
     {
       "name": "obsvsrandten",
-      "value": "2.3",
-      "description": "observer minus random @10%",
+      "value": "2.7",
+      "description": "observer minus random @10% (display-consistent)",
       "section": "Orphan-value macros (appendix / signal)"
     },
     {
       "name": "obsvsrandtwenty",
-      "value": "1.4",
-      "description": "observer minus random @20%",
+      "value": "1.9",
+      "description": "observer minus random @20% (display-consistent)",
       "section": "Orphan-value macros (appendix / signal)"
     },
     {
@@ -1688,7 +1824,7 @@
     },
     {
       "name": "nmodels",
-      "value": "14",
+      "value": "17",
       "description": "models in cross-family F-test scope (Pythia excluded)",
       "section": "Statistical tests (computed from data)"
     },
@@ -1700,37 +1836,37 @@
     },
     {
       "name": "permF",
-      "value": "15.81",
-      "description": "Monte Carlo 50k, 14 models, 6 families",
+      "value": "3.33",
+      "description": "Monte Carlo 50k, 17 models, 6 families",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "permp",
-      "value": "0.003",
+      "value": "0.053",
       "description": "",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "etasq",
-      "value": "0.91",
+      "value": "0.60",
       "description": "eta-squared from permutation test",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "etasqpct",
-      "value": "91",
+      "value": "60",
       "description": "eta-squared as integer percentage",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "etasqlo",
-      "value": "0.52",
+      "value": "0.29",
       "description": "eta^2 bootstrap 95% CI lower",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "etasqhi",
-      "value": "0.99",
+      "value": "0.98",
       "description": "eta^2 bootstrap 95% CI upper",
       "section": "Statistical tests (computed from data)"
     },
@@ -1742,25 +1878,25 @@
     },
     {
       "name": "loofweakestp",
-      "value": "0.024",
+      "value": "0.125",
       "description": "largest leave-one-family-out p",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "loofgemma",
-      "value": "0.011",
+      "value": "0.061",
       "description": "leave-one-out p without Gemma",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "loofllama",
-      "value": "0.006",
+      "value": "0.002",
       "description": "leave-one-out p without Llama",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "loofmaxp",
-      "value": "0.024",
+      "value": "0.125",
       "description": "all leave-one-out p-values below this",
       "section": "Statistical tests (computed from data)"
     },
@@ -1908,8 +2044,8 @@
     },
     {
       "name": "ocPcorrSlope",
-      "value": "0.48",
-      "description": "oc_vs_pcorr healthy-cluster fit slope (n=21)",
+      "value": "0.51",
+      "description": "oc_vs_pcorr healthy-cluster fit slope (n=23)",
       "section": "Statistical tests (computed from data)"
     },
     {
@@ -1938,37 +2074,37 @@
     },
     {
       "name": "ancovaFamF",
-      "value": "99.6",
+      "value": "29.4",
       "description": "ANCOVA family F-stat",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "ancovaFamdf",
-      "value": "5,91",
+      "value": "5,112",
       "description": "ANCOVA family df",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "ancovaFamp",
-      "value": "2.3\\times 10^{-35}",
+      "value": "5.8\\times 10^{-19}",
       "description": "ANCOVA family p (TeX)",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "ancovaScaleF",
-      "value": "0.09",
+      "value": "11.06",
       "description": "ANCOVA log_params F",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "ancovaScaledf",
-      "value": "1,91",
+      "value": "1,112",
       "description": "ANCOVA log_params df",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "ancovaScalep",
-      "value": "0.76",
+      "value": "0.00",
       "description": "ANCOVA log_params p",
       "section": "Statistical tests (computed from data)"
     },
@@ -1987,13 +2123,13 @@
     {
       "name": "qwentestlo",
       "value": "0.200",
-      "description": "Qwen test-split min across 0.5B-7B",
+      "description": "Qwen test-split min across 0.5B-32B (14B excluded)",
       "section": "Statistical tests (computed from data)"
     },
     {
       "name": "qwentesthi",
       "value": "0.255",
-      "description": "Qwen test-split max across 0.5B-7B",
+      "description": "Qwen test-split max across 0.5B-32B (14B excluded)",
       "section": "Statistical tests (computed from data)"
     },
     {
@@ -2436,19 +2572,19 @@
     },
     {
       "name": "varfamily",
-      "value": "85.0",
+      "value": "56.8",
       "description": "between families",
       "section": "Architecture-section catch values"
     },
     {
       "name": "llamacoef",
-      "value": "-0.199",
+      "value": "-0.112",
       "description": "Llama family coef, cited in architecture.tex",
       "section": "Architecture-section catch values"
     },
     {
       "name": "scalep",
-      "value": "0.901",
+      "value": "0.285",
       "description": "log_params p-value, cited in architecture.tex",
       "section": "Architecture-section catch values"
     },

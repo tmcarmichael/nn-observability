@@ -13,11 +13,29 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "experiment": {"type": "string"},
-    "n_layers": {"type": "integer", "minimum": 1},
-    "hidden_dim": {"type": "integer", "minimum": 1},
-    "heads": {"type": "integer", "minimum": 1},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name) for the trajectory's final checkpoint."
+    },
+    "experiment": {
+      "type": "string",
+      "description": "Experiment label (e.g., pythia_1b_dynamics)."
+    },
+    "n_layers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Transformer depth (number of decoder blocks)."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
+    "heads": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of attention heads per layer."
+    },
     "architecture_class": {
       "type": "string",
       "description": "Configuration class label (e.g., '24L_16H')."
@@ -29,6 +47,7 @@
     },
     "protocol": {
       "type": "object",
+      "description": "Probe protocol shared across checkpoints (seeds, target tokens-per-dim ratio, batch size).",
       "additionalProperties": true,
       "properties": {
         "layer_select_seed": {"type": "integer"},
@@ -45,6 +64,7 @@
     },
     "provenance": {
       "type": "object",
+      "description": "Run-level reproducibility metadata. model_revision is the sentinel 'multi' for dynamics runs (per-checkpoint SHAs live on each checkpoint entry).",
       "required": ["model_revision", "script", "timestamp", "device"],
       "properties": {
         "model_revision": {"type": "string"},

@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scipy.integrate import trapezoid
 
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
@@ -651,16 +650,6 @@ def _analyze_selective(results, task, dataset):
             "pct_of_errors": round(pct, 1),
         }
 
-    coverage_levels = list(np.arange(1.0, 0.49, -0.05))
-    for name, scores, ascending in [("observer", obs, False), ("confidence", conf, True)]:
-        order = np.argsort(scores) if ascending else np.argsort(-scores)
-        accs = []
-        for cov in coverage_levels:
-            k = max(1, int(n * cov))
-            accs.append(float(correct[order[:k]].mean()))
-        auacc = float(trapezoid(accs, coverage_levels))
-        catches[f"{name}_auacc"] = auacc
-
     return {
         "model": MODEL_ID,
         "task": task,
@@ -677,8 +666,6 @@ def _analyze_selective(results, task, dataset):
             "n_questions": n,
             "n_errors": n_errors,
             "exclusive_at_10pct": catches.get("0.1", {}),
-            "observer_auacc": catches.get("observer_auacc"),
-            "confidence_auacc": catches.get("confidence_auacc"),
         },
     }
 

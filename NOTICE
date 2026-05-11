@@ -1,0 +1,113 @@
+nn-observability
+Copyright (c) 2026 Thomas Carmichael
+
+This software is licensed under the MIT License. See LICENSE for the full text.
+
+The repository evaluates publicly released transformer models and public
+datasets, all loaded from Hugging Face at pinned commits. Model weights and
+source-text content are never redistributed by this repository; the persisted
+artifacts are statistical summaries derived from frozen activations and from
+benchmark scoring (per-token loss values, observer scores, partial
+correlations, exclusive-catch counts, summary statistics).
+
+Per-model license attribution and per-dataset license attribution are recorded
+in `results/model_revisions.json` and `results/dataset_revisions.json`. Human-
+readable summaries are in `MODELS.md` and `DATA.md`.
+
+
+-------------------------------------------------------------------------------
+Upstream model attribution
+-------------------------------------------------------------------------------
+
+Built with Llama.
+
+This repository evaluates the following Meta Llama models and persists
+statistical summaries derived from their frozen activations and outputs:
+
+  meta-llama/Llama-3.2-1B            (Llama 3.2 Community License)
+  meta-llama/Llama-3.2-3B            (Llama 3.2 Community License)
+  meta-llama/Llama-3.2-1B-Instruct   (Llama 3.2 Community License)
+  meta-llama/Llama-3.1-8B            (Llama 3.1 Community License)
+
+Use of Llama materials is governed by the applicable Llama Community License
+and Meta's Acceptable Use Policy. Downstream redistributors of artifacts
+derived from these models include the "Built with Llama" attribution as
+required by the Llama Community License.
+
+  Llama 3.2 license:           https://huggingface.co/meta-llama/Llama-3.2-3B/blob/main/LICENSE.txt
+  Llama 3.1 license:           https://huggingface.co/meta-llama/Llama-3.1-8B/blob/main/LICENSE
+  Acceptable Use Policy (3.2): https://www.llama.com/llama3_2/use-policy
+
+
+This repository evaluates the following Google Gemma models:
+
+  google/gemma-3-1b-pt   (Gemma License)
+  google/gemma-3-4b-pt   (Gemma License)
+
+Use of Gemma is governed by the Gemma Terms of Use, including the Prohibited
+Use Policy. Downstream redistributors of artifacts derived from these models
+remain bound by the Gemma Terms.
+
+  Gemma Terms of Use: https://ai.google.dev/gemma/terms
+
+
+This repository also evaluates two Qwen 2.5 checkpoints under the Qwen
+Research License (custom, non-commercial research use):
+
+  Qwen/Qwen2.5-3B            (Qwen Research License)
+  Qwen/Qwen2.5-3B-Instruct   (Qwen Research License)
+
+  License: https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/LICENSE
+
+Downstream redistributors of artifacts derived from these two checkpoints
+remain bound by the Qwen Research License terms and may not use the derived
+artifacts for commercial purposes.
+
+
+The remaining evaluated checkpoints ship under permissive licenses:
+
+  GPT-2 (openai-community)                                       MIT
+  Phi-3 Mini (microsoft)                                         MIT
+  Pythia (EleutherAI)                                            Apache 2.0
+  Qwen 2.5 (Qwen, sizes 0.5B/1.5B/7B/14B/32B base + Instruct)    Apache 2.0
+  Mistral 7B v0.3 (mistralai, base + Instruct)                   Apache 2.0
+
+
+-------------------------------------------------------------------------------
+Upstream dataset attribution
+-------------------------------------------------------------------------------
+
+The repository loads seven public Hugging Face datasets at pinned commits.
+Per-dataset license attribution is in `results/dataset_revisions.json` and
+`DATA.md`. Source-text content is never redistributed.
+
+  Salesforce/wikitext                CC BY-SA 3.0 + GFDL (dual; per HF card)
+  allenai/c4                         ODC-BY 1.0 (Common Crawl Terms of Use apply)
+  rajpurkar/squad_v2                 CC BY-SA 4.0
+  GBaker/MedQA-USMLE-4-options       CC BY 4.0
+  truthfulqa/truthful_qa             Apache 2.0
+  Skylion007/openwebtext             CC0 1.0
+  code_search_net (Python config)    Mixed; HF card declares "other". MIT covers
+                                     the upstream CodeSearchNet curation tool;
+                                     constituent function bodies retain the
+                                     licenses of their original GitHub source
+                                     repositories (predominantly MIT, Apache
+                                     2.0, BSD, smaller fractions of other).
+
+
+-------------------------------------------------------------------------------
+Transitive runtime dependencies
+-------------------------------------------------------------------------------
+
+This repository imports the following Apache 2.0 libraries at runtime. Their
+source code is not redistributed or bundled with this repository. Attribution
+is provided here in good-faith acknowledgment per Apache License 2.0 Section
+4(d).
+
+  transformers (Hugging Face)   https://github.com/huggingface/transformers
+  datasets (Hugging Face)       https://github.com/huggingface/datasets
+  sae-lens                      https://github.com/jbloomAus/SAELens
+
+Other runtime dependencies (matplotlib, numpy, pandas, scikit-learn, scipy,
+statsmodels, torch, torchvision) ship under permissive licenses (BSD, MIT, or
+PSF) and are imported, not redistributed.

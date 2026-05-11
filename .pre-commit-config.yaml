@@ -23,6 +23,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: validate-schemas
+        name: validate result JSONs against dispatched JSON Schemas
+        entry: uv run python scripts/validate_schemas.py --strict
+        language: system
+        files: '^(results/.*\.json|schema/.*\.schema\.json|scripts/validate_schemas\.py)$'
+        pass_filenames: false
+
       - id: check-version
         name: check pyproject.toml version matches git tag
         entry: |

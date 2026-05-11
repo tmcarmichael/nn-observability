@@ -17,7 +17,6 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scipy.integrate import trapezoid
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 
@@ -328,7 +327,12 @@ import datetime as _dt
 
 parser = argparse.ArgumentParser(description="MedQA selective prediction with observer probe.")
 parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="Hugging Face model ID")
-parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument(
+    "--peak-layer",
+    type=int,
+    default=None,
+    help="Peak layer index (0-indexed). Default: read peak_layer_final from <slug>_main.json.",
+)
 parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
 parser.add_argument("--max-questions", type=int, default=1000, help="MedQA questions to evaluate")
 parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
@@ -373,6 +377,24 @@ if MODEL_ID not in HF_SLUG_MAP:
         "to its v2-convention slug before running this script for a new model."
     )
 HF_SLUG = HF_SLUG_MAP[MODEL_ID]
+
+# Resolve PEAK_LAYER from canonical main JSON when not passed explicitly.
+# The main protocol selects the layer; downstream tasks evaluate at that
+# same layer. Reading from <slug>_main.json eliminates the silent-bad-default
+# class of bug where downstream regen lands on a wrong layer.
+if PEAK_LAYER is None:
+    main_path = RESULTS_DIR / f"{HF_SLUG}_main.json"
+    if not main_path.is_file():
+        sys.exit(
+            f"--peak-layer not provided and {main_path} is missing. "
+            f"Run the main protocol via `just run-model {MODEL_ID}` first, "
+            f"or pass --peak-layer explicitly."
+        )
+    _main_data = json.loads(main_path.read_text())
+    PEAK_LAYER = _main_data.get("peak_layer_final") or _main_data.get("peak_layer")
+    if PEAK_LAYER is None:
+        sys.exit(f"{main_path}: missing peak_layer_final and peak_layer fields.")
+    print(f"  peak_layer auto-resolved from {main_path.name}: L{PEAK_LAYER}")
 
 
 def _resolve_out(name_or_path):
@@ -469,12 +491,16 @@ for qi, q in enumerate(questions):
     pred_letter = extract_answer_letter(answer_text)
     is_correct = pred_letter == q["answer_key"]
 
+    # Source-derived fields (question, answer, gold_letter) are not
+    # persisted. The dataset's question text and answer-key column are
+    # MedQA-USMLE-4-options content under CC BY 4.0; persisting them in
+    # MIT-licensed result JSONs would contradict the repository's NOTICE.
+    # pred_letter (model output) and correct (boolean comparison) are
+    # preserved. Reproduction loads the dataset at the pinned revision in
+    # dataset_revisions.json.
     all_results.append(
         {
-            "question": q["question"][:100],
-            "answer": answer_text,
             "pred_letter": pred_letter,
-            "gold_letter": q["answer_key"],
             "correct": is_correct,
             "mean_observer": float(np.mean(seed_obs)),
             "mean_confidence": float(np.mean(seed_conf)),
@@ -527,23 +553,6 @@ for rate in flag_rates:
         "both": both,
         "pct_of_errors": round(pct, 1),
     }
-
-# Coverage-accuracy curves
-print("\n  Coverage-accuracy (AUACC):")
-coverage_levels = list(np.arange(1.0, 0.49, -0.05))
-for strategy_name, scores, ascending in [
-    ("observer", obs, False),
-    ("confidence", conf, True),
-]:
-    order = np.argsort(scores) if ascending else np.argsort(-scores)
-    accs = []
-    for cov in coverage_levels:
-        k = max(1, int(n * cov))
-        kept = order[:k]
-        accs.append(float(correct[kept].mean()))
-    auacc = float(trapezoid(accs, coverage_levels))
-    print(f"    {strategy_name}: AUACC = {auacc:.3f}")
-    catch_results[f"{strategy_name}_auacc"] = auacc
 
 # --- Save ---
 print(f"\n=== Saving [{elapsed_str()}] ===")

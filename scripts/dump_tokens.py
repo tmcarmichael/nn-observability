@@ -204,7 +204,12 @@ def score_probe(head, eval_data):
 def main():
     parser = argparse.ArgumentParser(description="Dump per-token arrays for held-out fit-split analysis.")
     parser.add_argument("--model", required=True, help="Hugging Face model ID")
-    parser.add_argument("--peak-layer", type=int, required=True, help="Probe layer (0-indexed)")
+    parser.add_argument(
+        "--peak-layer",
+        type=int,
+        default=None,
+        help="Probe layer (0-indexed). Default: read peak_layer_final from <slug>_main.json.",
+    )
     parser.add_argument("--ex-dim", type=int, default=350, help="Train budget per hidden dim (default 350)")
     parser.add_argument(
         "--val-ex-dim", type=int, default=350, help="Eval budget per hidden dim (default 350)"
@@ -242,6 +247,47 @@ def main():
     seeds = [int(s) for s in args.seeds.split(",")]
     dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[args.dtype]
     slug = re.sub(r"[^A-Za-z0-9]+", "_", args.model.split("/")[-1]).strip("_").lower()
+
+    # Resolve peak_layer from canonical main JSON when not passed explicitly.
+    # The main protocol selects the layer; dump_tokens reuses it for the
+    # offline held-out-split analysis. Reading peak_layer_final from
+    # <hf_slug>_main.json eliminates the silent-bad-default class of bug where
+    # a model rerun shifts the peak and the dumped tokens drift off-canonical.
+    HF_SLUG_MAP = {
+        "openai-community/gpt2": "gpt2-124m",
+        "meta-llama/Llama-3.2-1B": "llama-3.2-1b",
+        "meta-llama/Llama-3.2-3B": "llama-3.2-3b",
+        "Qwen/Qwen2.5-7B": "qwen2.5-7b",
+        "mistralai/Mistral-7B-v0.3": "mistral-7b-v0.3",
+        "microsoft/Phi-3-mini-4k-instruct": "phi-3-mini",
+        "EleutherAI/pythia-1b": "pythia-1b",
+        "EleutherAI/pythia-1.4b": "pythia-1.4b",
+    }
+    if args.peak_layer is None:
+        if args.model not in HF_SLUG_MAP:
+            sys.exit(
+                f"--peak-layer not provided and {args.model!r} is not in HF_SLUG_MAP. "
+                "Either pass --peak-layer explicitly or add an entry mapping the "
+                "Hugging Face ID to its v2-convention slug."
+            )
+        main_path = RESULTS_DIR / f"{HF_SLUG_MAP[args.model]}_main.json"
+        if not main_path.is_file():
+            sys.exit(
+                f"--peak-layer not provided and {main_path} is missing. "
+                f"Run the main protocol via `scripts/run_model.py --model {args.model}` "
+                "first, or pass --peak-layer explicitly."
+            )
+        _main_data = json.loads(main_path.read_text())
+        # Explicit None check, not `or`-fallback: peak_layer_final can be 0
+        # (collapsed Llama-3.2-3B peaks at L0) and would be skipped by truthiness.
+        if "peak_layer_final" in _main_data:
+            resolved = _main_data["peak_layer_final"]
+        elif "peak_layer" in _main_data:
+            resolved = _main_data["peak_layer"]
+        else:
+            sys.exit(f"{main_path}: missing peak_layer_final and peak_layer fields.")
+        args.peak_layer = int(resolved)
+        print(f"  peak_layer auto-resolved from {main_path.name}: L{args.peak_layer}")
 
     print(f"=== dump_tokens [{elapsed_str()}] ===")
     print(f"Model: {args.model} (slug={slug}), peak: L{args.peak_layer}, dtype: {args.dtype}, seeds: {seeds}")

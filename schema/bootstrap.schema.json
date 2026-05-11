@@ -18,13 +18,40 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "peak_layer": {"type": "integer", "minimum": 0},
-    "ex_dim": {"type": "integer", "minimum": 1},
-    "n_boot": {"type": "integer", "minimum": 1},
-    "boot_rhos": {"type": "array", "items": {"type": "number"}, "minItems": 1},
-    "mean": {"type": "number"},
-    "std": {"type": "number", "minimum": 0},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
+    "peak_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Peak layer index used for the bootstrap."
+    },
+    "ex_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Tokens-per-feature-dim ratio for the probe fit (350 ex/dim canonical)."
+    },
+    "n_boot": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of document-level bootstrap resamples."
+    },
+    "boot_rhos": {
+      "type": "array",
+      "items": {"type": "number"},
+      "minItems": 1,
+      "description": "Per-resample partial Spearman values."
+    },
+    "mean": {
+      "type": "number",
+      "description": "Bootstrap mean of partial Spearman."
+    },
+    "std": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Bootstrap standard deviation of partial Spearman."
+    },
     "ci_95": {
       "type": "array",
       "items": {"type": "number"},
@@ -37,7 +64,10 @@
       "description": "Resampling design metadata (probe_seed, note, etc.).",
       "additionalProperties": true
     },
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

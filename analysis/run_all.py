@@ -42,6 +42,8 @@ def main() -> None:
     if failed:
         print(f"  Failed: {', '.join(failed)}")
     print(f"{'=' * 70}")
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,209 @@
+{
+  "verified_at": "2026-05-09T05:01:48+00:00",
+  "manifest_path": "results/model_revisions.json",
+  "manifest_retrieved": "2026-04-21",
+  "n_entries": 33,
+  "n_verified": 33,
+  "n_gated_no_access": 0,
+  "n_failures": 0,
+  "results": [
+    {
+      "model_id": "openai-community/gpt2",
+      "manifest_commit": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "hf_resolved_commit": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+      "status": "verified"
+    },
+    {
+      "model_id": "openai-community/gpt2-medium",
+      "manifest_commit": "6dcaa7a952f72f9298047fd5137cd6e4f05f41da",
+      "hf_resolved_commit": "6dcaa7a952f72f9298047fd5137cd6e4f05f41da",
+      "status": "verified"
+    },
+    {
+      "model_id": "openai-community/gpt2-large",
+      "manifest_commit": "32b71b12589c2f8d625668d2335a01cac3249519",
+      "hf_resolved_commit": "32b71b12589c2f8d625668d2335a01cac3249519",
+      "status": "verified"
+    },
+    {
+      "model_id": "openai-community/gpt2-xl",
+      "manifest_commit": "15ea56dee5df4983c59b2538573817e1667135e2",
+      "hf_resolved_commit": "15ea56dee5df4983c59b2538573817e1667135e2",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-0.5B",
+      "manifest_commit": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+      "hf_resolved_commit": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-1.5B",
+      "manifest_commit": "8faed761d45a263340a0528343f099c05c9a4323",
+      "hf_resolved_commit": "8faed761d45a263340a0528343f099c05c9a4323",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-3B",
+      "manifest_commit": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+      "hf_resolved_commit": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-7B",
+      "manifest_commit": "d149729398750b98c0af14eb82c78cfe92750796",
+      "hf_resolved_commit": "d149729398750b98c0af14eb82c78cfe92750796",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-7B-Instruct",
+      "manifest_commit": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "hf_resolved_commit": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-14B",
+      "manifest_commit": "97e1e76335b7017d8f67c08a19d103c0504298c9",
+      "hf_resolved_commit": "97e1e76335b7017d8f67c08a19d103c0504298c9",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-14B-Instruct",
+      "manifest_commit": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "hf_resolved_commit": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-32B",
+      "manifest_commit": "1818d35814b8319459f4bd55ed1ac8709630f003",
+      "hf_resolved_commit": "1818d35814b8319459f4bd55ed1ac8709630f003",
+      "status": "verified"
+    },
+    {
+      "model_id": "meta-llama/Llama-3.2-1B",
+      "manifest_commit": "4e20de362430cd3b72f300e6b0f18e50e7166e08",
+      "hf_resolved_commit": "4e20de362430cd3b72f300e6b0f18e50e7166e08",
+      "status": "verified"
+    },
+    {
+      "model_id": "meta-llama/Llama-3.2-3B",
+      "manifest_commit": "13afe5124825b4f3751f836b40dafda64c1ed062",
+      "hf_resolved_commit": "13afe5124825b4f3751f836b40dafda64c1ed062",
+      "status": "verified"
+    },
+    {
+      "model_id": "meta-llama/Llama-3.1-8B",
+      "manifest_commit": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+      "hf_resolved_commit": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+      "status": "verified"
+    },
+    {
+      "model_id": "microsoft/Phi-3-mini-4k-instruct",
+      "manifest_commit": "f39ac1d28e925b323eae81227eaba4464caced4e",
+      "hf_resolved_commit": "f39ac1d28e925b323eae81227eaba4464caced4e",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-70m",
+      "manifest_commit": "a39f36b100fe8a5377810d56c3f4789b9c53ac42",
+      "hf_resolved_commit": "a39f36b100fe8a5377810d56c3f4789b9c53ac42",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-160m",
+      "manifest_commit": "50f5173d932e8e61f858120bcb800b97af589f46",
+      "hf_resolved_commit": "50f5173d932e8e61f858120bcb800b97af589f46",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-410m",
+      "manifest_commit": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+      "hf_resolved_commit": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-1b",
+      "manifest_commit": "f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2",
+      "hf_resolved_commit": "f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-1.4b",
+      "manifest_commit": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+      "hf_resolved_commit": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-1.4b-deduped",
+      "manifest_commit": "554d9c1bae3877f740aece41feb90f912cf9fedc",
+      "hf_resolved_commit": "554d9c1bae3877f740aece41feb90f912cf9fedc",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-2.8b",
+      "manifest_commit": "2a259cdd96a4beb1cdf467512e3904197345f6a9",
+      "hf_resolved_commit": "2a259cdd96a4beb1cdf467512e3904197345f6a9",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-6.9b",
+      "manifest_commit": "c0e3eee36dc47af0c49f361c74cfe459c09f7f23",
+      "hf_resolved_commit": "c0e3eee36dc47af0c49f361c74cfe459c09f7f23",
+      "status": "verified"
+    },
+    {
+      "model_id": "EleutherAI/pythia-12b",
+      "manifest_commit": "bb1e3e710cdf6b524461d543cfb5ba773f0a81b6",
+      "hf_resolved_commit": "bb1e3e710cdf6b524461d543cfb5ba773f0a81b6",
+      "status": "verified"
+    },
+    {
+      "model_id": "google/gemma-3-1b-pt",
+      "manifest_commit": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "hf_resolved_commit": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "status": "verified"
+    },
+    {
+      "model_id": "google/gemma-3-4b-pt",
+      "manifest_commit": "cc012e0a6d0787b4adcc0fa2c4da74402494554d",
+      "hf_resolved_commit": "cc012e0a6d0787b4adcc0fa2c4da74402494554d",
+      "status": "verified"
+    },
+    {
+      "model_id": "mistralai/Mistral-7B-v0.3",
+      "manifest_commit": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+      "hf_resolved_commit": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+      "status": "verified"
+    },
+    {
+      "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+      "manifest_commit": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+      "hf_resolved_commit": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+      "status": "verified"
+    },
+    {
+      "model_id": "meta-llama/Llama-3.2-1B-Instruct",
+      "manifest_commit": "9213176726f574b556790deb65791e0c5aa438b6",
+      "hf_resolved_commit": "9213176726f574b556790deb65791e0c5aa438b6",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "manifest_commit": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "hf_resolved_commit": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+      "manifest_commit": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+      "hf_resolved_commit": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+      "status": "verified"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-3B-Instruct",
+      "manifest_commit": "aa8e72537993ba99e69dfaafa59ed015b17504d1",
+      "hf_resolved_commit": "aa8e72537993ba99e69dfaafa59ed015b17504d1",
+      "status": "verified"
+    }
+  ]
+}

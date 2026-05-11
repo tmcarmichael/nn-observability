@@ -242,8 +242,11 @@ TARGET_EX_PER_DIM = 350
 def load_openwebtext(tokenizer, seq_length, max_tokens):
     from datasets import load_dataset
 
+    manifest = Path(__file__).resolve().parent.parent / "results" / "dataset_revisions.json"
+    revision = json.loads(manifest.read_text())["datasets"]["Skylion007/openwebtext"]["commit"]
+
     print(f"  Loading OpenWebText (target {max_tokens / 1e6:.0f}M tokens)...")
-    ds = load_dataset("Skylion007/openwebtext", split="train", streaming=True)
+    ds = load_dataset("Skylion007/openwebtext", split="train", streaming=True, revision=revision)
 
     all_ids = []
     total = 0
@@ -402,7 +405,9 @@ def evaluate_observability(model, tokenizer, config_name, config):
 
     # Load WikiText eval data
     print("  Loading WikiText...")
-    ds = load_dataset("wikitext", "wikitext-103-raw-v1", split="test")
+    manifest = Path(__file__).resolve().parent.parent / "results" / "dataset_revisions.json"
+    wt_revision = json.loads(manifest.read_text())["datasets"]["Salesforce/wikitext"]["commit"]
+    ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1", split="test", revision=wt_revision)
     docs = []
     current = []
     for row in ds:

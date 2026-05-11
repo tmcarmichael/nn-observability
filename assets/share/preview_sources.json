@@ -9,7 +9,7 @@
   },
   "cross_family_scaling.png": {
     "source_pdf": "cross_family_scaling.pdf",
-    "source_sha256": "ff23e5b8ce8f8a9c1376d3c27496e1e71de8304f608a7d77a65aa6b6c9c2a4bb"
+    "source_sha256": "d186b7987d7c0cc2b653c8dffe9eff01c2e91aadc10722e07af7f27997483469"
   },
   "downstream_three_model.png": {
     "source_pdf": "downstream_three_model.pdf",
@@ -21,7 +21,7 @@
   },
   "oc_vs_pcorr.png": {
     "source_pdf": "oc_vs_pcorr.pdf",
-    "source_sha256": "c1fe01a2a2b6d8176c21e09bf63e3e6de01b887586cb4dbbd1499049a4f21c2c"
+    "source_sha256": "af15f7fecc13b6483be8ca7dea3c9f2deb5d886a7827cdb8657565c66144c366"
   },
   "pythia_layers.png": {
     "source_pdf": "pythia_layers.pdf",

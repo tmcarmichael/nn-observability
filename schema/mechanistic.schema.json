@@ -19,12 +19,31 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
     "label": {"type": "string", "description": "Short human-readable model label."},
-    "n_layers": {"type": "integer", "minimum": 1},
-    "hidden_dim": {"type": "integer", "minimum": 1},
-    "n_params_b": {"type": "number", "minimum": 0},
-    "peak_layer": {"type": "integer", "minimum": 0},
+    "n_layers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Transformer depth (number of decoder blocks)."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
+    "n_params_b": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Parameter count in billions."
+    },
+    "peak_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Observability peak layer used for the ablation interventions."
+    },
     "n_eval": {"type": "integer", "minimum": 1, "description": "Number of evaluation positions."},
     "ablation_results": {
       "type": "object",
@@ -36,16 +55,35 @@
       "description": "Composition tracing across layer ranges.",
       "additionalProperties": true
     },
-    "top_attn_layers": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+    "top_attn_layers": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0},
+      "description": "Layer indices of the largest attention-component contributors to the residual signal."
+    },
     "top_attn_depth_range": {
       "type": "string",
       "description": "Depth-fraction range of the top attention contributors, formatted as 'low-high' (e.g. '0.00-0.54').",
       "pattern": "^[0-9]\\.[0-9]+-[0-9]\\.[0-9]+$"
     },
-    "wikitext_flagging": {"type": "object", "additionalProperties": true},
-    "c4_flagging": {"type": "object", "additionalProperties": true},
-    "temperature_scaling": {"type": "object", "additionalProperties": true},
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "wikitext_flagging": {
+      "type": "object",
+      "description": "Selective-prediction flagging summary on the WikiText eval pool.",
+      "additionalProperties": true
+    },
+    "c4_flagging": {
+      "type": "object",
+      "description": "Selective-prediction flagging summary on the C4 eval pool.",
+      "additionalProperties": true
+    },
+    "temperature_scaling": {
+      "type": "object",
+      "description": "Temperature-scaling sensitivity of the ablation deltas.",
+      "additionalProperties": true
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

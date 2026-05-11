@@ -17,11 +17,31 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "hidden_dim": {"type": "integer", "minimum": 1},
-    "peak_layer": {"type": "integer", "minimum": 0},
-    "ex_dim": {"type": "integer", "minimum": 1},
-    "seeds": {"type": "array", "items": {"type": "integer"}, "minItems": 1},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
+    "peak_layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Probe layer index sourced from the model's main run."
+    },
+    "ex_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Tokens-per-feature-dim ratio for the probe fit."
+    },
+    "seeds": {
+      "type": "array",
+      "items": {"type": "integer"},
+      "minItems": 1,
+      "description": "Probe-training seeds used in the comparison."
+    },
     "fixed_hp": {
       "type": "object",
       "description": "Fixed-hyperparameter probe results. per_seed is an array of per-seed records; the exact field set inside each record varies by run (linear, mlp_64, mlp_128, delta_64, ...).",
@@ -53,9 +73,16 @@
       "description": "Held-out MLP-probe partial Spearman; appears in newer runs only.",
       "additionalProperties": true
     },
-    "protocol": {"type": "object", "additionalProperties": true},
+    "protocol": {
+      "type": "object",
+      "description": "Probe protocol parameters (architecture variants, training schedule, hyperparameter sweep grid).",
+      "additionalProperties": true
+    },
     "conclusion": {"type": "string", "description": "Free-form summary of the linear-vs-nonlinear comparison."},
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "$defs": {
     "provenance": {

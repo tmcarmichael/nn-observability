@@ -7,8 +7,14 @@
   "required": ["model", "provenance"],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "provenance": {"$ref": "#/$defs/provenance"}
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device."
+    }
   },
   "oneOf": [
     {

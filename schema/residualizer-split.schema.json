@@ -19,12 +19,28 @@
   ],
   "additionalProperties": true,
   "properties": {
-    "model": {"type": "string"},
-    "n_layers": {"type": "integer", "minimum": 1},
-    "hidden_dim": {"type": "integer", "minimum": 1},
-    "layer": {"type": "integer", "minimum": 0},
+    "model": {
+      "type": "string",
+      "description": "Hugging Face model identifier (org/name)."
+    },
+    "n_layers": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Transformer depth (number of decoder blocks)."
+    },
+    "hidden_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Hidden dimension (model width)."
+    },
+    "layer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Layer index of the residualizer-split test (typically the model's main-run peak layer)."
+    },
     "provenance": {
       "type": "object",
+      "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
       "required": ["model_revision", "script", "timestamp", "device"],
       "properties": {
         "model_revision": {"type": "string"},
@@ -37,6 +53,7 @@
     },
     "protocol": {
       "type": "object",
+      "description": "Three-pool protocol parameters: tokens-per-dim ratio, seeds, and per-pool token and document budgets for T (probe-train), R (residualizer-fit), and V (held-out eval).",
       "required": ["ex_per_dim", "n_seeds", "eval_seeds", "n_tokens_T", "n_tokens_R", "n_tokens_V"],
       "properties": {
         "ex_per_dim": {"type": "integer", "minimum": 1},

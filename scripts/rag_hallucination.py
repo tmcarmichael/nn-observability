@@ -349,7 +349,12 @@ import datetime as _dt
 
 parser = argparse.ArgumentParser(description="RAG hallucination detection with observer probe.")
 parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="Hugging Face model ID")
-parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument(
+    "--peak-layer",
+    type=int,
+    default=None,
+    help="Peak layer index (0-indexed). Default: read peak_layer_final from <slug>_main.json.",
+)
 parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
 parser.add_argument("--max-questions", type=int, default=1000, help="RAG questions to evaluate")
 parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
@@ -394,6 +399,24 @@ if MODEL_ID not in HF_SLUG_MAP:
         "to its v2-convention slug before running this script for a new model."
     )
 HF_SLUG = HF_SLUG_MAP[MODEL_ID]
+
+# Resolve PEAK_LAYER from canonical main JSON when not passed explicitly.
+# The main protocol selects the layer; downstream tasks evaluate at that
+# same layer. Reading from <slug>_main.json eliminates the silent-bad-default
+# class of bug where downstream regen lands on a wrong layer.
+if PEAK_LAYER is None:
+    main_path = RESULTS_DIR / f"{HF_SLUG}_main.json"
+    if not main_path.is_file():
+        sys.exit(
+            f"--peak-layer not provided and {main_path} is missing. "
+            f"Run the main protocol via `just run-model {MODEL_ID}` first, "
+            f"or pass --peak-layer explicitly."
+        )
+    _main_data = json.loads(main_path.read_text())
+    PEAK_LAYER = _main_data.get("peak_layer_final") or _main_data.get("peak_layer")
+    if PEAK_LAYER is None:
+        sys.exit(f"{main_path}: missing peak_layer_final and peak_layer fields.")
+    print(f"  peak_layer auto-resolved from {main_path.name}: L{PEAK_LAYER}")
 
 
 def _resolve_out(name_or_path):
@@ -490,11 +513,13 @@ for qi, q in enumerate(questions):
     answer_text = gen["answer_text"]  # same greedy decode across seeds
     is_correct = exact_match(answer_text, q["answers"])
 
+    # Source-text fields (question, answer, gold) are not persisted. Persisting
+    # them would redistribute SQuAD content under MIT framing, contradicting the
+    # repository's NOTICE statement. Numeric scores and the binary correctness
+    # flag suffice for paper-cited summary metrics; reproduction loads the
+    # dataset at the pinned revision in dataset_revisions.json.
     all_results.append(
         {
-            "question": q["question"],
-            "answer": answer_text,
-            "gold": list(q["answers"]),
             "correct": is_correct,
             "mean_observer": float(np.mean(seed_obs)),
             "mean_confidence": float(np.mean(seed_conf)),
@@ -574,7 +599,8 @@ output = {
     "probe_seeds": SEEDS,
     "flag_rates": catch_results,
     "grading": "exact_match",
-    "per_question": all_results,  # full 1000 with predictions and exact-match labels
+    # Diagnostic preview only; summary stats above are computed on full all_results.
+    "per_question": all_results[:50],
     "summary": {
         "accuracy": accuracy,
         "n_questions": n,

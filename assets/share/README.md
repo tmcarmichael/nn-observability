@@ -18,7 +18,7 @@ Control sensitivity on GPT-2 124M. Cumulative waterfall of raw Spearman plus sof
 
 ### `oc_vs_pcorr.png`
 
-Output-controlled residual versus confidence-controlled partial correlation across 26 models (17 cross-family plus 9 Pythia). Healthy configurations fall on a linear trend (slope ≈0.80); five collapsed configurations (Llama 3B/8B and three Pythia 24L/16H replications) land near the origin on both axes. Paper Pythia section.
+Output-controlled residual versus confidence-controlled partial correlation across 26 models (17 cross-family plus 9 Pythia). Healthy configurations fall on a linear trend (slope ≈0.48); five collapsed configurations (Llama 3B/8B and three Pythia 24L/16H replications) land near the origin on both axes. Paper Pythia section.
 
 ### `pythia_layers.png`
 

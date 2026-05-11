@@ -25,7 +25,8 @@ SCHEMA_VERSION = "1.0"
 
 SCOPE_DESCRIPTIONS = {
     "cross_family_14": "Cross-family aggregate scope (paper Sections 3 and 5).",
-    "control_sensitivity_14": "Same set as cross_family_14, used for control-sensitivity statistics.",
+    "control_sensitivity_14": "Alias for cross_family_14; legacy scope name retained for backward compatibility.",
+    "absorption_cohort_14": "14-model cohort for the headline confidence-absorption statistic (paper macro confabsorbmean).",
     "pythia_controlled_9": "Pythia controlled suite (paper Section 4).",
     "all": "All loaded models; no scope filter applied.",
 }

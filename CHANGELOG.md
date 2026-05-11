@@ -2,11 +2,63 @@
 
 All notable changes to this repository.
 
-## v4.0.1 (2026-05-05)
+## v5.0.0 (2026-05-10)
 
-Untrack `notebooks/`. No code or results changed. v4.0.0 remains the arXiv v2 artifact.
+Major release. No paper-cited result numbers change. The producer pipeline is preserved bit-for-bit. Surface improvements span legal attribution, metadata, testing, CI, and documentation.
 
-## v4.0.0 (2026-05-05) — arXiv v2
+### Added
+
+- `NOTICE` file at repo root with Built-with-Llama and per-creator attribution covering Llama, Gemma, Qwen Research License, and transitive Apache 2.0 dependencies.
+- Per-record license attribution in `results/model_revisions.json` (33 entries) and `results/dataset_revisions.json` (7 entries). Each entry carries `license` and `license_url` fields verified against Hugging Face card metadata.
+- ORCID on the creator block in `CITATION.cff` and `croissant.json`.
+- Numerical-pinning test for `partial_spearman` and `compute_loss_residuals` at 1e-12 tolerance.
+- Mypy coverage extended to `scripts/run_model.py` and `scripts/verify_manifest_revisions.py`.
+- Narrow CUDA OOM handler in the `run_model.py` model-load path. Re-raises with free / total VRAM and dtype context.
+- CI job `manifest-verify` runs `verify_manifest_revisions.py` on every push.
+- Pre-commit hook `validate-schemas` runs the strict schema validator on result-JSON or schema changes.
+- Croissant descriptor now declares `conformsTo` against both Croissant 1.1 and RAI 1.0.
+- Nine `rai:*` fields in `croissant.json` covering data collection, preprocessing, PII posture, use cases, limitations, and maintenance plan.
+- `hugging-face-models` and `hugging-face-datasets` RecordSets in `croissant.json` with 33 and 7 records respectively, exposing model id, pinned commit SHA, license, and license URL as queryable fields.
+- Top-level `usageInfo` and `documentation` fields in `croissant.json` linking `MODELS.md`, `DATA.md`, and `NOTICE`.
+- 100 percent description coverage on top-level fields across `schema/*.schema.json` (107 of 107).
+- `DATA.md` sections for Datasheet alignment (Gebru et al. 2021), per-dataset Composition, Pretraining-corpus overlap audit, PII and sensitive content, License compatibility, and Recommended / out-of-scope uses.
+- `DATA.md` entries for OpenWebText and CodeSearchNet (Python).
+- `MODELS.md` sections for Model Card alignment (Mitchell 2019), License compatibility, and the Required-attribution paragraph naming the four evaluated Llama checkpoints under Llama Community License Section 1(b)(i).
+- README annotation on the scope of `coverage.json`.
+
+### Changed
+
+- `pyproject.toml` and `croissant.json` description state 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants).
+- License URLs unified to canonical sources. SPDX URLs for Apache 2.0 and MIT, Hugging Face blob URLs for Llama Community License, Google AI URL for Gemma Terms of Use.
+- WikiText loads in `scripts/controlled_depth_width.py` and `scripts/controlled_training.py` now read `dataset_revisions.json` and pass `revision=` to `load_dataset`.
+- Dataset-pinning prose in `DATA.md`, `dataset_revisions.json`, and this changelog scopes the guarantee explicitly to `tests/test_script_preflight.py:SCRIPTS_REQUIRING_PREFLIGHT` rather than "repo-wide". Local-dev MPS scripts and from-scratch trainer scripts are intentionally exempt.
+- `tests/test_paper_values.py` macro provenance thresholds tightened. Minimum macros with provenance raised from 118 to 135 (43.7 to 50.0 percent of 271 total). Maximum allowed orphan macros lowered from 153 to 136.
+
+### Fixed
+
+- Qwen 2.5-3B and Qwen 2.5-3B-Instruct license corrected from Apache 2.0 to the Qwen Research License (custom, non-commercial). The other Qwen 2.5 sizes remain Apache 2.0.
+- WikiText-103 license corrected from CC BY-SA 4.0 to dual CC BY-SA 3.0 plus GFDL. The Hugging Face card declares both, reflecting Wikipedia's pre-June-2023 source-content license.
+- CodeSearchNet license corrected from MIT to "other". MIT covers the upstream curation tool. Constituent function bodies retain heterogeneous original licenses from their GitHub source repositories.
+- `reports/figure_sources.json` `oc_vs_pcorr.pdf` source list now lists 26 files (was 25, missing `pythia-1.4b-deduped_main.json`).
+- Slope value in `assets/share/README.md` corrected from approximately 0.80 to approximately 0.48 to match the current README alt text.
+- Downstream producer scripts (`rag_hallucination.py`, `medqa_selective.py`, `truthfulqa_hallucination.py`) auto-resolve `--peak-layer` from `<slug>_main.json:peak_layer_final` when the flag is not passed. The prior L14 default could silently produce wrong-layer regen output. Fail-fast on missing main JSON.
+- New regression test `tests/test_downstream_protocol.py::test_downstream_peak_matches_main` verifies every committed downstream JSON's `peak_layer` matches its corresponding `_main.json:peak_layer_final`. Parametrized across all 9 committed downstream JSONs.
+- SQuAD producer `rag_hallucination.py` now saves `per_question: all_results[:50]` matching the committed JSON shape and the MedQA truncation pattern. Prior code path saved the full 1000 records.
+- Source-text fields stripped from `per_question` records in all 9 committed downstream JSONs (`question`, `answer`, `gold`/`correct_answer`/`category`, and `gold_letter` for MedQA). Producer scripts updated to no longer emit these fields. Numeric scores, correctness flags, and model-output labels (`pred_letter` A/B/C/D) are preserved. The repository's NOTICE statement ("source-text content is never redistributed") is now categorically accurate for committed result JSONs.
+- `analysis/load_results.py` `LLAMA_MODELS` expanded to include Llama-3.2-1B and Llama-3.1-8B; `GEMMA_MODELS` expanded to include Gemma-3-4B. Total registered model count is 26. New scope `absorption_cohort_14` registered in `SCOPES`. The README's confidence-absorption headline is now reproducible via `analysis/selectivity.py` (default scope updated to match). The CLI and Python-API entry points both produce the same headline value.
+- `scripts/pythia_1.4b_shuffle.py` reference values (`peak_layer_final`, `hidden_dim`, `partial_corr.mean`) are now loaded from the committed `pythia-1.4b_main.json` with fail-fast on missing file. Removes the prior hardcoded fallback that mirrored paper-cited data and could silently drift.
+- Stale numeric values removed from comments and docstrings across `analysis/selectivity.py`, `analysis/load_results.py`, `scripts/pythia_1.4b_shuffle.py`, `scripts/mistral7b_instruct_full_mps.py`, and `scripts/mechanistic_mistral.py`. Specific paper-cited values replaced with qualitative descriptions that point at the canonical sources (`paper_values.json`, committed JSONs).
+
+### Removed
+
+- Docker artifacts and recipes (`Dockerfile`, `.dockerignore`, `.hadolint.yaml`, four `docker-*` justfile recipes, Hadolint CI step). Paper-cited results were produced on the RunPod PyTorch image `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`. Past tags retain the Dockerfile in their Zenodo snapshots.
+- Orphaned TriviaQA experiment helpers in `src/selective_prediction.py` and the `selective-prediction` recipe in `justfile`. Utility functions are retained for `tests/test_selective_prediction.py`.
+
+### Notes
+
+- `src/transformer_observe.py` is held as a single 3,767-line module to preserve numerical reproducibility. Refactoring would shift committed result-JSON values and require re-running CUDA experiments to verify bit-equivalence.
+
+## v4.0.0 (2026-05-05, arXiv v2)
 
 Companion code release for arXiv v2 of the paper, retitled
 **"Architectural Observability Collapse in Transformers"** (was
@@ -90,8 +142,13 @@ Companion code release for arXiv v2 of the paper, retitled
   MPS is allowed for local development only.
 
 - **Dataset revision pinning** via `results/dataset_revisions.json`.
-  Every `load_dataset(...)` call in producer scripts passes a pinned
-  revision; `tests/test_script_preflight.py` enforces this repo-wide.
+  Every `load_dataset(...)` call in canonical paper-result CUDA producer
+  scripts (the `SCRIPTS_REQUIRING_PREFLIGHT` list in
+  `tests/test_script_preflight.py`) passes a pinned revision read from
+  the manifest; the test enforces this for that scoped set. Local-dev
+  MPS scripts and from-scratch trainer scripts are intentionally exempt
+  from preflight (see `SCRIPTS_EXEMPT_FROM_PREFLIGHT`) and are not
+  covered by the pinning guarantee.
 
 - **Test suite expansion** in `tests/test_paper_values.py` (97 tests,
   2 module-level skips for missing artifacts):
@@ -141,11 +198,10 @@ Companion code release for arXiv v2 of the paper, retitled
 
 ### Documentation
 
-- **Reviewer-facing verification path** in `README.md`: three
-  independent paths (structured claim provenance, targeted CLI
-  verification, full pipeline), with worked example walking
-  `confabsorbmean` from `paper_values.json` through the 14 source
-  JSONs to recompute.
+- **Three-path verification structure** in `README.md`:
+  structured claim provenance, targeted CLI verification, and full
+  pipeline, with a worked example walking `confabsorbmean` from
+  `paper_values.json` through the 14 source JSONs to recompute.
 
 ### Numerical updates
 

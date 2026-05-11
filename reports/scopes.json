@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-05T06:34:09+00:00",
+  "generated_at": "2026-05-11T04:15:57+00:00",
   "generated_from": "scripts/export_scopes.py",
   "source": "analysis/load_results.py",
   "scopes": {
@@ -25,7 +25,7 @@
       "n_models": 14
     },
     "control_sensitivity_14": {
-      "description": "Same set as cross_family_14, used for control-sensitivity statistics.",
+      "description": "Alias for cross_family_14; legacy scope name retained for backward compatibility.",
       "models": [
         "GPT2-1.5B",
         "GPT2-124M",
@@ -33,6 +33,26 @@
         "GPT2-774M",
         "Gemma-1B",
         "Llama-3B",
+        "Mistral-7B",
+        "Phi-3-Mini",
+        "Qwen-0.5B",
+        "Qwen-1.5B",
+        "Qwen-14B",
+        "Qwen-32B",
+        "Qwen-3B",
+        "Qwen-7B"
+      ],
+      "n_models": 14
+    },
+    "absorption_cohort_14": {
+      "description": "14-model cohort for the headline confidence-absorption statistic (paper macro confabsorbmean).",
+      "models": [
+        "GPT2-124M",
+        "Gemma-1B",
+        "Gemma-4B",
+        "Llama-1B",
+        "Llama-3B",
+        "Llama-8B",
         "Mistral-7B",
         "Phi-3-Mini",
         "Qwen-0.5B",

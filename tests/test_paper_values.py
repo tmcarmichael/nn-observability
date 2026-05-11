@@ -92,24 +92,23 @@ def test_paper_values_has_macros(paper_values):
     assert len(paper_values["macros"]) == paper_values["n_macros"]
 
 
-# ---------- macro-coverage ratchet ----------
+# ---------- macro provenance thresholds ----------
 #
-# These two floors lock the current state and force coverage to monotonically
-# improve. The annotation floor only goes up; the orphan ceiling only goes
-# down. To change either, edit the constants here AND `paper-adot/generators/
-# macro_provenance.json` in the same commit.
+# These two bounds lock the current state and force coverage to improve
+# monotonically. The provenance floor only goes up. The orphan ceiling only
+# goes down. To change either, edit the constants here AND
+# `paper-adot/generators/macro_provenance.json` in the same commit.
 
 # Lower bound on macros that have a `source_files`/`key_paths` annotation.
-# Floor matches the v4.0.0 baseline. Adding a new macro without provenance
-# does not break this test (it only forbids regression below the floor), but
-# the orphan ceiling below catches that case.
-MIN_MACROS_WITH_PROVENANCE = 118
+# 135 of 270 = 50.0 percent coverage. Adding a new macro without provenance
+# does not fail this test directly. The orphan ceiling below catches that.
+MIN_MACROS_WITH_PROVENANCE = 135
 
 # Upper bound on macros that have neither `source_files` nor `key_paths`.
 # Adding a new \newcommand without a corresponding macro_provenance.json
-# entry pushes this count up and fails this test. The fix is either to add
-# provenance or to bump the ceiling here in the same commit (with reason).
-MAX_ORPHAN_MACROS = 153
+# entry pushes the orphan count above 136 and fails this test. Fix by adding
+# provenance, or by raising the ceiling in the same commit with a reason.
+MAX_ORPHAN_MACROS = 136
 
 
 def _orphan_macros(paper_values: dict) -> list[dict]:
@@ -493,13 +492,30 @@ def test_reports_paths_resolve_within_repo(path):
     A token counts as a path only if it has no whitespace, contains a slash,
     and ends with a recognized file extension. This skips formula text like
     'learned/random ratio'. The rule expresses 'paths must resolve here',
-    without naming any sibling repo or offender by hand."""
+    without naming any sibling repo or offender by hand.
+
+    Cross-repo exemption: when a report's top-level `generated_from_repo`
+    field declares a sibling repo as the producer, the `generated_from`
+    paths in that report document script locations in the sibling repo
+    and are not expected to resolve under this repo's root."""
     if not path.is_file():
         pytest.skip(f"{path.name} not generated")
+    data = json.loads(path.read_text())
+    cross_repo_paths: set[str] = set()
+    if isinstance(data, dict) and data.get("generated_from_repo"):
+        if isinstance(data.get("generated_from"), str):
+            cross_repo_paths.add(data["generated_from"])
+        figures = data.get("figures")
+        if isinstance(figures, dict):
+            for v in figures.values():
+                if isinstance(v, dict) and isinstance(v.get("generated_from"), str):
+                    cross_repo_paths.add(v["generated_from"])
     failures: list[str] = []
-    for s in _all_strings(json.loads(path.read_text())):
+    for s in _all_strings(data):
         for token in s.split():
             if "/" not in token or not token.endswith(_PATH_EXTENSIONS):
+                continue
+            if token in cross_repo_paths:
                 continue
             if token.startswith("/"):
                 failures.append(f"absolute path: {token!r}")

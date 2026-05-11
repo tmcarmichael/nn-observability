@@ -170,7 +170,7 @@ print("\n  Top 10 components by |obs_resid_delta|:")
 for layer, comp, delta in all_components[:10]:
     print(f"    L{layer} {comp}: {delta:+.4f}")
 
-# L0/L1 MLP specifically (for comparison with Llama)
+# Early-layer comparison block, matching Llama's collapsed-class peak region.
 print("\n  L0/L1 comparison (vs Llama):")
 for layer in [0, 1]:
     for comp in ["attn", "mlp"]:

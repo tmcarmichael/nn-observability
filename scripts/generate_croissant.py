@@ -177,7 +177,10 @@ CONTEXT = {
     "value": "cr:value",
 }
 
-CONFORMS_TO = "http://mlcommons.org/croissant/1.1"
+CONFORMS_TO = [
+    "http://mlcommons.org/croissant/1.1",
+    "http://mlcommons.org/croissant/RAI/1.0",
+]
 SD_VERSION = "1.1"
 
 
@@ -192,7 +195,19 @@ def _read_citation() -> dict:
         m = re.match(r'^(version|date-released|doi|repository-code|title): "?([^"]+?)"?$', line)
         if m:
             fields[m.group(1)] = m.group(2)
+        m_orcid = re.match(r'^\s*orcid:\s*"(https://orcid\.org/[\w-]+)"\s*$', line)
+        if m_orcid:
+            fields["orcid"] = m_orcid.group(1)
     return fields
+
+
+def _creator(citation: dict) -> dict:
+    creator: dict = {"@type": "Person", "name": "Thomas Carmichael"}
+    orcid = citation.get("orcid")
+    if orcid:
+        creator["sameAs"] = orcid
+        creator["identifier"] = orcid
+    return creator
 
 
 def _sha256(path: Path) -> str:
@@ -255,8 +270,8 @@ def _schema_to_fields(schema: dict, fileset_id: str) -> list[dict]:
 def _archive_sha256(grouped: dict[str, list[Path]]) -> str:
     """Deterministic merkle hash over (filename, sha256) pairs of every distribution file.
 
-    Lets a reviewer verify dataset integrity without downloading a tarball:
-    rerun the generator on a clean clone and the same hash should appear.
+    Verifies dataset integrity without downloading a tarball: rerun the
+    generator on a clean clone and the same hash appears.
     """
     pairs: list[tuple[str, str]] = []
     for paths in grouped.values():
@@ -270,6 +285,111 @@ def _archive_sha256(grouped: dict[str, list[Path]]) -> str:
     for name, sha in sorted(pairs):
         h.update(f"{name}:{sha}\n".encode())
     return h.hexdigest()
+
+
+def _hf_record_sets() -> list[dict]:
+    """First-class Croissant RecordSets enumerating the pinned HF models and datasets.
+
+    Each upstream model and dataset is exposed as a queryable record with the
+    canonical HF URL, pinned commit SHA, license identifier, and URL to the
+    upstream license text. This lets a Croissant-aware tool rebuild the full
+    provenance cohort from the descriptor alone, without re-parsing
+    model_revisions.json / dataset_revisions.json.
+    """
+    models = json.loads((RESULTS / "model_revisions.json").read_text())["models"]
+    datasets = json.loads((RESULTS / "dataset_revisions.json").read_text())["datasets"]
+
+    def _fields(rs_id: str, specs: list[tuple[str, str]]) -> list[dict]:
+        # specs: list of (field_name, description); @id is rs_id/field_name.
+        return [
+            {
+                "@type": "cr:Field",
+                "@id": f"{rs_id}/{name}",
+                "name": name,
+                "description": desc,
+                "dataType": "sc:Text",
+            }
+            for name, desc in specs
+        ]
+
+    def _records(rs_id: str, items: list[dict]) -> list[dict]:
+        # mlcroissant inline records key fields by @id, not name.
+        return [{f"{rs_id}/{k}": v for k, v in item.items()} for item in items]
+
+    model_fields = [
+        ("model_id", "Hugging Face model identifier (org/name)."),
+        ("commit", "Pinned Hugging Face commit SHA (40-char hex git revision)."),
+        ("url", "Canonical Hugging Face URL for the model repository."),
+        ("contentUrl", "Hugging Face tree URL pinned to the recorded commit."),
+        ("license", "License identifier (SPDX where available, otherwise the upstream label)."),
+        ("license_url", "URL to the upstream license text."),
+    ]
+    dataset_fields = [
+        ("dataset_id", "Hugging Face dataset identifier (org/name)."),
+        ("config", "Dataset config / subset name, or empty string if unconfigured."),
+        ("commit", "Pinned Hugging Face commit SHA (40-char hex git revision)."),
+        ("url", "Canonical Hugging Face URL for the dataset repository."),
+        ("contentUrl", "Hugging Face tree URL pinned to the recorded commit."),
+        ("license", "License identifier (SPDX where available, otherwise the upstream label)."),
+        ("license_url", "URL to the upstream license text."),
+    ]
+
+    model_items = [
+        {
+            "model_id": mid,
+            "commit": entry["commit"],
+            "url": entry["url"],
+            "contentUrl": f"{entry['url']}/tree/{entry['commit']}",
+            "license": entry.get("license", ""),
+            "license_url": entry.get("license_url", ""),
+        }
+        for mid, entry in sorted(models.items())
+    ]
+    dataset_items = [
+        {
+            "dataset_id": did,
+            "config": entry.get("config") or "",
+            "commit": entry["commit"],
+            "url": entry["url"],
+            "contentUrl": f"{entry['url']}/tree/{entry['commit']}",
+            "license": entry.get("license", ""),
+            "license_url": entry.get("license_url", ""),
+        }
+        for did, entry in sorted(datasets.items())
+    ]
+
+    return [
+        {
+            "@type": "cr:RecordSet",
+            "@id": "hugging-face-models",
+            "name": "hugging-face-models",
+            "description": (
+                "All Hugging Face transformer checkpoints evaluated in the paper. Each "
+                "record carries the model identifier, pinned commit SHA, family-level "
+                "license, and the URL to the upstream license text. The cross-family "
+                "cohort and Pythia controlled suite are defined as named scopes in "
+                "analysis/load_results.py."
+            ),
+            "key": {"@id": "hugging-face-models/model_id"},
+            "field": _fields("hugging-face-models", model_fields),
+            "data": _records("hugging-face-models", model_items),
+        },
+        {
+            "@type": "cr:RecordSet",
+            "@id": "hugging-face-datasets",
+            "name": "hugging-face-datasets",
+            "description": (
+                "All Hugging Face datasets used as eval corpora or producer inputs in "
+                "the paper. Each record carries the dataset identifier, config name, "
+                "pinned commit SHA, license, and the URL to the upstream license text. "
+                "Producer scripts pass the recorded commit via the revision= argument "
+                "to load_dataset, enforced by tests/test_script_preflight.py."
+            ),
+            "key": {"@id": "hugging-face-datasets/dataset_id"},
+            "field": _fields("hugging-face-datasets", dataset_fields),
+            "data": _records("hugging-face-datasets", dataset_items),
+        },
+    ]
 
 
 def _file_objects(citation: dict, grouped: dict[str, list[Path]]) -> list[dict]:
@@ -297,7 +417,13 @@ def _file_objects(citation: dict, grouped: dict[str, list[Path]]) -> list[dict]:
             "@type": "cr:FileObject",
             "@id": "model-revisions",
             "name": "model-revisions",
-            "description": "Hugging Face model IDs and pinned commit hashes for every evaluated model.",
+            "description": (
+                "Hugging Face model IDs, pinned commit hashes, and per-model license "
+                "attribution for every evaluated model. Llama 3.2 / 3.1 entries carry the "
+                "Llama Community License; Gemma 3 entries carry the Gemma license; the "
+                "remaining five families ship under MIT or Apache 2.0. See MODELS.md for the "
+                "license-compatibility table and downstream-derivative constraints."
+            ),
             "containedIn": {"@id": "nn-observability-archive"},
             "contentUrl": "results/model_revisions.json",
             "encodingFormat": "application/json",
@@ -307,8 +433,12 @@ def _file_objects(citation: dict, grouped: dict[str, list[Path]]) -> list[dict]:
             "@type": "cr:FileObject",
             "@id": "dataset-revisions",
             "name": "dataset-revisions",
-            "description": "Hugging Face dataset IDs and pinned commit hashes for every "
-            "paper-cited evaluation corpus.",
+            "description": (
+                "Hugging Face dataset IDs, pinned commit hashes, and per-dataset license "
+                "attribution for every paper-cited evaluation corpus. Per-entry licenses span "
+                "MIT, Apache 2.0, CC0, CC BY 4.0, CC BY-SA 4.0, and ODC-BY 1.0. See DATA.md "
+                "for the license-compatibility table and downstream-derivative constraints."
+            ),
             "containedIn": {"@id": "nn-observability-archive"},
             "contentUrl": "results/dataset_revisions.json",
             "encodingFormat": "application/json",
@@ -411,19 +541,114 @@ def build() -> dict:
         "name": pyproj["name"],
         "description": pyproj["description"],
         "url": citation["repository-code"],
+        "documentation": [
+            f"{citation['repository-code']}/blob/main/DATA.md",
+            f"{citation['repository-code']}/blob/main/MODELS.md",
+        ],
         "version": citation["version"],
         "datePublished": citation["date-released"],
         "license": "https://opensource.org/licenses/MIT",
+        "rai:dataCollection": (
+            "This repository is a consumer of seven public Hugging Face datasets, not a "
+            "creator. No data collection occurred here. Each dataset is loaded at a pinned "
+            "revision (results/dataset_revisions.json) and used as the source for tokenized "
+            "text inputs and downstream-task items. Upstream collection methods are "
+            "documented on each dataset's Hugging Face card and source publication; see "
+            "DATA.md for per-dataset role and reference links."
+        ),
+        "rai:dataCollectionType": "https://schema.org/Dataset",
+        "rai:dataPreprocessingProtocol": (
+            "Per-dataset preprocessing is documented in DATA.md (subset and transforms per "
+            "dataset). Probe targets are partial-correlation residuals after controlling for "
+            "max-softmax confidence and activation norm, computed by analysis code shipped "
+            "in src/probe.py and src/observe.py and locked at 1e-12 tolerance by "
+            "tests/test_producer_invariants.py."
+        ),
+        "rai:annotationsPerItem": (
+            "No annotations are produced by this repository. Persisted artifacts are derived "
+            "statistics (per-token loss values, observer scores, partial correlations, "
+            "exclusive-catch counts), not labels assigned to source-text items."
+        ),
+        "rai:dataAnnotationProtocol": (
+            "Not applicable. No annotations are produced by this repository. Upstream "
+            "datasets carry their own annotation protocols, documented in their respective "
+            "Hugging Face cards and source publications (see DATA.md per-dataset entries "
+            "for citations)."
+        ),
+        "rai:personalSensitiveInformation": (
+            "Per-dataset PII posture mirrors DATA.md (PII and sensitive content section). "
+            "WikiText-103, SQuAD v2, MedQA-USMLE, and TruthfulQA are low-risk: encyclopedic "
+            "or synthetic content with no human subjects beyond the upstream Wikipedia or "
+            "exam-board sources. C4 and OpenWebText carry web-scrape residuals from public "
+            "internet text. CodeSearchNet (Python) carries author-identifier residuals from "
+            "open-source GitHub comments and string literals. This repository does not "
+            "collect, redistribute, or expose source-text content; persisted artifacts are "
+            "derived statistics that are not text-recoverable."
+        ),
+        "rai:dataUseCases": (
+            "Recommended: reproducing the observability protocol on the same models, "
+            "extending it to additional autoregressive transformers under the same probe "
+            "class, using the WikiText-trained observer as a starting point for "
+            "methodological hardening, and probing-validity research that builds on the "
+            "confidence-controlled and output-controlled framework. Out-of-scope: "
+            "production or regulated deployment in clinical, legal, financial, hiring, "
+            "lending, or content-moderation contexts; generalization to multilingual or "
+            "non-text settings without re-validation; detection of fluent confident "
+            "falsehoods (the paper reports near-chance TruthfulQA AUC across three "
+            "production instruct models); adversarial-robustness claims under adaptive "
+            "attacks. See DATA.md and MODELS.md for the full statements."
+        ),
+        "rai:dataLimitations": (
+            "All seven datasets are English-language. The paper's findings are scoped to "
+            "English text and the populations represented (Wikipedia editors, web users, "
+            "crowdworkers, US medical board examiners, open-source Python developers, "
+            "adversarial fact-pattern selection). Cross-language and cross-demographic "
+            "generalization is not measured. Activation-monitor robustness under adaptive "
+            "attacks is not measured (McGuinness et al., 2025). Upstream creators do not "
+            "release training-data composition for several model families (Llama, Gemma, "
+            "Mistral, Qwen, Phi); cross-recipe and cross-family contrasts are observational, "
+            "not causal."
+        ),
+        "rai:dataReleaseMaintenancePlan": (
+            "Versioned releases tagged on GitHub and snapshotted on Zenodo (concept DOI in "
+            "this descriptor's `sameAs`). Every release pins per-model and per-dataset "
+            "Hugging Face SHAs verified against the live HF API by "
+            "scripts/verify_manifest_revisions.py; the latest verification report is "
+            "exposed through the manifest-verification FileObject. Schema validation runs "
+            "on every push; result-JSON drift is blocked by CI. The Croissant descriptor is "
+            "regenerated on every release."
+        ),
+        "usageInfo": (
+            "Repository source code, result schemas, and human-readable documentation are MIT-"
+            "licensed (this descriptor's `license` field). Result JSON values are statistical "
+            "summaries derived from frozen activations of upstream public models; model "
+            "weights are never redistributed, and downstream use of result JSON values must "
+            "respect the upstream terms recorded in NOTICE. Per-model and per-dataset license attribution "
+            "is recorded in results/model_revisions.json and results/dataset_revisions.json "
+            "(also exposed through the model-revisions and dataset-revisions FileObjects, "
+            "and as queryable records in the hugging-face-models and hugging-face-datasets "
+            "RecordSets). Built with Llama: this repository evaluates Llama 3.2 1B, 3B, "
+            "1B-Instruct, and Llama 3.1 8B; downstream redistributors of derived artifacts "
+            'include the "Built with Llama" attribution required by the Llama Community '
+            "License and remain bound by Meta's Acceptable Use Policy. Gemma 3 derivatives "
+            "are governed by the Gemma Terms of Use, including the Prohibited Use Policy. "
+            "Qwen 2.5 3B base and 3B Instruct are released under the Qwen Research License "
+            "(custom, non-commercial); derivatives that depend on these two checkpoints "
+            "inherit the non-commercial restriction. The other 25 evaluated checkpoints "
+            "ship under permissive licenses (MIT or Apache 2.0). See MODELS.md, DATA.md, "
+            "and the top-level NOTICE file for the per-family compatibility tables and "
+            "required attribution."
+        ),
         "citeAs": (
             f"Carmichael, T. ({citation['date-released'][:4]}). "
             f"{citation['title']}. Zenodo. https://doi.org/{citation['doi']}"
         ),
-        "creator": {"@type": "Person", "name": "Thomas Carmichael"},
+        "creator": _creator(citation),
         "keywords": pyproj["keywords"],
         "sameAs": f"https://doi.org/{citation['doi']}",
         "isLiveDataset": False,
         "distribution": _file_objects(citation, groups) + _file_sets(groups, descriptions),
-        "recordSet": _record_sets(groups, schemas),
+        "recordSet": _hf_record_sets() + _record_sets(groups, schemas),
     }
 
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-05T07:27:22+00:00",
+  "generated_at": "2026-05-11T05:13:44+00:00",
   "generated_from_repo": "paper-adot",
   "generated_from": "export_figure_sources.py",
   "source": "figure_provenance.json",
@@ -100,11 +100,12 @@
         "pythia-410m_main.json",
         "pythia-1b_main.json",
         "pythia-1.4b_main.json",
+        "pythia-1.4b-deduped_main.json",
         "pythia-2.8b_main.json",
         "pythia-6.9b_main.json",
         "pythia-12b_main.json"
       ],
-      "n_source_files": 25,
+      "n_source_files": 26,
       "key_paths": [
         "partial_corr.mean",
         "output_controlled.mean"
@@ -156,7 +157,7 @@
       ],
       "description": "Downstream observability transfer (3 models x 3 tasks): flag rates on SQuAD-RAG and MedQA, standard catches on TruthfulQA.",
       "paper_section": "sec:appendix_downstream",
-      "label": "fig:downstream",
+      "label": "fig:downstream_ceiling",
       "alt_text_file": "downstream_three_model.alt.txt",
       "scope": "downstream_3x3"
     },

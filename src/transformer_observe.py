@@ -2776,11 +2776,22 @@ def run_8c(model, tokenizer, device, seeds, train_docs, test_docs, max_tokens_tr
 # ---------------------------------------------------------------------------
 
 
+def _dataset_revision(dataset_id):
+    """Look up the pinned HF dataset commit from results/dataset_revisions.json."""
+    manifest = Path(__file__).resolve().parent.parent / "results" / "dataset_revisions.json"
+    return json.loads(manifest.read_text())["datasets"][dataset_id]["commit"]
+
+
 def load_openwebtext(split="test", max_docs=None):
     """Load OpenWebText documents (streamed from HuggingFace)."""
     from datasets import load_dataset
 
-    ds = load_dataset("openwebtext", split="train", streaming=True, trust_remote_code=True)
+    ds = load_dataset(
+        "Skylion007/openwebtext",
+        split="train",
+        streaming=True,
+        revision=_dataset_revision("Skylion007/openwebtext"),
+    )
     docs = []
     skip = 100000 if split == "test" else 0
     for i, row in enumerate(ds):
@@ -2798,7 +2809,14 @@ def load_code_dataset(split="test", max_docs=None):
     """Load Python code documents from CodeSearchNet."""
     from datasets import load_dataset
 
-    ds = load_dataset("code_search_net", "python", split="test", streaming=True, trust_remote_code=True)
+    ds = load_dataset(
+        "code_search_net",
+        "python",
+        split="test",
+        streaming=True,
+        trust_remote_code=True,
+        revision=_dataset_revision("code_search_net"),
+    )
     docs = []
     for row in ds:
         text = row["whole_func_string"].strip()

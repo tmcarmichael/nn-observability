@@ -52,18 +52,37 @@
     "value": "cr:value"
   },
   "@type": "sc:Dataset",
-  "conformsTo": "http://mlcommons.org/croissant/1.1",
+  "conformsTo": [
+    "http://mlcommons.org/croissant/1.1",
+    "http://mlcommons.org/croissant/RAI/1.0"
+  ],
   "sdVersion": "1.1",
   "name": "nn-observability",
-  "description": "Whether activation monitoring can catch high-confidence transformer errors depends on architecture: some configurations preserve a linearly readable signal after controlling for output confidence, while others collapse. Code and data for 26 models across 7 families.",
+  "description": "Architecture and training recipe determine whether activation monitoring can catch high-confidence transformer errors: training preserves a linearly readable signal in some configurations and erases it in others. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability.",
   "url": "https://github.com/tmcarmichael/nn-observability",
-  "version": "4.0.0",
-  "datePublished": "2026-05-05",
+  "documentation": [
+    "https://github.com/tmcarmichael/nn-observability/blob/main/DATA.md",
+    "https://github.com/tmcarmichael/nn-observability/blob/main/MODELS.md"
+  ],
+  "version": "5.0.0",
+  "datePublished": "2026-05-10",
   "license": "https://opensource.org/licenses/MIT",
-  "citeAs": "Carmichael, T. (2026). Architectural Observability Collapse in Transformers. Zenodo. https://doi.org/10.5281/zenodo.19435674",
+  "rai:dataCollection": "This repository is a consumer of seven public Hugging Face datasets, not a creator. No data collection occurred here. Each dataset is loaded at a pinned revision (results/dataset_revisions.json) and used as the source for tokenized text inputs and downstream-task items. Upstream collection methods are documented on each dataset's Hugging Face card and source publication; see DATA.md for per-dataset role and reference links.",
+  "rai:dataCollectionType": "https://schema.org/Dataset",
+  "rai:dataPreprocessingProtocol": "Per-dataset preprocessing is documented in DATA.md (subset and transforms per dataset). Probe targets are partial-correlation residuals after controlling for max-softmax confidence and activation norm, computed by analysis code shipped in src/probe.py and src/observe.py and locked at 1e-12 tolerance by tests/test_producer_invariants.py.",
+  "rai:annotationsPerItem": "No annotations are produced by this repository. Persisted artifacts are derived statistics (per-token loss values, observer scores, partial correlations, exclusive-catch counts), not labels assigned to source-text items.",
+  "rai:dataAnnotationProtocol": "Not applicable. No annotations are produced by this repository. Upstream datasets carry their own annotation protocols, documented in their respective Hugging Face cards and source publications (see DATA.md per-dataset entries for citations).",
+  "rai:personalSensitiveInformation": "Per-dataset PII posture mirrors DATA.md (PII and sensitive content section). WikiText-103, SQuAD v2, MedQA-USMLE, and TruthfulQA are low-risk: encyclopedic or synthetic content with no human subjects beyond the upstream Wikipedia or exam-board sources. C4 and OpenWebText carry web-scrape residuals from public internet text. CodeSearchNet (Python) carries author-identifier residuals from open-source GitHub comments and string literals. This repository does not collect, redistribute, or expose source-text content; persisted artifacts are derived statistics that are not text-recoverable.",
+  "rai:dataUseCases": "Recommended: reproducing the observability protocol on the same models, extending it to additional autoregressive transformers under the same probe class, using the WikiText-trained observer as a starting point for methodological hardening, and probing-validity research that builds on the confidence-controlled and output-controlled framework. Out-of-scope: production or regulated deployment in clinical, legal, financial, hiring, lending, or content-moderation contexts; generalization to multilingual or non-text settings without re-validation; detection of fluent confident falsehoods (the paper reports near-chance TruthfulQA AUC across three production instruct models); adversarial-robustness claims under adaptive attacks. See DATA.md and MODELS.md for the full statements.",
+  "rai:dataLimitations": "All seven datasets are English-language. The paper's findings are scoped to English text and the populations represented (Wikipedia editors, web users, crowdworkers, US medical board examiners, open-source Python developers, adversarial fact-pattern selection). Cross-language and cross-demographic generalization is not measured. Activation-monitor robustness under adaptive attacks is not measured (McGuinness et al., 2025). Upstream creators do not release training-data composition for several model families (Llama, Gemma, Mistral, Qwen, Phi); cross-recipe and cross-family contrasts are observational, not causal.",
+  "rai:dataReleaseMaintenancePlan": "Versioned releases tagged on GitHub and snapshotted on Zenodo (concept DOI in this descriptor's `sameAs`). Every release pins per-model and per-dataset Hugging Face SHAs verified against the live HF API by scripts/verify_manifest_revisions.py; the latest verification report is exposed through the manifest-verification FileObject. Schema validation runs on every push; result-JSON drift is blocked by CI. The Croissant descriptor is regenerated on every release.",
+  "usageInfo": "Repository source code, result schemas, and human-readable documentation are MIT-licensed (this descriptor's `license` field). Result JSON values are statistical summaries derived from frozen activations of upstream public models; model weights are never redistributed, and downstream use of result JSON values must respect the upstream terms recorded in NOTICE. Per-model and per-dataset license attribution is recorded in results/model_revisions.json and results/dataset_revisions.json (also exposed through the model-revisions and dataset-revisions FileObjects, and as queryable records in the hugging-face-models and hugging-face-datasets RecordSets). Built with Llama: this repository evaluates Llama 3.2 1B, 3B, 1B-Instruct, and Llama 3.1 8B; downstream redistributors of derived artifacts include the \"Built with Llama\" attribution required by the Llama Community License and remain bound by Meta's Acceptable Use Policy. Gemma 3 derivatives are governed by the Gemma Terms of Use, including the Prohibited Use Policy. Qwen 2.5 3B base and 3B Instruct are released under the Qwen Research License (custom, non-commercial); derivatives that depend on these two checkpoints inherit the non-commercial restriction. The other 25 evaluated checkpoints ship under permissive licenses (MIT or Apache 2.0). See MODELS.md, DATA.md, and the top-level NOTICE file for the per-family compatibility tables and required attribution.",
+  "citeAs": "Carmichael, T. (2026). Architecture Determines Observability of Transformers. Zenodo. https://doi.org/10.5281/zenodo.19435674",
   "creator": {
     "@type": "Person",
-    "name": "Thomas Carmichael"
+    "name": "Thomas Carmichael",
+    "sameAs": "https://orcid.org/0009-0001-3436-1010",
+    "identifier": "https://orcid.org/0009-0001-3436-1010"
   },
   "keywords": [
     "neural network observability",
@@ -83,34 +102,34 @@
       "@type": "cr:FileObject",
       "@id": "nn-observability-archive",
       "name": "nn-observability-archive",
-      "description": "Source repository at v4.0.0. The sha256 is a merkle hash over (filename, sha256) pairs of every distribution file under results/, computed by scripts/generate_croissant.py; rerun the generator on a clean clone to verify.",
-      "contentUrl": "https://github.com/tmcarmichael/nn-observability/archive/refs/tags/v4.0.0.tar.gz",
+      "description": "Source repository at v5.0.0. The sha256 is a merkle hash over (filename, sha256) pairs of every distribution file under results/, computed by scripts/generate_croissant.py; rerun the generator on a clean clone to verify.",
+      "contentUrl": "https://github.com/tmcarmichael/nn-observability/archive/refs/tags/v5.0.0.tar.gz",
       "encodingFormat": "application/x-tar",
-      "sha256": "5ddd351d54c1586bee8c194d790c254b058d4995209d86b8d3343bc89b8648ce"
+      "sha256": "1ad90ab36518a3e5ff6971996e6202f68254e0a5ade70ec866d5c9048745ded1"
     },
     {
       "@type": "cr:FileObject",
       "@id": "model-revisions",
       "name": "model-revisions",
-      "description": "Hugging Face model IDs and pinned commit hashes for every evaluated model.",
+      "description": "Hugging Face model IDs, pinned commit hashes, and per-model license attribution for every evaluated model. Llama 3.2 / 3.1 entries carry the Llama Community License; Gemma 3 entries carry the Gemma license; the remaining five families ship under MIT or Apache 2.0. See MODELS.md for the license-compatibility table and downstream-derivative constraints.",
       "containedIn": {
         "@id": "nn-observability-archive"
       },
       "contentUrl": "results/model_revisions.json",
       "encodingFormat": "application/json",
-      "sha256": "09bd675f5e8e389c3286d49142d9cd37a94d09eb9155cea73f4d6c68d4d7aaf8"
+      "sha256": "a62aba11f55de426d88ac730f3e906ac8f4266d099c14f4e4aa44610a6ab89da"
     },
     {
       "@type": "cr:FileObject",
       "@id": "dataset-revisions",
       "name": "dataset-revisions",
-      "description": "Hugging Face dataset IDs and pinned commit hashes for every paper-cited evaluation corpus.",
+      "description": "Hugging Face dataset IDs, pinned commit hashes, and per-dataset license attribution for every paper-cited evaluation corpus. Per-entry licenses span MIT, Apache 2.0, CC0, CC BY 4.0, CC BY-SA 4.0, and ODC-BY 1.0. See DATA.md for the license-compatibility table and downstream-derivative constraints.",
       "containedIn": {
         "@id": "nn-observability-archive"
       },
       "contentUrl": "results/dataset_revisions.json",
       "encodingFormat": "application/json",
-      "sha256": "a304a1bbfcb1e368dd6cecfb88f78a6dea1cf076e972e475227fd25baf92c2ed"
+      "sha256": "b0627651d32d6888b7194b7de61131ee1a832488899e5370424b0cabc093a18f"
     },
     {
       "@type": "cr:FileObject",
@@ -120,9 +139,9 @@
       "containedIn": {
         "@id": "nn-observability-archive"
       },
-      "contentUrl": "results/manifest_verification/2026-05-03.json",
+      "contentUrl": "results/manifest_verification/2026-05-09.json",
       "encodingFormat": "application/json",
-      "sha256": "3093a699beb2b4636ccbc166ce0455bdbf7566a7c961ea816dbb26a8cb4cf904"
+      "sha256": "2d075184d804222320090319558554c89291d71d1aad05c7ad3f530390781c39"
     },
     {
       "@type": "cr:FileSet",
@@ -356,6 +375,450 @@
   "recordSet": [
     {
       "@type": "cr:RecordSet",
+      "@id": "hugging-face-models",
+      "name": "hugging-face-models",
+      "description": "All Hugging Face transformer checkpoints evaluated in the paper. Each record carries the model identifier, pinned commit SHA, family-level license, and the URL to the upstream license text. The cross-family cohort and Pythia controlled suite are defined as named scopes in analysis/load_results.py.",
+      "key": {
+        "@id": "hugging-face-models/model_id"
+      },
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/model_id",
+          "name": "model_id",
+          "description": "Hugging Face model identifier (org/name).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/commit",
+          "name": "commit",
+          "description": "Pinned Hugging Face commit SHA (40-char hex git revision).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/url",
+          "name": "url",
+          "description": "Canonical Hugging Face URL for the model repository.",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/contentUrl",
+          "name": "contentUrl",
+          "description": "Hugging Face tree URL pinned to the recorded commit.",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/license",
+          "name": "license",
+          "description": "License identifier (SPDX where available, otherwise the upstream label).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-models/license_url",
+          "name": "license_url",
+          "description": "URL to the upstream license text.",
+          "dataType": "sc:Text"
+        }
+      ],
+      "data": [
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-1.4b",
+          "hugging-face-models/commit": "fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-1.4b",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-1.4b/tree/fedc38a16eea3bd36a96b906d78d11d2ce18ed79",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-1.4b-deduped",
+          "hugging-face-models/commit": "554d9c1bae3877f740aece41feb90f912cf9fedc",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-1.4b-deduped",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-1.4b-deduped/tree/554d9c1bae3877f740aece41feb90f912cf9fedc",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-12b",
+          "hugging-face-models/commit": "bb1e3e710cdf6b524461d543cfb5ba773f0a81b6",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-12b",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-12b/tree/bb1e3e710cdf6b524461d543cfb5ba773f0a81b6",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-160m",
+          "hugging-face-models/commit": "50f5173d932e8e61f858120bcb800b97af589f46",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-160m",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-160m/tree/50f5173d932e8e61f858120bcb800b97af589f46",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-1b",
+          "hugging-face-models/commit": "f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-1b",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-1b/tree/f73d7dcc545c8bd326d8559c8ef84ffe92fea6b2",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-2.8b",
+          "hugging-face-models/commit": "2a259cdd96a4beb1cdf467512e3904197345f6a9",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-2.8b",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-2.8b/tree/2a259cdd96a4beb1cdf467512e3904197345f6a9",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-410m",
+          "hugging-face-models/commit": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-410m",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-410m/tree/9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-6.9b",
+          "hugging-face-models/commit": "c0e3eee36dc47af0c49f361c74cfe459c09f7f23",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-6.9b",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-6.9b/tree/c0e3eee36dc47af0c49f361c74cfe459c09f7f23",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "EleutherAI/pythia-70m",
+          "hugging-face-models/commit": "a39f36b100fe8a5377810d56c3f4789b9c53ac42",
+          "hugging-face-models/url": "https://huggingface.co/EleutherAI/pythia-70m",
+          "hugging-face-models/contentUrl": "https://huggingface.co/EleutherAI/pythia-70m/tree/a39f36b100fe8a5377810d56c3f4789b9c53ac42",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-0.5B",
+          "hugging-face-models/commit": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-0.5B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-0.5B/tree/060db6499f32faf8b98477b0a26969ef7d8b9987",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+          "hugging-face-models/commit": "7ae557604adf67be50417f59c2c2f167def9a775",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/tree/7ae557604adf67be50417f59c2c2f167def9a775",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-1.5B",
+          "hugging-face-models/commit": "8faed761d45a263340a0528343f099c05c9a4323",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-1.5B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-1.5B/tree/8faed761d45a263340a0528343f099c05c9a4323",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+          "hugging-face-models/commit": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/tree/989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-14B",
+          "hugging-face-models/commit": "97e1e76335b7017d8f67c08a19d103c0504298c9",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-14B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-14B/tree/97e1e76335b7017d8f67c08a19d103c0504298c9",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-14B-Instruct",
+          "hugging-face-models/commit": "cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct/tree/cf98f3b3bbb457ad9e2bb7baf9a0125b6b88caa8",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-32B",
+          "hugging-face-models/commit": "1818d35814b8319459f4bd55ed1ac8709630f003",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-32B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-32B/tree/1818d35814b8319459f4bd55ed1ac8709630f003",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-3B",
+          "hugging-face-models/commit": "3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-3B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-3B/tree/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
+          "hugging-face-models/license": "qwen-research",
+          "hugging-face-models/license_url": "https://huggingface.co/Qwen/Qwen2.5-3B/blob/main/LICENSE"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-3B-Instruct",
+          "hugging-face-models/commit": "aa8e72537993ba99e69dfaafa59ed015b17504d1",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/tree/aa8e72537993ba99e69dfaafa59ed015b17504d1",
+          "hugging-face-models/license": "qwen-research",
+          "hugging-face-models/license_url": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-7B",
+          "hugging-face-models/commit": "d149729398750b98c0af14eb82c78cfe92750796",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-7B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-7B/tree/d149729398750b98c0af14eb82c78cfe92750796",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "Qwen/Qwen2.5-7B-Instruct",
+          "hugging-face-models/commit": "a09a35458c702b33eeacc393d103063234e8bc28",
+          "hugging-face-models/url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/tree/a09a35458c702b33eeacc393d103063234e8bc28",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "google/gemma-3-1b-pt",
+          "hugging-face-models/commit": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+          "hugging-face-models/url": "https://huggingface.co/google/gemma-3-1b-pt",
+          "hugging-face-models/contentUrl": "https://huggingface.co/google/gemma-3-1b-pt/tree/fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+          "hugging-face-models/license": "Gemma-License",
+          "hugging-face-models/license_url": "https://ai.google.dev/gemma/terms"
+        },
+        {
+          "hugging-face-models/model_id": "google/gemma-3-4b-pt",
+          "hugging-face-models/commit": "cc012e0a6d0787b4adcc0fa2c4da74402494554d",
+          "hugging-face-models/url": "https://huggingface.co/google/gemma-3-4b-pt",
+          "hugging-face-models/contentUrl": "https://huggingface.co/google/gemma-3-4b-pt/tree/cc012e0a6d0787b4adcc0fa2c4da74402494554d",
+          "hugging-face-models/license": "Gemma-License",
+          "hugging-face-models/license_url": "https://ai.google.dev/gemma/terms"
+        },
+        {
+          "hugging-face-models/model_id": "meta-llama/Llama-3.1-8B",
+          "hugging-face-models/commit": "d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+          "hugging-face-models/url": "https://huggingface.co/meta-llama/Llama-3.1-8B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/meta-llama/Llama-3.1-8B/tree/d04e592bb4f6aa9cfee91e2e20afa771667e1d4b",
+          "hugging-face-models/license": "Llama-3.1-Community-License",
+          "hugging-face-models/license_url": "https://huggingface.co/meta-llama/Llama-3.1-8B/blob/main/LICENSE"
+        },
+        {
+          "hugging-face-models/model_id": "meta-llama/Llama-3.2-1B",
+          "hugging-face-models/commit": "4e20de362430cd3b72f300e6b0f18e50e7166e08",
+          "hugging-face-models/url": "https://huggingface.co/meta-llama/Llama-3.2-1B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B/tree/4e20de362430cd3b72f300e6b0f18e50e7166e08",
+          "hugging-face-models/license": "Llama-3.2-Community-License",
+          "hugging-face-models/license_url": "https://huggingface.co/meta-llama/Llama-3.2-1B/blob/main/LICENSE.txt"
+        },
+        {
+          "hugging-face-models/model_id": "meta-llama/Llama-3.2-1B-Instruct",
+          "hugging-face-models/commit": "9213176726f574b556790deb65791e0c5aa438b6",
+          "hugging-face-models/url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/tree/9213176726f574b556790deb65791e0c5aa438b6",
+          "hugging-face-models/license": "Llama-3.2-Community-License",
+          "hugging-face-models/license_url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/blob/main/LICENSE.txt"
+        },
+        {
+          "hugging-face-models/model_id": "meta-llama/Llama-3.2-3B",
+          "hugging-face-models/commit": "13afe5124825b4f3751f836b40dafda64c1ed062",
+          "hugging-face-models/url": "https://huggingface.co/meta-llama/Llama-3.2-3B",
+          "hugging-face-models/contentUrl": "https://huggingface.co/meta-llama/Llama-3.2-3B/tree/13afe5124825b4f3751f836b40dafda64c1ed062",
+          "hugging-face-models/license": "Llama-3.2-Community-License",
+          "hugging-face-models/license_url": "https://huggingface.co/meta-llama/Llama-3.2-3B/blob/main/LICENSE.txt"
+        },
+        {
+          "hugging-face-models/model_id": "microsoft/Phi-3-mini-4k-instruct",
+          "hugging-face-models/commit": "f39ac1d28e925b323eae81227eaba4464caced4e",
+          "hugging-face-models/url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct",
+          "hugging-face-models/contentUrl": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/tree/f39ac1d28e925b323eae81227eaba4464caced4e",
+          "hugging-face-models/license": "MIT",
+          "hugging-face-models/license_url": "https://opensource.org/licenses/MIT"
+        },
+        {
+          "hugging-face-models/model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+          "hugging-face-models/commit": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+          "hugging-face-models/url": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3",
+          "hugging-face-models/contentUrl": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3/tree/c170c708c41dac9275d15a8fff4eca08d52bab71",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "mistralai/Mistral-7B-v0.3",
+          "hugging-face-models/commit": "caa1feb0e54d415e2df31207e5f4e273e33509b1",
+          "hugging-face-models/url": "https://huggingface.co/mistralai/Mistral-7B-v0.3",
+          "hugging-face-models/contentUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.3/tree/caa1feb0e54d415e2df31207e5f4e273e33509b1",
+          "hugging-face-models/license": "Apache-2.0",
+          "hugging-face-models/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "hugging-face-models/model_id": "openai-community/gpt2",
+          "hugging-face-models/commit": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+          "hugging-face-models/url": "https://huggingface.co/openai-community/gpt2",
+          "hugging-face-models/contentUrl": "https://huggingface.co/openai-community/gpt2/tree/607a30d783dfa663caf39e06633721c8d4cfcd7e",
+          "hugging-face-models/license": "MIT",
+          "hugging-face-models/license_url": "https://opensource.org/licenses/MIT"
+        },
+        {
+          "hugging-face-models/model_id": "openai-community/gpt2-large",
+          "hugging-face-models/commit": "32b71b12589c2f8d625668d2335a01cac3249519",
+          "hugging-face-models/url": "https://huggingface.co/openai-community/gpt2-large",
+          "hugging-face-models/contentUrl": "https://huggingface.co/openai-community/gpt2-large/tree/32b71b12589c2f8d625668d2335a01cac3249519",
+          "hugging-face-models/license": "MIT",
+          "hugging-face-models/license_url": "https://opensource.org/licenses/MIT"
+        },
+        {
+          "hugging-face-models/model_id": "openai-community/gpt2-medium",
+          "hugging-face-models/commit": "6dcaa7a952f72f9298047fd5137cd6e4f05f41da",
+          "hugging-face-models/url": "https://huggingface.co/openai-community/gpt2-medium",
+          "hugging-face-models/contentUrl": "https://huggingface.co/openai-community/gpt2-medium/tree/6dcaa7a952f72f9298047fd5137cd6e4f05f41da",
+          "hugging-face-models/license": "MIT",
+          "hugging-face-models/license_url": "https://opensource.org/licenses/MIT"
+        },
+        {
+          "hugging-face-models/model_id": "openai-community/gpt2-xl",
+          "hugging-face-models/commit": "15ea56dee5df4983c59b2538573817e1667135e2",
+          "hugging-face-models/url": "https://huggingface.co/openai-community/gpt2-xl",
+          "hugging-face-models/contentUrl": "https://huggingface.co/openai-community/gpt2-xl/tree/15ea56dee5df4983c59b2538573817e1667135e2",
+          "hugging-face-models/license": "MIT",
+          "hugging-face-models/license_url": "https://opensource.org/licenses/MIT"
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "hugging-face-datasets",
+      "name": "hugging-face-datasets",
+      "description": "All Hugging Face datasets used as eval corpora or producer inputs in the paper. Each record carries the dataset identifier, config name, pinned commit SHA, license, and the URL to the upstream license text. Producer scripts pass the recorded commit via the revision= argument to load_dataset, enforced by tests/test_script_preflight.py.",
+      "key": {
+        "@id": "hugging-face-datasets/dataset_id"
+      },
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/dataset_id",
+          "name": "dataset_id",
+          "description": "Hugging Face dataset identifier (org/name).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/config",
+          "name": "config",
+          "description": "Dataset config / subset name, or empty string if unconfigured.",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/commit",
+          "name": "commit",
+          "description": "Pinned Hugging Face commit SHA (40-char hex git revision).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/url",
+          "name": "url",
+          "description": "Canonical Hugging Face URL for the dataset repository.",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/contentUrl",
+          "name": "contentUrl",
+          "description": "Hugging Face tree URL pinned to the recorded commit.",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/license",
+          "name": "license",
+          "description": "License identifier (SPDX where available, otherwise the upstream label).",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "hugging-face-datasets/license_url",
+          "name": "license_url",
+          "description": "URL to the upstream license text.",
+          "dataType": "sc:Text"
+        }
+      ],
+      "data": [
+        {
+          "hugging-face-datasets/dataset_id": "GBaker/MedQA-USMLE-4-options",
+          "hugging-face-datasets/config": "",
+          "hugging-face-datasets/commit": "0fb93dd23a7339b6dcd27e241cb9b5eca62d4d18",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/GBaker/MedQA-USMLE-4-options/tree/0fb93dd23a7339b6dcd27e241cb9b5eca62d4d18",
+          "hugging-face-datasets/license": "CC-BY-4.0",
+          "hugging-face-datasets/license_url": "https://creativecommons.org/licenses/by/4.0/"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "Salesforce/wikitext",
+          "hugging-face-datasets/config": "wikitext-103-raw-v1",
+          "hugging-face-datasets/commit": "b08601e04326c79dfdd32d625aee71d232d685c3",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/Salesforce/wikitext",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/Salesforce/wikitext/tree/b08601e04326c79dfdd32d625aee71d232d685c3",
+          "hugging-face-datasets/license": "CC-BY-SA-3.0",
+          "hugging-face-datasets/license_url": "https://creativecommons.org/licenses/by-sa/3.0/"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "Skylion007/openwebtext",
+          "hugging-face-datasets/config": "",
+          "hugging-face-datasets/commit": "b4325f019c648b1641a1784748667e8b74e5e064",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/Skylion007/openwebtext",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/Skylion007/openwebtext/tree/b4325f019c648b1641a1784748667e8b74e5e064",
+          "hugging-face-datasets/license": "CC0-1.0",
+          "hugging-face-datasets/license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "allenai/c4",
+          "hugging-face-datasets/config": "en",
+          "hugging-face-datasets/commit": "1588ec454efa1a09f29cd18ddd04fe05fc8653a2",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/allenai/c4",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/allenai/c4/tree/1588ec454efa1a09f29cd18ddd04fe05fc8653a2",
+          "hugging-face-datasets/license": "ODC-BY-1.0",
+          "hugging-face-datasets/license_url": "https://opendatacommons.org/licenses/by/1-0/"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "code_search_net",
+          "hugging-face-datasets/config": "python",
+          "hugging-face-datasets/commit": "bd0cf261e357a3eb5c8fba490d23ec1a1cd59555",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/code_search_net",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/code_search_net/tree/bd0cf261e357a3eb5c8fba490d23ec1a1cd59555",
+          "hugging-face-datasets/license": "other",
+          "hugging-face-datasets/license_url": "https://github.com/github/CodeSearchNet/blob/master/LICENSE"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "rajpurkar/squad_v2",
+          "hugging-face-datasets/config": "",
+          "hugging-face-datasets/commit": "3ffb306f725f7d2ce8394bc1873b24868140c412",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/rajpurkar/squad_v2",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/rajpurkar/squad_v2/tree/3ffb306f725f7d2ce8394bc1873b24868140c412",
+          "hugging-face-datasets/license": "CC-BY-SA-4.0",
+          "hugging-face-datasets/license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+        },
+        {
+          "hugging-face-datasets/dataset_id": "truthfulqa/truthful_qa",
+          "hugging-face-datasets/config": "multiple_choice",
+          "hugging-face-datasets/commit": "741b8276f2d1982aa3d5b832d3ee81ed3b896490",
+          "hugging-face-datasets/url": "https://huggingface.co/datasets/truthfulqa/truthful_qa",
+          "hugging-face-datasets/contentUrl": "https://huggingface.co/datasets/truthfulqa/truthful_qa/tree/741b8276f2d1982aa3d5b832d3ee81ed3b896490",
+          "hugging-face-datasets/license": "Apache-2.0",
+          "hugging-face-datasets/license_url": "https://www.apache.org/licenses/LICENSE-2.0"
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
       "@id": "bootstrap-results-records",
       "name": "bootstrap-results-records",
       "description": "Output of scripts/split_bootstrap_gpu.py. Resamples WikiText documents to bound probe-stability CI at the peak layer.",
@@ -367,7 +830,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/model",
           "name": "model",
-          "description": "Field model from bootstrap-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -382,7 +845,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from bootstrap-results.",
+          "description": "Peak layer index used for the bootstrap.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -397,7 +860,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/ex_dim",
           "name": "ex_dim",
-          "description": "Field ex_dim from bootstrap-results.",
+          "description": "Tokens-per-feature-dim ratio for the probe fit (350 ex/dim canonical).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -412,7 +875,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/n_boot",
           "name": "n_boot",
-          "description": "Field n_boot from bootstrap-results.",
+          "description": "Number of document-level bootstrap resamples.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -427,7 +890,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/boot_rhos",
           "name": "boot_rhos",
-          "description": "Field boot_rhos from bootstrap-results. (JSON-serialized)",
+          "description": "Per-resample partial Spearman values. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -442,7 +905,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/mean",
           "name": "mean",
-          "description": "Field mean from bootstrap-results.",
+          "description": "Bootstrap mean of partial Spearman.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -457,7 +920,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/std",
           "name": "std",
-          "description": "Field std from bootstrap-results.",
+          "description": "Bootstrap standard deviation of partial Spearman.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -502,7 +965,7 @@
           "@type": "cr:Field",
           "@id": "bootstrap-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from bootstrap-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -528,7 +991,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/model",
           "name": "model",
-          "description": "Field model from dynamics-results.",
+          "description": "Hugging Face model identifier (org/name) for the trajectory's final checkpoint.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -543,7 +1006,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/experiment",
           "name": "experiment",
-          "description": "Field experiment from dynamics-results.",
+          "description": "Experiment label (e.g., pythia_1b_dynamics).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -558,7 +1021,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/n_layers",
           "name": "n_layers",
-          "description": "Field n_layers from dynamics-results.",
+          "description": "Transformer depth (number of decoder blocks).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -573,7 +1036,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from dynamics-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -588,7 +1051,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/heads",
           "name": "heads",
-          "description": "Field heads from dynamics-results.",
+          "description": "Number of attention heads per layer.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -633,7 +1096,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from dynamics-results. (JSON-serialized)",
+          "description": "Probe protocol shared across checkpoints (seeds, target tokens-per-dim ratio, batch size). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -663,7 +1126,7 @@
           "@type": "cr:Field",
           "@id": "dynamics-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from dynamics-results. (JSON-serialized)",
+          "description": "Run-level reproducibility metadata. model_revision is the sentinel 'multi' for dynamics runs (per-checkpoint SHAs live on each checkpoint entry). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -686,7 +1149,7 @@
           "@type": "cr:Field",
           "@id": "legacy-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from legacy-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -727,7 +1190,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/n_params_b",
           "name": "n_params_b",
-          "description": "Field n_params_b from main-results.",
+          "description": "Parameter count in billions.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -742,7 +1205,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/n_layers",
           "name": "n_layers",
-          "description": "Field n_layers from main-results.",
+          "description": "Transformer depth (number of decoder blocks).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -757,7 +1220,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from main-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -772,7 +1235,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from main-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -787,7 +1250,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from main-results. (JSON-serialized)",
+          "description": "Probe protocol parameters: seeds, target tokens-per-feature-dim ratio, batch and layer-pass shapes. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -832,7 +1295,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/peak_layer_frac",
           "name": "peak_layer_frac",
-          "description": "Field peak_layer_frac from main-results.",
+          "description": "Peak layer index expressed as fraction of total depth.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -892,7 +1355,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/test_split_comparison",
           "name": "test_split_comparison",
-          "description": "Field test_split_comparison from main-results. (JSON-serialized)",
+          "description": "Held-out test-split partial Spearman across seeds (held-in/held-out generalization check). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -907,7 +1370,7 @@
           "@type": "cr:Field",
           "@id": "main-results-records/seed_agreement",
           "name": "seed_agreement",
-          "description": "Field seed_agreement from main-results. (JSON-serialized)",
+          "description": "Mean rank-correlation between probe predictions across seeds at the peak layer. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1008,7 +1471,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/model",
           "name": "model",
-          "description": "Field model from mechanistic-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1038,7 +1501,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/n_layers",
           "name": "n_layers",
-          "description": "Field n_layers from mechanistic-results.",
+          "description": "Transformer depth (number of decoder blocks).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1053,7 +1516,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from mechanistic-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1068,7 +1531,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/n_params_b",
           "name": "n_params_b",
-          "description": "Field n_params_b from mechanistic-results.",
+          "description": "Parameter count in billions.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -1083,7 +1546,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from mechanistic-results.",
+          "description": "Observability peak layer used for the ablation interventions.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1143,7 +1606,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/top_attn_layers",
           "name": "top_attn_layers",
-          "description": "Field top_attn_layers from mechanistic-results. (JSON-serialized)",
+          "description": "Layer indices of the largest attention-component contributors to the residual signal. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1173,7 +1636,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/wikitext_flagging",
           "name": "wikitext_flagging",
-          "description": "Field wikitext_flagging from mechanistic-results. (JSON-serialized)",
+          "description": "Selective-prediction flagging summary on the WikiText eval pool. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1188,7 +1651,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/c4_flagging",
           "name": "c4_flagging",
-          "description": "Field c4_flagging from mechanistic-results. (JSON-serialized)",
+          "description": "Selective-prediction flagging summary on the C4 eval pool. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1203,7 +1666,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/temperature_scaling",
           "name": "temperature_scaling",
-          "description": "Field temperature_scaling from mechanistic-results. (JSON-serialized)",
+          "description": "Temperature-scaling sensitivity of the ablation deltas. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1218,7 +1681,7 @@
           "@type": "cr:Field",
           "@id": "mechanistic-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from mechanistic-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1244,7 +1707,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/model",
           "name": "model",
-          "description": "Field model from medqa-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1259,7 +1722,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/task",
           "name": "task",
-          "description": "Field task from medqa-results.",
+          "description": "Downstream task family: SQuAD-style RAG QA, MedQA selective prediction, or TruthfulQA hallucination.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1274,7 +1737,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/dataset",
           "name": "dataset",
-          "description": "Field dataset from medqa-results.",
+          "description": "Hugging Face dataset identifier evaluated on this task.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1289,7 +1752,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from medqa-results.",
+          "description": "Probe layer index sourced from the WikiText-trained main run.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1304,7 +1767,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/n_questions",
           "name": "n_questions",
-          "description": "Field n_questions from medqa-results.",
+          "description": "Number of evaluation items scored on this task.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1319,7 +1782,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/n_errors",
           "name": "n_errors",
-          "description": "Field n_errors from medqa-results.",
+          "description": "Number of evaluation items the model got wrong (denominator for exclusive-catch metrics).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1334,7 +1797,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/accuracy",
           "name": "accuracy",
-          "description": "Field accuracy from medqa-results.",
+          "description": "Fraction of evaluation items the model got correct.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -1349,7 +1812,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/probe_seeds",
           "name": "probe_seeds",
-          "description": "Field probe_seeds from medqa-results. (JSON-serialized)",
+          "description": "Probe-training seeds used for cross-seed averaging on the downstream cell. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1364,7 +1827,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from medqa-results. (JSON-serialized)",
+          "description": "Per-task protocol parameters (prompt format, grading rules, target counts). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1409,7 +1872,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/summary",
           "name": "summary",
-          "description": "Field summary from medqa-results. (JSON-serialized)",
+          "description": "Top-line metrics: AUC of accuracy-on-coverage curves, exclusive-catch counts, observer-vs-confidence comparison. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1439,7 +1902,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/standard_catches",
           "name": "standard_catches",
-          "description": "Field standard_catches from medqa-results. (JSON-serialized)",
+          "description": "Confidence-based baseline catch counts at fixed flag rates (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1454,7 +1917,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/confident_hallucination_catches",
           "name": "confident_hallucination_catches",
-          "description": "Field confident_hallucination_catches from medqa-results. (JSON-serialized)",
+          "description": "Observer-based catch counts on items the model answered confidently and incorrectly (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1469,7 +1932,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/confidence_threshold",
           "name": "confidence_threshold",
-          "description": "Field confidence_threshold from medqa-results.",
+          "description": "Softmax threshold above which an answer is considered confident (TruthfulQA grading).",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -1484,7 +1947,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/grading",
           "name": "grading",
-          "description": "Field grading from medqa-results.",
+          "description": "Grading protocol descriptor (e.g., MC1 single-correct format with normalized substring match).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1499,7 +1962,7 @@
           "@type": "cr:Field",
           "@id": "medqa-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from medqa-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1525,7 +1988,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/model",
           "name": "model",
-          "description": "Field model from nonlinear-probe-multilayer-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1540,7 +2003,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from nonlinear-probe-multilayer-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1555,7 +2018,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from nonlinear-probe-multilayer-results.",
+          "description": "Probe layer index sourced from the model's main run.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1570,7 +2033,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/ex_dim",
           "name": "ex_dim",
-          "description": "Field ex_dim from nonlinear-probe-multilayer-results.",
+          "description": "Tokens-per-feature-dim ratio for the probe fit.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1585,7 +2048,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/seeds",
           "name": "seeds",
-          "description": "Field seeds from nonlinear-probe-multilayer-results. (JSON-serialized)",
+          "description": "Probe-training seeds used in the comparison. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1645,7 +2108,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from nonlinear-probe-multilayer-results. (JSON-serialized)",
+          "description": "Probe protocol parameters (architecture variants, training schedule, hyperparameter sweep grid). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1675,7 +2138,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-multilayer-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from nonlinear-probe-multilayer-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1701,7 +2164,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/model",
           "name": "model",
-          "description": "Field model from nonlinear-probe-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1716,7 +2179,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from nonlinear-probe-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1731,7 +2194,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from nonlinear-probe-results.",
+          "description": "Probe layer index sourced from the model's main run.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1746,7 +2209,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/ex_dim",
           "name": "ex_dim",
-          "description": "Field ex_dim from nonlinear-probe-results.",
+          "description": "Tokens-per-feature-dim ratio for the probe fit.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1761,7 +2224,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/seeds",
           "name": "seeds",
-          "description": "Field seeds from nonlinear-probe-results. (JSON-serialized)",
+          "description": "Probe-training seeds used in the comparison. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1821,7 +2284,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from nonlinear-probe-results. (JSON-serialized)",
+          "description": "Probe protocol parameters (architecture variants, training schedule, hyperparameter sweep grid). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1851,7 +2314,7 @@
           "@type": "cr:Field",
           "@id": "nonlinear-probe-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from nonlinear-probe-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1877,7 +2340,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/model",
           "name": "model",
-          "description": "Field model from residualizer-split-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1892,7 +2355,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/n_layers",
           "name": "n_layers",
-          "description": "Field n_layers from residualizer-split-results.",
+          "description": "Transformer depth (number of decoder blocks).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1907,7 +2370,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from residualizer-split-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1922,7 +2385,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/layer",
           "name": "layer",
-          "description": "Field layer from residualizer-split-results.",
+          "description": "Layer index of the residualizer-split test (typically the model's main-run peak layer).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -1937,7 +2400,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from residualizer-split-results. (JSON-serialized)",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -1952,7 +2415,7 @@
           "@type": "cr:Field",
           "@id": "residualizer-split-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from residualizer-split-results. (JSON-serialized)",
+          "description": "Three-pool protocol parameters: tokens-per-dim ratio, seeds, and per-pool token and document budgets for T (probe-train), R (residualizer-fit), and V (held-out eval). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2053,7 +2516,7 @@
           "@type": "cr:Field",
           "@id": "shuffle-control-results-records/model",
           "name": "model",
-          "description": "Field model from shuffle-control-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2068,7 +2531,7 @@
           "@type": "cr:Field",
           "@id": "shuffle-control-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from shuffle-control-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2094,7 +2557,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/model",
           "name": "model",
-          "description": "Field model from squad-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2109,7 +2572,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/task",
           "name": "task",
-          "description": "Field task from squad-results.",
+          "description": "Downstream task family: SQuAD-style RAG QA, MedQA selective prediction, or TruthfulQA hallucination.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2124,7 +2587,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/dataset",
           "name": "dataset",
-          "description": "Field dataset from squad-results.",
+          "description": "Hugging Face dataset identifier evaluated on this task.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2139,7 +2602,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from squad-results.",
+          "description": "Probe layer index sourced from the WikiText-trained main run.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2154,7 +2617,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/n_questions",
           "name": "n_questions",
-          "description": "Field n_questions from squad-results.",
+          "description": "Number of evaluation items scored on this task.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2169,7 +2632,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/n_errors",
           "name": "n_errors",
-          "description": "Field n_errors from squad-results.",
+          "description": "Number of evaluation items the model got wrong (denominator for exclusive-catch metrics).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2184,7 +2647,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/accuracy",
           "name": "accuracy",
-          "description": "Field accuracy from squad-results.",
+          "description": "Fraction of evaluation items the model got correct.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -2199,7 +2662,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/probe_seeds",
           "name": "probe_seeds",
-          "description": "Field probe_seeds from squad-results. (JSON-serialized)",
+          "description": "Probe-training seeds used for cross-seed averaging on the downstream cell. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2214,7 +2677,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from squad-results. (JSON-serialized)",
+          "description": "Per-task protocol parameters (prompt format, grading rules, target counts). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2259,7 +2722,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/summary",
           "name": "summary",
-          "description": "Field summary from squad-results. (JSON-serialized)",
+          "description": "Top-line metrics: AUC of accuracy-on-coverage curves, exclusive-catch counts, observer-vs-confidence comparison. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2289,7 +2752,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/standard_catches",
           "name": "standard_catches",
-          "description": "Field standard_catches from squad-results. (JSON-serialized)",
+          "description": "Confidence-based baseline catch counts at fixed flag rates (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2304,7 +2767,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/confident_hallucination_catches",
           "name": "confident_hallucination_catches",
-          "description": "Field confident_hallucination_catches from squad-results. (JSON-serialized)",
+          "description": "Observer-based catch counts on items the model answered confidently and incorrectly (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2319,7 +2782,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/confidence_threshold",
           "name": "confidence_threshold",
-          "description": "Field confidence_threshold from squad-results.",
+          "description": "Softmax threshold above which an answer is considered confident (TruthfulQA grading).",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -2334,7 +2797,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/grading",
           "name": "grading",
-          "description": "Field grading from squad-results.",
+          "description": "Grading protocol descriptor (e.g., MC1 single-correct format with normalized substring match).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2349,7 +2812,7 @@
           "@type": "cr:Field",
           "@id": "squad-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from squad-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2375,7 +2838,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/model",
           "name": "model",
-          "description": "Field model from truthfulqa-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2390,7 +2853,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/task",
           "name": "task",
-          "description": "Field task from truthfulqa-results.",
+          "description": "Downstream task family: SQuAD-style RAG QA, MedQA selective prediction, or TruthfulQA hallucination.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2405,7 +2868,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/dataset",
           "name": "dataset",
-          "description": "Field dataset from truthfulqa-results.",
+          "description": "Hugging Face dataset identifier evaluated on this task.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2420,7 +2883,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from truthfulqa-results.",
+          "description": "Probe layer index sourced from the WikiText-trained main run.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2435,7 +2898,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/n_questions",
           "name": "n_questions",
-          "description": "Field n_questions from truthfulqa-results.",
+          "description": "Number of evaluation items scored on this task.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2450,7 +2913,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/n_errors",
           "name": "n_errors",
-          "description": "Field n_errors from truthfulqa-results.",
+          "description": "Number of evaluation items the model got wrong (denominator for exclusive-catch metrics).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2465,7 +2928,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/accuracy",
           "name": "accuracy",
-          "description": "Field accuracy from truthfulqa-results.",
+          "description": "Fraction of evaluation items the model got correct.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -2480,7 +2943,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/probe_seeds",
           "name": "probe_seeds",
-          "description": "Field probe_seeds from truthfulqa-results. (JSON-serialized)",
+          "description": "Probe-training seeds used for cross-seed averaging on the downstream cell. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2495,7 +2958,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/protocol",
           "name": "protocol",
-          "description": "Field protocol from truthfulqa-results. (JSON-serialized)",
+          "description": "Per-task protocol parameters (prompt format, grading rules, target counts). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2540,7 +3003,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/summary",
           "name": "summary",
-          "description": "Field summary from truthfulqa-results. (JSON-serialized)",
+          "description": "Top-line metrics: AUC of accuracy-on-coverage curves, exclusive-catch counts, observer-vs-confidence comparison. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2570,7 +3033,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/standard_catches",
           "name": "standard_catches",
-          "description": "Field standard_catches from truthfulqa-results. (JSON-serialized)",
+          "description": "Confidence-based baseline catch counts at fixed flag rates (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2585,7 +3048,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/confident_hallucination_catches",
           "name": "confident_hallucination_catches",
-          "description": "Field confident_hallucination_catches from truthfulqa-results. (JSON-serialized)",
+          "description": "Observer-based catch counts on items the model answered confidently and incorrectly (TruthfulQA). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2600,7 +3063,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/confidence_threshold",
           "name": "confidence_threshold",
-          "description": "Field confidence_threshold from truthfulqa-results.",
+          "description": "Softmax threshold above which an answer is considered confident (TruthfulQA grading).",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -2615,7 +3078,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/grading",
           "name": "grading",
-          "description": "Field grading from truthfulqa-results.",
+          "description": "Grading protocol descriptor (e.g., MC1 single-correct format with normalized substring match).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2630,7 +3093,7 @@
           "@type": "cr:Field",
           "@id": "truthfulqa-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from truthfulqa-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2656,7 +3119,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/model",
           "name": "model",
-          "description": "Field model from width-sweep-results.",
+          "description": "Hugging Face model identifier (org/name).",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2671,7 +3134,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/n_params_b",
           "name": "n_params_b",
-          "description": "Field n_params_b from width-sweep-results.",
+          "description": "Parameter count in billions.",
           "dataType": "sc:Float",
           "source": {
             "fileSet": {
@@ -2686,7 +3149,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/hidden_dim",
           "name": "hidden_dim",
-          "description": "Field hidden_dim from width-sweep-results.",
+          "description": "Hidden dimension (model width).",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2701,7 +3164,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/peak_layer",
           "name": "peak_layer",
-          "description": "Field peak_layer from width-sweep-results.",
+          "description": "Mid-layer probe site under test.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2716,7 +3179,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/output_layer",
           "name": "output_layer",
-          "description": "Field output_layer from width-sweep-results.",
+          "description": "Output-side layer used for the controlled MLP predictor.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2731,7 +3194,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/widths",
           "name": "widths",
-          "description": "Field widths from width-sweep-results. (JSON-serialized)",
+          "description": "Sweep grid of output-side MLP hidden widths (e.g. 64, 128, 256, 512). (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2746,7 +3209,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/eval_seeds",
           "name": "eval_seeds",
-          "description": "Field eval_seeds from width-sweep-results. (JSON-serialized)",
+          "description": "Probe-training seeds used for cross-seed averaging. (JSON-serialized)",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {
@@ -2761,7 +3224,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/target_ex_per_dim",
           "name": "target_ex_per_dim",
-          "description": "Field target_ex_per_dim from width-sweep-results.",
+          "description": "Tokens-per-feature-dim ratio for the probe fit.",
           "dataType": "sc:Integer",
           "source": {
             "fileSet": {
@@ -2791,7 +3254,7 @@
           "@type": "cr:Field",
           "@id": "width-sweep-results-records/provenance",
           "name": "provenance",
-          "description": "Field provenance from width-sweep-results.",
+          "description": "Run-level reproducibility metadata: model SHA, generating script, timestamp, device.",
           "dataType": "sc:Text",
           "source": {
             "fileSet": {

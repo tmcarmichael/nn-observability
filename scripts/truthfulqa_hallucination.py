@@ -374,7 +374,12 @@ import datetime as _dt
 
 parser = argparse.ArgumentParser(description="TruthfulQA hallucination detection with observer probe.")
 parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="Hugging Face model ID")
-parser.add_argument("--peak-layer", type=int, default=14, help="Peak layer index (0-indexed)")
+parser.add_argument(
+    "--peak-layer",
+    type=int,
+    default=None,
+    help="Peak layer index (0-indexed). Default: read peak_layer_final from <slug>_main.json.",
+)
 parser.add_argument("--ex-dim", type=int, default=350, help="Probe training examples per hidden dim")
 parser.add_argument("--seeds", default="42,43,44", help="Comma-separated probe seeds")
 parser.add_argument(
@@ -424,6 +429,24 @@ if MODEL_ID not in HF_SLUG_MAP:
         "to its v2-convention slug before running this script for a new model."
     )
 HF_SLUG = HF_SLUG_MAP[MODEL_ID]
+
+# Resolve PEAK_LAYER from canonical main JSON when not passed explicitly.
+# The main protocol selects the layer; downstream tasks evaluate at that
+# same layer. Reading from <slug>_main.json eliminates the silent-bad-default
+# class of bug where downstream regen lands on a wrong layer.
+if PEAK_LAYER is None:
+    main_path = RESULTS_DIR / f"{HF_SLUG}_main.json"
+    if not main_path.is_file():
+        sys.exit(
+            f"--peak-layer not provided and {main_path} is missing. "
+            f"Run the main protocol via `just run-model {MODEL_ID}` first, "
+            f"or pass --peak-layer explicitly."
+        )
+    _main_data = json.loads(main_path.read_text())
+    PEAK_LAYER = _main_data.get("peak_layer_final") or _main_data.get("peak_layer")
+    if PEAK_LAYER is None:
+        sys.exit(f"{main_path}: missing peak_layer_final and peak_layer fields.")
+    print(f"  peak_layer auto-resolved from {main_path.name}: L{PEAK_LAYER}")
 
 OUT_PATH = _resolve_out(args.output or f"{HF_SLUG}_truthfulqa.json")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -503,13 +526,14 @@ for qi, q in enumerate(questions):
     answer_text = gen["answer_text"]
     correct = is_correct(answer_text, q["correct_answer"], q["incorrect_answers"])
 
+    # Source-text fields (question, answer, correct_answer, category) are
+    # not persisted. Persisting them would redistribute TruthfulQA content
+    # under MIT framing, contradicting the repository's NOTICE statement.
+    # Reproduction loads the dataset at the pinned revision in
+    # dataset_revisions.json.
     all_results.append(
         {
-            "question": q["question"],
-            "answer": answer_text,
-            "correct_answer": q["correct_answer"],
             "correct": correct,
-            "category": q["category"],
             "mean_observer": gen["mean_observer"],
             "mean_confidence": gen["mean_confidence"],
             "min_confidence": gen["min_confidence"],

@@ -275,3 +275,51 @@ def test_partial_spearman_matches_reference(probe_src, synthetic_data):
 
     assert r == pytest.approx(float(r_ref), abs=1e-12)
     assert p == pytest.approx(float(p_ref), abs=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Layer-consistency check: downstream peak_layer matches main JSON
+# ---------------------------------------------------------------------------
+
+import json  # noqa: E402
+
+DOWNSTREAM_SUFFIXES = ("_squad-rag.json", "_medqa.json", "_truthfulqa.json")
+
+
+def _slug_from_downstream(name: str) -> str:
+    for suf in DOWNSTREAM_SUFFIXES:
+        if name.endswith(suf):
+            return name[: -len(suf)]
+    raise ValueError(f"Not a downstream filename: {name}")
+
+
+def _downstream_files() -> list[Path]:
+    return sorted(p for p in (REPO_ROOT / "results").glob("*.json") if p.name.endswith(DOWNSTREAM_SUFFIXES))
+
+
+@pytest.mark.parametrize("downstream_path", _downstream_files(), ids=lambda p: p.name)
+def test_downstream_peak_matches_main(downstream_path: Path) -> None:
+    """Downstream JSON peak_layer == corresponding main JSON peak_layer_final.
+
+    Downstream tasks evaluate at the layer the main protocol selected for
+    that model. Producer scripts auto-resolve from `<slug>_main.json`. This
+    test catches drift either way: a downstream JSON that disagrees with its
+    main, or a future regen that lands on a different layer.
+    """
+    d = json.loads(downstream_path.read_text())
+    slug = _slug_from_downstream(downstream_path.name)
+    main_path = REPO_ROOT / "results" / f"{slug}_main.json"
+    assert main_path.is_file(), (
+        f"{main_path.name} missing for {downstream_path.name}; "
+        f"downstream evaluation requires a main JSON to source the layer."
+    )
+    main = json.loads(main_path.read_text())
+    main_peak = main.get("peak_layer_final") or main.get("peak_layer")
+    downstream_peak = d.get("peak_layer")
+    assert main_peak is not None, f"{main_path.name}: missing peak_layer_final and peak_layer fields."
+    assert downstream_peak is not None, f"{downstream_path.name}: missing peak_layer field."
+    assert main_peak == downstream_peak, (
+        f"Layer drift: {downstream_path.name} peak_layer={downstream_peak} "
+        f"but {main_path.name} peak_layer_final={main_peak}. "
+        f"Downstream regen used a different layer than the main protocol selected."
+    )
