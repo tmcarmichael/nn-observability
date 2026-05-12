@@ -6,7 +6,7 @@ This file documents the public datasets used in the paper [Architecture Determin
 
 ## Provenance
 
-This card documents the data state at `nn-observability` v5.0.0 / paper-adot v5.0.0 (Zenodo concept DOI [10.5281/zenodo.19435674](https://doi.org/10.5281/zenodo.19435674)). It regenerates alongside the dataset manifest in future versions; if you are reading a downstream copy, the in-tree version above is authoritative for the `nn-observability` tag you have checked out.
+This card documents the data state at `nn-observability` v5.1.0 / paper-adot v5.0.0 (Zenodo concept DOI [10.5281/zenodo.19435674](https://doi.org/10.5281/zenodo.19435674)). It regenerates alongside the dataset manifest in future versions; if you are reading a downstream copy, the in-tree version above is authoritative for the `nn-observability` tag you have checked out.
 
 Four artifacts already pin and verify the dataset references:
 

@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.8
+    rev: v0.15.12
     hooks:
       - id: ruff
         args: [--fix]
@@ -9,7 +9,7 @@ repos:
         files: '^(src|scripts|analysis|tests)/.*\.py$'
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: ['--maxkb=1000']

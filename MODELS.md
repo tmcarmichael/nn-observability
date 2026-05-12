@@ -6,12 +6,12 @@ This file documents the public transformer models evaluated in the paper [Archit
 
 ## Provenance
 
-This card documents the model state at `nn-observability` v5.0.0 / paper-adot v5.0.0 (Zenodo concept DOI [10.5281/zenodo.19435674](https://doi.org/10.5281/zenodo.19435674)).
+This card documents the model state at `nn-observability` v5.1.0 / paper-adot v5.0.0 (Zenodo concept DOI [10.5281/zenodo.19435674](https://doi.org/10.5281/zenodo.19435674)).
 
 Three artifacts already pin and verify the model references:
 
 - `results/model_revisions.json` carries the Hugging Face model id, source URL, and pinned commit hash for every evaluated model.
-- `results/manifest_verification/` carries dated reports of the model-revision verification pass against the Hugging Face API. Every entry is verified to exist at the pinned commit. The latest report at the v5.0.0 cutoff is dated 2026-05-09.
+- `results/manifest_verification/` carries dated reports of the model-revision verification pass against the Hugging Face API. Every entry is verified to exist at the pinned commit. The latest report at the v5.1.0 cutoff is dated 2026-05-12.
 - `DATA.md` is the companion documentation for the seven datasets plus The Pile (license, role in paper, subset and transforms, known limitations).
 
 For strict reproduction, `HF_HOME=$(mktemp -d)` isolates the run from any local cache so the pinned revision is the only one used.

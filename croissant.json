@@ -58,14 +58,14 @@
   ],
   "sdVersion": "1.1",
   "name": "nn-observability",
-  "description": "Architecture and training recipe determine whether activation monitoring can catch high-confidence transformer errors: training preserves a linearly readable signal in some configurations and erases it in others. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability.",
+  "description": "Architecture and training recipe determine whether activation monitoring can catch confident transformer errors. In some configurations training preserves a decision-quality signal that output confidence does not expose; in others it erases the signal while perplexity continues to improve. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability.",
   "url": "https://github.com/tmcarmichael/nn-observability",
   "documentation": [
     "https://github.com/tmcarmichael/nn-observability/blob/main/DATA.md",
     "https://github.com/tmcarmichael/nn-observability/blob/main/MODELS.md"
   ],
-  "version": "5.0.0",
-  "datePublished": "2026-05-10",
+  "version": "5.1.0",
+  "datePublished": "2026-05-11",
   "license": "https://opensource.org/licenses/MIT",
   "rai:dataCollection": "This repository is a consumer of seven public Hugging Face datasets, not a creator. No data collection occurred here. Each dataset is loaded at a pinned revision (results/dataset_revisions.json) and used as the source for tokenized text inputs and downstream-task items. Upstream collection methods are documented on each dataset's Hugging Face card and source publication; see DATA.md for per-dataset role and reference links.",
   "rai:dataCollectionType": "https://schema.org/Dataset",
@@ -102,10 +102,10 @@
       "@type": "cr:FileObject",
       "@id": "nn-observability-archive",
       "name": "nn-observability-archive",
-      "description": "Source repository at v5.0.0. The sha256 is a merkle hash over (filename, sha256) pairs of every distribution file under results/, computed by scripts/generate_croissant.py; rerun the generator on a clean clone to verify.",
-      "contentUrl": "https://github.com/tmcarmichael/nn-observability/archive/refs/tags/v5.0.0.tar.gz",
+      "description": "Source repository at v5.1.0. The sha256 is a merkle hash over (filename, sha256) pairs of every distribution file under results/, computed by scripts/generate_croissant.py; rerun the generator on a clean clone to verify.",
+      "contentUrl": "https://github.com/tmcarmichael/nn-observability/archive/refs/tags/v5.1.0.tar.gz",
       "encodingFormat": "application/x-tar",
-      "sha256": "1ad90ab36518a3e5ff6971996e6202f68254e0a5ade70ec866d5c9048745ded1"
+      "sha256": "3b0f220e0bf06615dceab2803556db2719dae98f11804b911b966c1683a07480"
     },
     {
       "@type": "cr:FileObject",
@@ -139,9 +139,9 @@
       "containedIn": {
         "@id": "nn-observability-archive"
       },
-      "contentUrl": "results/manifest_verification/2026-05-09.json",
+      "contentUrl": "results/manifest_verification/2026-05-12.json",
       "encodingFormat": "application/json",
-      "sha256": "2d075184d804222320090319558554c89291d71d1aad05c7ad3f530390781c39"
+      "sha256": "c353f0bfe42cdf8831dfbc9d662006cbe94e48c185272f2cc852d0eaab3cd093"
     },
     {
       "@type": "cr:FileSet",

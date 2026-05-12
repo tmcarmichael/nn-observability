@@ -1,7 +1,7 @@
 [project]
 name = "nn-observability"
-version = "5.0.0"
-description = "Architecture and training recipe determine whether activation monitoring can catch high-confidence transformer errors: training preserves a linearly readable signal in some configurations and erases it in others. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability."
+version = "5.1.0"
+description = "Architecture and training recipe determine whether activation monitoring can catch confident transformer errors. In some configurations training preserves a decision-quality signal that output confidence does not expose; in others it erases the signal while perplexity continues to improve. Code and data for 33 evaluated transformer checkpoints across 7 families (26 primary plus 7 instruct variants), establishing signal engineering as a training-time design axis alongside loss and capability."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "Thomas Carmichael"}]

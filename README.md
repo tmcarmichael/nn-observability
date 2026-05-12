@@ -14,11 +14,11 @@ A frozen linear probe, one dot product per token, reads this signal with no fine
 
 ## Observability collapse
 
-**Whether this signal exists in a given model is determined before deployment.** Under Pythia's controlled training, both matched-width configurations form the signal at the earliest measured checkpoint. Training then erases it in the (24L, 16H) class while perplexity improves monotonically in both configurations through the collapse. Architecture does not prevent the signal from appearing. It determines whether training preserves or erases it.
+**Whether this signal exists in a given model is determined before deployment.** Under Pythia's controlled training, both matched-width configurations form the signal at the earliest measured checkpoint. Training then erases it in the (24-layer, 16-head) class while perplexity improves monotonically in both configurations through the collapse. Architecture does not prevent the signal from appearing. It determines whether training preserves or erases it.
 
 The result is **observability collapse**: the decision-quality signal that neither confidence nor output-layer predictors recover falls to the detection floor at every measured layer. The collapse survives the standard escape hatches: it is not layer choice, probe nonlinearity, underpowered training, or final-layer predictor capacity. Six other Pythia configurations stay healthy across a 170x parameter range.
 
-The pattern replicates across families and training recipes. At matched 3B scale, Qwen and Llama differ by 2.9x with non-overlapping seed distributions. Mistral 7B preserves the signal where Llama 3.1 8B collapses despite similar architecture. The collapse map changes across recipes, but the phenomenon persists. Family membership explains 91% of variance at p = 0.003.
+The pattern replicates across families and training recipes. At matched 3B scale, Qwen and Llama differ by 2.9x with non-overlapping seed distributions. Mistral 7B preserves the signal where Llama 3.1 8B collapses despite similar architecture. The collapse map changes across recipes, but the phenomenon persists. Family membership explains 56.8% of variance (permutation test on model-mean partial correlation, p = 0.053).
 
 ## Implications
 
